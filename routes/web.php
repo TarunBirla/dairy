@@ -33,6 +33,7 @@ use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\DealerController;
 use App\Http\Controllers\DealerPaymentController;
 use App\Http\Controllers\FarmerAdvanceController;
+use App\Http\Controllers\FarmerDeductionController;
 
 // Public Website Pages
 Route::get('/', [WebsiteController::class, 'home'])->name('home');
@@ -162,6 +163,17 @@ Route::middleware('auth')->group(function () {
     });
     Route::get('/advance-mgmt', function() {
         return redirect()->route('advances.index');
+    });
+
+    // Farmer Deductions (Matching Reference Media)
+    Route::prefix('deductions')->name('deductions.')->group(function () {
+        Route::get('/', [FarmerDeductionController::class, 'index'])->name('index');
+        Route::post('/', [FarmerDeductionController::class, 'store'])->name('store');
+        Route::put('/{deduction}', [FarmerDeductionController::class, 'update'])->name('update');
+        Route::delete('/{deduction}', [FarmerDeductionController::class, 'destroy'])->name('destroy');
+        Route::get('/farmer/{farmer}', [FarmerDeductionController::class, 'farmerDeductions'])->name('farmer');
+        Route::post('/import', [FarmerDeductionController::class, 'import'])->name('import');
+        Route::get('/sample-template', [FarmerDeductionController::class, 'sampleTemplate'])->name('sample-template');
     });
 
     // Milk Procurement & Collection
