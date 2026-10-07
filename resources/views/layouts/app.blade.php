@@ -236,6 +236,10 @@
                         <i data-lucide="minus-circle" class="w-4 h-4 {{ request()->routeIs('deductions.*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
                         <span>Deductions</span>
                     </a>
+                    <a href="{{ route('farmer-invoices.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('farmer-invoices.*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                        <i data-lucide="file-text" class="w-4 h-4 {{ request()->routeIs('farmer-invoices.*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
+                        <span>Farmer Invoices</span>
+                    </a>
                 </div>
             </div>
 

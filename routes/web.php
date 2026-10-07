@@ -34,6 +34,7 @@ use App\Http\Controllers\DealerController;
 use App\Http\Controllers\DealerPaymentController;
 use App\Http\Controllers\FarmerAdvanceController;
 use App\Http\Controllers\FarmerDeductionController;
+use App\Http\Controllers\FarmerInvoiceController;
 
 // Public Website Pages
 Route::get('/', [WebsiteController::class, 'home'])->name('home');
@@ -174,6 +175,22 @@ Route::middleware('auth')->group(function () {
         Route::get('/farmer/{farmer}', [FarmerDeductionController::class, 'farmerDeductions'])->name('farmer');
         Route::post('/import', [FarmerDeductionController::class, 'import'])->name('import');
         Route::get('/sample-template', [FarmerDeductionController::class, 'sampleTemplate'])->name('sample-template');
+    });
+
+    // Farmer Invoices (Matching Reference Media)
+    Route::prefix('farmer-invoices')->name('farmer-invoices.')->group(function () {
+        Route::get('/', [FarmerInvoiceController::class, 'index'])->name('index');
+        Route::post('/generate', [FarmerInvoiceController::class, 'generate'])->name('generate');
+        Route::get('/preview/{invoice}', [FarmerInvoiceController::class, 'previewData'])->name('preview');
+        Route::get('/print/{invoice}', [FarmerInvoiceController::class, 'print'])->name('print');
+        Route::get('/bank-payment-print', [FarmerInvoiceController::class, 'bankPaymentPrint'])->name('bank-payment-print');
+        Route::get('/export-excel', [FarmerInvoiceController::class, 'exportExcel'])->name('export-excel');
+        Route::post('/bulk-delete', [FarmerInvoiceController::class, 'bulkDelete'])->name('bulk-delete');
+        Route::get('/{invoice}', [FarmerInvoiceController::class, 'show'])->name('show');
+        Route::delete('/{invoice}', [FarmerInvoiceController::class, 'destroy'])->name('destroy');
+    });
+    Route::get('/invoice', function() {
+        return redirect()->route('farmer-invoices.index');
     });
 
     // Milk Procurement & Collection

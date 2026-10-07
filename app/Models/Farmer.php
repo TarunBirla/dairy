@@ -111,6 +111,11 @@ class Farmer extends Model
         return $this->hasMany(FarmerDeduction::class);
     }
 
+    public function farmerInvoices()
+    {
+        return $this->hasMany(FarmerInvoice::class);
+    }
+
     public function loans()
     {
         return $this->hasMany(FarmerLoan::class);
