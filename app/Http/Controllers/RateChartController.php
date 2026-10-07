@@ -53,9 +53,30 @@ class RateChartController extends Controller
 
         // Data for Rate Correction modal and Assign modal
         $activeRateCharts = RateChart::where('status', 'active')->orderBy('name')->get();
-        $farmers = Farmer::where('status', 'active')->orderBy('name')->get(['id', 'farmer_code', 'name', 'name_hi', 'animal_type', 'rate_chart_id']);
-        $customers = Customer::where('status', 'active')->orderBy('name')->get(['id', 'customer_code', 'name', 'rate_chart_id']);
-        $collectionCenters = CollectionCenter::where('status', 'active')->orderBy('name')->get(['id', 'code', 'name', 'rate_chart_id']);
+
+        $farmerColumns = ['id', 'farmer_code', 'name'];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('farmers', 'name_hi')) {
+            $farmerColumns[] = 'name_hi';
+        }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('farmers', 'animal_type')) {
+            $farmerColumns[] = 'animal_type';
+        }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('farmers', 'rate_chart_id')) {
+            $farmerColumns[] = 'rate_chart_id';
+        }
+        $farmers = Farmer::where('status', 'active')->orderBy('name')->get($farmerColumns);
+
+        $customerColumns = ['id', 'customer_code', 'name'];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('customers', 'rate_chart_id')) {
+            $customerColumns[] = 'rate_chart_id';
+        }
+        $customers = Customer::where('status', 'active')->orderBy('name')->get($customerColumns);
+
+        $centerColumns = ['id', 'code', 'name'];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('collection_centers', 'rate_chart_id')) {
+            $centerColumns[] = 'rate_chart_id';
+        }
+        $collectionCenters = CollectionCenter::where('status', 'active')->orderBy('name')->get($centerColumns);
 
         return view('rates.index', compact(
             'rateCharts',
