@@ -95,6 +95,12 @@
                 </tbody>
             </table>
         </div>
+
+        @if($recentCashbooks->hasPages())
+            <div class="p-4 border-t border-slate-100">
+                {{ $recentCashbooks->links() }}
+            </div>
+        @endif
     </div>
 
 </div>

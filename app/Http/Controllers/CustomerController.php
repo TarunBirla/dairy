@@ -44,8 +44,10 @@ class CustomerController extends Controller
         $activeCustomers = Customer::where('status', 'active')->count();
         $totalDues = Customer::sum('current_balance');
         $routes = DeliveryRoute::where('status', 'active')->get();
+        $branches = Branch::where('status', 'active')->get();
+        $nextCode = 'CUST-' . (Customer::max('id') + 201);
 
-        return view('customers.index', compact('customers', 'totalCustomers', 'activeCustomers', 'totalDues', 'routes'));
+        return view('customers.index', compact('customers', 'totalCustomers', 'activeCustomers', 'totalDues', 'routes', 'branches', 'nextCode'));
     }
 
     public function create()
@@ -70,7 +72,10 @@ class CustomerController extends Controller
             'category' => 'required|in:household,retail,hotel,shop,institution',
             'credit_limit' => 'nullable|numeric|min:0',
             'delivery_instructions' => 'nullable|string',
+            'status' => 'nullable|in:active,paused,inactive,blocked',
         ]);
+
+        $validated['status'] = $validated['status'] ?? 'active';
 
         $customer = Customer::create($validated);
 
@@ -93,7 +98,7 @@ class CustomerController extends Controller
 
         AuditLog::log('Created Customer', 'Customer', $customer->id);
 
-        return redirect()->route('customers.show', $customer)->with('success', "Customer {$customer->name} added successfully!");
+        return redirect()->route('customers.index')->with('success', "Customer {$customer->name} ({$customer->customer_code}) registered successfully!");
     }
 
     public function show(Customer $customer)
@@ -174,6 +179,10 @@ class CustomerController extends Controller
         }
 
         AuditLog::log("Updated Customer Section: {$tab}", 'Customer', $customer->id);
+
+        if ($request->has('from_index') && $request->from_index) {
+            return redirect()->route('customers.index')->with('success', "Customer {$customer->name} updated successfully.");
+        }
 
         return redirect()->route('customers.edit', ['customer' => $customer, 'tab' => $tab])
             ->with('success', 'Changes saved successfully.');

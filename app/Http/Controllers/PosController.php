@@ -148,7 +148,7 @@ class PosController extends Controller
         $today = Carbon::today();
         $cashbook = CounterCashbook::whereDate('entry_date', $today)->first();
         $counters = PosCounter::all();
-        $recentCashbooks = CounterCashbook::latest()->take(10)->get();
+        $recentCashbooks = CounterCashbook::latest()->paginate(15);
 
         return view('pos.cashbook', compact('cashbook', 'counters', 'recentCashbooks', 'today'));
     }

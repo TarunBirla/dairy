@@ -107,6 +107,12 @@
                 </tbody>
             </table>
         </div>
+
+        @if($subscriptions->hasPages())
+            <div class="p-4 border-t border-slate-100">
+                {{ $subscriptions->links() }}
+            </div>
+        @endif
     </div>
 
 </div>

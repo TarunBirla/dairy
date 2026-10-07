@@ -72,6 +72,12 @@
                 </tbody>
             </table>
         </div>
+
+        @if($bookings->hasPages())
+            <div class="p-4 border-t border-slate-100">
+                {{ $bookings->links() }}
+            </div>
+        @endif
     </div>
 
     <!-- Modal -->

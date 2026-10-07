@@ -75,6 +75,12 @@
                 </tbody>
             </table>
         </div>
+
+        @if($tickets->hasPages())
+            <div class="p-4 border-t border-slate-100">
+                {{ $tickets->links() }}
+            </div>
+        @endif
     </div>
 
 </div>

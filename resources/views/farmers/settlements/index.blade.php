@@ -82,6 +82,12 @@
                 </tbody>
             </table>
         </div>
+
+        @if($settlements->hasPages())
+            <div class="p-4 border-t border-slate-100">
+                {{ $settlements->links() }}
+            </div>
+        @endif
     </div>
 
 </div>

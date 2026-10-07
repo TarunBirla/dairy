@@ -77,6 +77,12 @@
                 </tbody>
             </table>
         </div>
+
+        @if($dispatches->hasPages())
+            <div class="p-4 border-t border-slate-100">
+                {{ $dispatches->links() }}
+            </div>
+        @endif
     </div>
 
     <!-- Modal -->
