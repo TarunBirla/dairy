@@ -589,12 +589,12 @@
                     if ($this.hasClass('select2-hidden-accessible')) {
                         $this.select2('destroy');
                     }
-                    var modalParent = $this.closest('[role="dialog"], .modal-dialog, .modal-box, .fixed');
-                    var placeholderText = $this.attr('placeholder') || $this.find('option[value=""]').first().text() || 'Select an option';
+                    var placeholderText = $this.attr('placeholder') || $this.data('placeholder') || ($this.find('option[value=""]').first().text().trim() || 'Select an option');
+                    var hasEmptyOption = $this.find('option[value=""]').length > 0;
                     var config = Object.assign({
                         width: '100%',
                         placeholder: placeholderText,
-                        allowClear: !$this.prop('required') && $this.find('option[value=""]').length > 0,
+                        allowClear: !$this.prop('required') && hasEmptyOption,
                     }, options || {});
 
                     if (modalParent.length) {

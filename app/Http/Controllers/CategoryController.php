@@ -10,8 +10,19 @@ use App\Models\AuditLog;
 
 class CategoryController extends Controller
 {
+    private function ensureDefaultCategories(): void
+    {
+        if (Category::count() === 0) {
+            Category::firstOrCreate(['name' => 'Fresh Dairy'], ['slug' => 'fresh-dairy', 'description' => 'Daily farm-fresh cow and buffalo milk products']);
+            Category::firstOrCreate(['name' => 'Traditional Sweets & Mawa'], ['slug' => 'sweets-mawa', 'description' => 'Pure khoya, mawa and dairy sweets']);
+            Category::firstOrCreate(['name' => 'Cattle Feed & Supplements'], ['slug' => 'cattle-feed', 'description' => 'Nutritional feed for dairy cattle']);
+        }
+    }
+
     public function index(Request $request)
     {
+        $this->ensureDefaultCategories();
+
         $query = Category::withCount('products');
 
         if ($request->filled('search')) {
@@ -102,6 +113,27 @@ class CategoryController extends Controller
             'success' => true,
             'category' => $category,
             'message' => 'Category created successfully'
+        ]);
+    }
+
+    public function listAjax(Request $request)
+    {
+        $this->ensureDefaultCategories();
+
+        $query = Category::query();
+        if ($request->filled('q')) {
+            $query->where('name', 'like', "%{$request->q}%");
+        }
+        $categories = $query->orderBy('name', 'asc')->get();
+
+        return response()->json([
+            'success' => true,
+            'results' => $categories->map(function ($cat) {
+                return [
+                    'id' => $cat->id,
+                    'text' => $cat->name
+                ];
+            })
         ]);
     }
 }

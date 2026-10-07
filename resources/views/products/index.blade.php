@@ -580,7 +580,7 @@
             },
 
             initModalSelect2() {
-                this.$nextTick(() => {
+                setTimeout(() => {
                     if (window.lucide) window.lucide.createIcons();
                     
                     if (window.jQuery && jQuery.fn.select2) {
@@ -588,18 +588,42 @@
 
                         // Initialize Category Select2
                         const $catSelect = $('#product_category_select');
-                        if ($catSelect.length && !$catSelect.hasClass('select2-hidden-accessible')) {
+                        if ($catSelect.length) {
+                            if ($catSelect.hasClass('select2-hidden-accessible')) {
+                                $catSelect.select2('destroy');
+                            }
+                            
                             $catSelect.select2({
                                 width: '100%',
                                 dropdownParent: $modalParent,
                                 placeholder: 'Select Category',
                                 allowClear: true
                             });
+
+                            // If options list is empty or only placeholder, fetch dynamically from server!
+                            if ($catSelect.find('option').length <= 1) {
+                                fetch('{{ route('products.categories.ajax.get') }}')
+                                    .then(r => r.json())
+                                    .then(res => {
+                                        if (res.results && res.results.length) {
+                                            res.results.forEach(item => {
+                                                if ($catSelect.find("option[value='" + item.id + "']").length === 0) {
+                                                    $catSelect.append(new Option(item.text, item.id, false, false));
+                                                }
+                                            });
+                                            $catSelect.trigger('change.select2');
+                                        }
+                                    })
+                                    .catch(e => console.error('Categories load error:', e));
+                            }
                         }
 
                         // Initialize Unit Select2
                         const $unitSelect = $('#product_unit_select');
-                        if ($unitSelect.length && !$unitSelect.hasClass('select2-hidden-accessible')) {
+                        if ($unitSelect.length) {
+                            if ($unitSelect.hasClass('select2-hidden-accessible')) {
+                                $unitSelect.select2('destroy');
+                            }
                             $unitSelect.select2({
                                 width: '100%',
                                 dropdownParent: $modalParent,
@@ -607,7 +631,7 @@
                             });
                         }
                     }
-                });
+                }, 100);
             },
 
             openCategorySubmodal() {
