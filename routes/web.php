@@ -146,6 +146,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [MilkCollectionController::class, 'index'])->name('index');
         Route::get('/create', [MilkCollectionController::class, 'create'])->name('create');
         Route::post('/', [MilkCollectionController::class, 'store'])->name('store');
+        Route::put('/{collection}', [MilkCollectionController::class, 'update'])->name('update');
+        Route::delete('/{collection}', [MilkCollectionController::class, 'destroy'])->name('destroy');
         Route::post('/calc-rate', [MilkCollectionController::class, 'calculateRate'])->name('calc-rate');
         Route::get('/slip/{collection}', [MilkCollectionController::class, 'slip'])->name('slip');
     });

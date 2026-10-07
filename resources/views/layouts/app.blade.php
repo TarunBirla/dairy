@@ -206,7 +206,9 @@
             <div class="menu-group">
                 <p class="px-2 pb-1 text-[10px] font-bold tracking-wider uppercase text-slate-400">Procurement & Farmers</p>
                 <div class="space-y-0.5">
-                    <a href="{{ route('collections.create') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('collections.create') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                    <a href="{{ route('collections.index', ['open_create' => 1]) }}" 
+                       @if(request()->routeIs('collections.index')) @click.prevent="window.dispatchEvent(new CustomEvent('open-collection-modal'))" @endif
+                       class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ (request('open_create') || request()->routeIs('collections.create')) ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                         <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-600"></i>
                         <span>New Milk Collection</span>
                     </a>
