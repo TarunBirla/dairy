@@ -234,10 +234,10 @@
                 <p class="px-2 pb-1 text-[10px] font-bold tracking-wider uppercase text-slate-400">Products & Finance</p>
                 <div class="space-y-0.5">
                     <!-- Product Dropdown -->
-                    <div x-data="{ open: {{ (request()->routeIs('products.*') || request()->routeIs('purchases.*') || request()->routeIs('inventory.*') || request()->routeIs('pos.history')) ? 'true' : 'false' }} }" class="space-y-0.5">
-                        <button type="button" @click="open = !open" class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition {{ (request()->routeIs('products.*') || request()->routeIs('purchases.*') || request()->routeIs('inventory.*')) ? 'bg-emerald-50/70 text-emerald-800 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                    <div x-data="{ open: {{ (request()->routeIs('products.*') || request()->routeIs('purchases.*') || request()->routeIs('product-sales.*') || request()->routeIs('inventory.*') || request()->routeIs('pos.history')) ? 'true' : 'false' }} }" class="space-y-0.5">
+                        <button type="button" @click="open = !open" class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition {{ (request()->routeIs('products.*') || request()->routeIs('purchases.*') || request()->routeIs('product-sales.*') || request()->routeIs('inventory.*')) ? 'bg-emerald-50/70 text-emerald-800 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                             <div class="flex items-center gap-2.5">
-                                <i data-lucide="boxes" class="w-4 h-4 {{ (request()->routeIs('products.*') || request()->routeIs('purchases.*') || request()->routeIs('inventory.*')) ? 'text-emerald-600' : 'text-slate-400' }}"></i>
+                                <i data-lucide="boxes" class="w-4 h-4 {{ (request()->routeIs('products.*') || request()->routeIs('purchases.*') || request()->routeIs('product-sales.*') || request()->routeIs('inventory.*')) ? 'text-emerald-600' : 'text-slate-400' }}"></i>
                                 <span>Products</span>
                             </div>
                             <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180 text-emerald-600' : ''"></i>
@@ -269,8 +269,8 @@
                                 <span class="text-[9px] px-1.5 py-0.2 bg-emerald-50 text-emerald-600 font-semibold rounded">Purchase</span>
                             </a>
 
-                            <!-- Sales Product (Sales Outward & History) -->
-                            <a href="{{ route('inventory.index', ['type' => 'outward']) }}" class="flex items-center justify-between px-2.5 py-1.5 rounded-md transition text-[11px] {{ (request()->routeIs('inventory.index') && request('type') == 'outward') ? 'text-emerald-700 font-bold bg-emerald-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
+                            <!-- Sales Product (Sales to Farmers & Outward) -->
+                            <a href="{{ route('product-sales.index') }}" class="flex items-center justify-between px-2.5 py-1.5 rounded-md transition text-[11px] {{ request()->routeIs('product-sales.*') ? 'text-emerald-700 font-bold bg-emerald-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
                                 <span>Sales Product</span>
                                 <span class="text-[9px] px-1.5 py-0.2 bg-sky-50 text-sky-600 font-semibold rounded">Outward</span>
                             </a>

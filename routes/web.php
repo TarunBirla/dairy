@@ -25,6 +25,7 @@ use App\Http\Controllers\ProductBookingController;
 use App\Http\Controllers\SmsController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\ProductSaleController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SupportTicketController;
@@ -217,6 +218,10 @@ Route::middleware('auth')->group(function () {
     Route::resource('purchases', PurchaseController::class);
     Route::get('purchases/{purchase}/print', [PurchaseController::class, 'printSlip'])->name('purchases.print');
     Route::post('purchases/dealers/quick-create', [PurchaseController::class, 'quickCreateDealer'])->name('purchases.dealers.quick-create');
+
+    // Sales Products (Product Sales to Farmers)
+    Route::resource('product-sales', ProductSaleController::class);
+    Route::get('product-sales/{product_sale}/print', [ProductSaleController::class, 'printSlip'])->name('product-sales.print');
 
     // Inventory Ledger & Bottle Management
     Route::prefix('inventory')->name('inventory.')->group(function () {
