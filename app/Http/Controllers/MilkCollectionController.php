@@ -124,8 +124,14 @@ class MilkCollectionController extends Controller
             $rate = (float) $farmer->custom_rate_override;
             $chartName = "Custom Farmer Override (₹{$rate})";
         } else {
-            $chart = RateChart::where('milk_type', $milkType)->where('status', 'active')->first()
-                     ?? RateChart::where('is_default', true)->first();
+            $chart = null;
+            if ($farmer && $farmer->rate_chart_id) {
+                $chart = RateChart::where('id', $farmer->rate_chart_id)->where('status', 'active')->first();
+            }
+            if (!$chart) {
+                $chart = RateChart::where('milk_type', $milkType)->where('status', 'active')->first()
+                         ?? RateChart::where('is_default', true)->first();
+            }
             if ($chart) {
                 $rate = $chart->calculateRate($fat, $snf);
                 $chartName = $chart->name . " (₹" . number_format($rate, 2) . ")";
@@ -173,8 +179,14 @@ class MilkCollectionController extends Controller
             $appliedRate = (float) $validated['applied_rate'];
             $calcRate = $appliedRate;
         } else {
-            $chart = RateChart::where('milk_type', $validated['milk_type'])->where('status', 'active')->first()
-                     ?? RateChart::where('is_default', true)->first();
+            $chart = null;
+            if ($farmer && $farmer->rate_chart_id) {
+                $chart = RateChart::where('id', $farmer->rate_chart_id)->where('status', 'active')->first();
+            }
+            if (!$chart) {
+                $chart = RateChart::where('milk_type', $validated['milk_type'])->where('status', 'active')->first()
+                         ?? RateChart::where('is_default', true)->first();
+            }
             $calcRate = $chart ? $chart->calculateRate($validated['fat'], $validated['snf']) : 40.0;
             $appliedRate = $farmer->custom_rate_override ? (float) $farmer->custom_rate_override : $calcRate;
         }
@@ -280,8 +292,14 @@ class MilkCollectionController extends Controller
             $appliedRate = (float) $validated['applied_rate'];
             $calcRate = $appliedRate;
         } else {
-            $chart = RateChart::where('milk_type', $validated['milk_type'])->where('status', 'active')->first()
-                     ?? RateChart::where('is_default', true)->first();
+            $chart = null;
+            if ($newFarmer && $newFarmer->rate_chart_id) {
+                $chart = RateChart::where('id', $newFarmer->rate_chart_id)->where('status', 'active')->first();
+            }
+            if (!$chart) {
+                $chart = RateChart::where('milk_type', $validated['milk_type'])->where('status', 'active')->first()
+                         ?? RateChart::where('is_default', true)->first();
+            }
             $calcRate = $chart ? $chart->calculateRate($validated['fat'], $validated['snf']) : 40.0;
             $appliedRate = $newFarmer->custom_rate_override ? (float) $newFarmer->custom_rate_override : $calcRate;
         }

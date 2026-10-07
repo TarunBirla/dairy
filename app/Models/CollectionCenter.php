@@ -18,8 +18,14 @@ class CollectionCenter extends Model
         'morning_shift_time',
         'evening_shift_time',
         'operator_id',
+        'rate_chart_id',
         'status',
     ];
+
+    public function rateChart()
+    {
+        return $this->belongsTo(RateChart::class);
+    }
 
     public function branch()
     {

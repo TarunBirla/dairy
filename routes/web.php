@@ -175,8 +175,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/slip/{collection}', [MilkCollectionController::class, 'slip'])->name('slip');
     });
 
-    // Rate Charts
-    Route::resource('rates', RateChartController::class)->except(['show', 'destroy']);
+    // Rate Charts & Rate Correction
+    Route::post('rates/apply-correction', [RateChartController::class, 'applyCorrection'])->name('rates.apply-correction');
+    Route::post('rates/{rate}/assign', [RateChartController::class, 'assign'])->name('rates.assign');
+    Route::resource('rates', RateChartController::class)->except(['show']);
 
     // Farmer Settlements
     Route::prefix('settlements')->name('settlements.')->group(function () {

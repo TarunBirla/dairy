@@ -25,8 +25,14 @@ class Customer extends Model
         'current_balance',
         'delivery_sequence',
         'delivery_instructions',
+        'rate_chart_id',
         'status',
     ];
+
+    public function rateChart()
+    {
+        return $this->belongsTo(RateChart::class);
+    }
 
     protected $casts = [
         'credit_limit' => 'decimal:2',
