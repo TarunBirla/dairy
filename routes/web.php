@@ -106,6 +106,16 @@ Route::match(['get', 'post'], '/setup-database', function (\Illuminate\Http\Requ
 Route::get('/install-db', function () {
     return redirect()->route('setup.database', ['run' => 1]);
 });
+Route::get('/clear-cache', function () {
+    \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+    \Illuminate\Support\Facades\Artisan::call('view:clear');
+    \Illuminate\Support\Facades\Artisan::call('route:clear');
+    \Illuminate\Support\Facades\Artisan::call('config:clear');
+    if (function_exists('opcache_reset')) {
+        @opcache_reset();
+    }
+    return redirect()->route('products.index')->with('success', 'All caches & OPcache cleared successfully!');
+});
 
 
 // Authenticated Application Routes
