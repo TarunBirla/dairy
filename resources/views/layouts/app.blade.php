@@ -228,6 +228,10 @@
                         <i data-lucide="receipt" class="w-4 h-4 text-slate-400"></i>
                         <span>Farmer Settlements</span>
                     </a>
+                    <a href="{{ route('advances.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('advances.*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                        <i data-lucide="hand-coins" class="w-4 h-4 {{ request()->routeIs('advances.*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
+                        <span>Advance & Loans</span>
+                    </a>
                 </div>
             </div>
 

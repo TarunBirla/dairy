@@ -32,6 +32,7 @@ use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\DealerController;
 use App\Http\Controllers\DealerPaymentController;
+use App\Http\Controllers\FarmerAdvanceController;
 
 // Public Website Pages
 Route::get('/', [WebsiteController::class, 'home'])->name('home');
@@ -144,6 +145,23 @@ Route::middleware('auth')->group(function () {
         Route::put('/{farmer}', [FarmerController::class, 'update'])->name('update');
         Route::delete('/{farmer}', [FarmerController::class, 'destroy'])->name('destroy');
         Route::post('/{farmer}/advance', [FarmerController::class, 'storeAdvance'])->name('advance.store');
+    });
+
+    // Farmer Advances & Loan Management (Matching Reference Media)
+    Route::prefix('advances')->name('advances.')->group(function () {
+        Route::get('/', [FarmerAdvanceController::class, 'index'])->name('index');
+        Route::post('/', [FarmerAdvanceController::class, 'store'])->name('store');
+        Route::put('/{advance}', [FarmerAdvanceController::class, 'update'])->name('update');
+        Route::delete('/{advance}', [FarmerAdvanceController::class, 'destroy'])->name('destroy');
+        Route::post('/receive', [FarmerAdvanceController::class, 'receive'])->name('receive');
+        Route::get('/ledger/{farmer}', [FarmerAdvanceController::class, 'ledger'])->name('ledger');
+        Route::get('/ledger/{farmer}/print', [FarmerAdvanceController::class, 'printLedger'])->name('ledger.print');
+        Route::get('/print', [FarmerAdvanceController::class, 'printList'])->name('print');
+        Route::post('/import', [FarmerAdvanceController::class, 'import'])->name('import');
+        Route::get('/sample-template', [FarmerAdvanceController::class, 'sampleTemplate'])->name('sample-template');
+    });
+    Route::get('/advance-mgmt', function() {
+        return redirect()->route('advances.index');
     });
 
     // Milk Procurement & Collection
