@@ -5,9 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login | {{ \App\Models\SystemSetting::get('dairy_name', 'Gopal Dairy') }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ["'Plus Jakarta Sans'", "sans-serif"],
+                    },
+                    fontWeight: {
+                        extrabold: '700',
+                        black: '700',
+                    },
+                    colors: {
+                        brand: {
+                            50:  '#eef4ff',
+                            100: '#dbe8ff',
+                            200: '#b8d0ff',
+                            500: '#002e79',
+                            600: '#002765',
+                            700: '#001f52',
+                            800: '#00183f',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Plus Jakarta Sans', sans-serif !important;
+        }
+        .font-black, .font-extrabold {
+            font-weight: 700 !important;
+        }
+    </style>
 </head>
 <body class="bg-[#F4F6FC] text-slate-800 antialiased min-h-screen flex items-center justify-center p-4">
 

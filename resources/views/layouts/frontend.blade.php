@@ -10,15 +10,44 @@
         tailwind.config = {
             theme: {
                 extend: {
+                    fontFamily: {
+                        sans: ["'Plus Jakarta Sans'", "sans-serif"],
+                    },
+                    fontWeight: {
+                        extrabold: '700',
+                        black: '700',
+                    },
                     colors: {
+                        brand: {
+                            50:  '#eef4ff',
+                            100: '#dbe8ff',
+                            200: '#b8d0ff',
+                            500: '#002e79',
+                            600: '#002765',
+                            700: '#001f52',
+                            800: '#00183f',
+                        },
+                        emerald: {
+                            50:  '#eef4ff',
+                            100: '#dbe8ff',
+                            200: '#b8d0ff',
+                            300: '#8ab4f8',
+                            400: '#4285f4',
+                            500: '#002e79',
+                            600: '#002765',
+                            700: '#001f52',
+                            800: '#00183f',
+                            900: '#00112c',
+                            950: '#000b1e',
+                        },
                         navy: {
                             800: '#00235b',
                             900: '#002e79', // Brand Primary #002e79
                             950: '#001a45',
                         },
                         amber: {
-                            500: '#e07a2c',
-                            600: '#c25e16',
+                            500: '#778edf',
+                            600: '#4c2c89',
                         }
                     }
                 }
@@ -27,10 +56,15 @@
     </script>
     <!-- Font Awesome & Google Fonts -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        * {
+            font-family: 'Plus Jakarta Sans', sans-serif !important;
+        }
+        .font-black, .font-extrabold {
+            font-weight: 700 !important;
+        }
         [x-cloak] { display: none !important; }
         .bg-navy-brand { background-color: #002e79; }
         .text-navy-brand { color: #002e79; }
@@ -59,7 +93,7 @@
             
             <!-- Logo Section with User's logo.PNG -->
             <a href="{{ route('home') }}" class="flex items-center gap-3 group">
-                <img src="{{ asset('logo.PNG') }}" alt="Gopal Dairy Logo" class="h-12 w-auto object-contain max-w-[180px] drop-shadow-xs group-hover:scale-102 transition">
+                <img src="{{ asset('logo.PNG') }}" alt="Gopal Dairy Logo" class="h-20 w-auto object-contain max-w-[180px] drop-shadow-xs group-hover:scale-102 transition">
             </a>
 
             <!-- Nav Links -->

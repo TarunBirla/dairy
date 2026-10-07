@@ -6,23 +6,26 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'DairyMaster') | {{ \App\Models\SystemSetting::get('dairy_name', 'Simple Dairy') }}</title>
     
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
+                    fontFamily: {
+                        sans: ["'Plus Jakarta Sans'", "sans-serif"],
+                    },
+                    fontWeight: {
+                        extrabold: '700',
+                        black: '700',
+                    },
                     colors: {
                         brand: {
-                            // 50: '#ecfdf5',
-                            // 100: '#d1fae5',
-                            
-                            // 200: '#a7f3d0',
-                            // 500: '#10b981',
-                            // 600: '#059669',
-                            // 700: '#047857',
-                            // 800: '#065f46',
-
                             50:  '#eef4ff',
                             100: '#dbe8ff',
                             200: '#b8d0ff',
@@ -30,6 +33,19 @@
                             600: '#002765',
                             700: '#001f52',
                             800: '#00183f',
+                        },
+                        emerald: {
+                            50:  '#eef4ff',
+                            100: '#dbe8ff',
+                            200: '#b8d0ff',
+                            300: '#8ab4f8',
+                            400: '#4285f4',
+                            500: '#002e79',
+                            600: '#002765',
+                            700: '#001f52',
+                            800: '#00183f',
+                            900: '#00112c',
+                            950: '#000b1e',
                         }
                     }
                 }
@@ -42,12 +58,18 @@
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
+        * {
+            font-family: 'Plus Jakarta Sans', sans-serif !important;
+        }
+        .font-black, .font-extrabold {
+            font-weight: 700 !important;
+        }
         [x-cloak] { display: none !important; }
         .sidebar-scroll::-webkit-scrollbar { width: 4px; }
         .sidebar-scroll::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 4px; }
     </style>
 </head>
-<body class="bg-[#F8FAFC] text-slate-800 antialiased font-sans min-h-screen flex" x-data="{ sidebarOpen: true, mobileMenuOpen: false }">
+<body class="bg-[#F8FAFC] text-slate-800 antialiased min-h-screen flex" style="font-family: 'Plus Jakarta Sans', sans-serif;" x-data="{ sidebarOpen: true, mobileMenuOpen: false }">
 
     <!-- Sidebar -->
     <aside 
