@@ -38,6 +38,8 @@ use App\Http\Controllers\FarmerInvoiceController;
 use App\Http\Controllers\MilkSaleController;
 use App\Http\Controllers\BuyerController;
 use App\Http\Controllers\VehicleController;
+use App\Http\Controllers\DriverController;
+use App\Http\Controllers\VehicleAdvanceController;
 
 // Public Website Pages
 Route::get('/', [WebsiteController::class, 'home'])->name('home');
@@ -224,15 +226,41 @@ Route::middleware('auth')->group(function () {
         return redirect()->route('buyers.khata');
     });
 
+    // Drivers Management (Matching media_1791389924187.png)
+    Route::prefix('drivers')->name('drivers.')->group(function () {
+        Route::get('/', [DriverController::class, 'index'])->name('index');
+        Route::post('/', [DriverController::class, 'store'])->name('store');
+        Route::put('/{driver}', [DriverController::class, 'update'])->name('update');
+        Route::delete('/{driver}', [DriverController::class, 'destroy'])->name('destroy');
+    });
+    Route::get('/add_driver', function () {
+        return redirect()->route('drivers.index');
+    });
+
     // Vehicles Management (Matching media_1791389598973.png)
     Route::prefix('vehicles')->name('vehicles.')->group(function () {
         Route::get('/', [VehicleController::class, 'index'])->name('index');
         Route::post('/', [VehicleController::class, 'store'])->name('store');
         Route::put('/{vehicle}', [VehicleController::class, 'update'])->name('update');
         Route::delete('/{vehicle}', [VehicleController::class, 'destroy'])->name('destroy');
+
+        // Vehicle Advances (Matching media_1791389941427.png)
+        Route::prefix('advances')->name('advances.')->group(function () {
+            Route::get('/', [VehicleAdvanceController::class, 'index'])->name('index');
+            Route::post('/', [VehicleAdvanceController::class, 'store'])->name('store');
+            Route::put('/{advance}', [VehicleAdvanceController::class, 'update'])->name('update');
+            Route::delete('/{advance}', [VehicleAdvanceController::class, 'destroy'])->name('destroy');
+            Route::post('/repayment', [VehicleAdvanceController::class, 'receiveRepayment'])->name('repayment');
+            Route::get('/sample-csv', [VehicleAdvanceController::class, 'sampleCsv'])->name('sample-csv');
+            Route::post('/import-csv', [VehicleAdvanceController::class, 'importCsv'])->name('import-csv');
+            Route::get('/print', [VehicleAdvanceController::class, 'print'])->name('print');
+        });
     });
     Route::get('/add_vehicle', function () {
         return redirect()->route('vehicles.index');
+    });
+    Route::get('/vehicle_advance', function () {
+        return redirect()->route('vehicles.advances.index');
     });
 
     // Milk Procurement & Collection

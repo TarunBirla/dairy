@@ -259,9 +259,24 @@
                         <i data-lucide="book-open" class="w-4 h-4 {{ request()->routeIs('buyers.khata*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
                         <span>Buyer Khata</span>
                     </a>
-                    <a href="{{ route('vehicles.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('vehicles.*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
-                        <i data-lucide="truck" class="w-4 h-4 {{ request()->routeIs('vehicles.*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
-                        <span>Vehicles / Fleet</span>
+                </div>
+            </div>
+
+            <!-- DRIVERS & FLEET VEHICLES (Matching Reference media_1791389924187.png & media_1791389941427.png) -->
+            <div class="menu-group">
+                <p class="px-2 pb-1 text-[10px] font-bold tracking-wider uppercase text-slate-400">Driver / Vehicles</p>
+                <div class="space-y-0.5">
+                    <a href="{{ route('drivers.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('drivers.*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                        <i data-lucide="user-check" class="w-4 h-4 {{ request()->routeIs('drivers.*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
+                        <span>Add Driver</span>
+                    </a>
+                    <a href="{{ route('vehicles.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('vehicles.index') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                        <i data-lucide="truck" class="w-4 h-4 {{ request()->routeIs('vehicles.index') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
+                        <span>Add Vehicle</span>
+                    </a>
+                    <a href="{{ route('vehicles.advances.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('vehicles.advances.*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                        <i data-lucide="hand-coins" class="w-4 h-4 {{ request()->routeIs('vehicles.advances.*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
+                        <span>Vehicle Advance</span>
                     </a>
                 </div>
             </div>

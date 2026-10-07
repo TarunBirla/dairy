@@ -12,6 +12,7 @@ class Vehicle extends Model
     protected $fillable = [
         'vehicle_number',
         'vehicle_type',
+        'driver_id',
         'driver_name',
         'driver_phone',
         'capacity',
@@ -29,6 +30,16 @@ class Vehicle extends Model
         'current_km' => 'decimal:2',
         'per_km_rate' => 'decimal:2',
     ];
+
+    public function driver()
+    {
+        return $this->belongsTo(Driver::class);
+    }
+
+    public function advances()
+    {
+        return $this->hasMany(VehicleAdvance::class);
+    }
 
     public function route()
     {

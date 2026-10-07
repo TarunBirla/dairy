@@ -180,8 +180,8 @@
                                     </a>
 
 
-                                    <a href="{{ route('customers.edit', $c) }}" title="View Account Profile" class="px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition">
-                                        Edit
+                                    <a href="{{ route('customers.edit', $c) }}" title="Edit Account Profile" class="px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition">
+                                        <i data-lucide="edit-3" class="w-4 h-4"></i>
                                     </a>
                                     {{-- <button type="button" 
                                             @click="openEditModal({
