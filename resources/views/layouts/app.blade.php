@@ -169,7 +169,9 @@
                             </a>
 
                             <!-- Add New Product -->
-                            <a href="{{ route('products.create') }}" class="flex items-center justify-between px-2.5 py-1.5 rounded-md transition text-[11px] {{ request()->routeIs('products.create') ? 'text-emerald-700 font-bold bg-emerald-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
+                            <a href="{{ route('products.index', ['open_create' => 1]) }}" 
+                               @if(request()->routeIs('products.index')) @click.prevent="window.dispatchEvent(new CustomEvent('open-add-product'))" @endif
+                               class="flex items-center justify-between px-2.5 py-1.5 rounded-md transition text-[11px] {{ (request()->routeIs('products.create') || request('open_create')) ? 'text-emerald-700 font-bold bg-emerald-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
                                 <span>+ Add Product</span>
                             </a>
 

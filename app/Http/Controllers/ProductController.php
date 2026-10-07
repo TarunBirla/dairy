@@ -42,15 +42,14 @@ class ProductController extends Controller
         $inStockCount = Product::where('in_stock', true)->count();
         $outOfStockCount = Product::where('in_stock', false)->count();
         $categories = Category::all();
+        $nextCode = 'PRD-' . sprintf('%03d', (Product::max('id') ?? 0) + 1);
 
-        return view('products.index', compact('products', 'totalProducts', 'inStockCount', 'outOfStockCount', 'categories'));
+        return view('products.index', compact('products', 'totalProducts', 'inStockCount', 'outOfStockCount', 'categories', 'nextCode'));
     }
 
     public function create()
     {
-        $categories = Category::all();
-        $nextCode = 'PRD-' . sprintf('%03d', Product::max('id') + 1);
-        return view('products.create', compact('categories', 'nextCode'));
+        return redirect()->route('products.index', ['open_create' => 1]);
     }
 
     public function store(Request $request)
