@@ -35,6 +35,9 @@ use App\Http\Controllers\DealerPaymentController;
 use App\Http\Controllers\FarmerAdvanceController;
 use App\Http\Controllers\FarmerDeductionController;
 use App\Http\Controllers\FarmerInvoiceController;
+use App\Http\Controllers\MilkSaleController;
+use App\Http\Controllers\BuyerController;
+use App\Http\Controllers\VehicleController;
 
 // Public Website Pages
 Route::get('/', [WebsiteController::class, 'home'])->name('home');
@@ -191,6 +194,45 @@ Route::middleware('auth')->group(function () {
     });
     Route::get('/invoice', function() {
         return redirect()->route('farmer-invoices.index');
+    });
+
+    // Milk Sales & Commercial Buyers (Matching media_1791389566806.png)
+    Route::prefix('milk-sales')->name('milk-sales.')->group(function () {
+        Route::get('/', [MilkSaleController::class, 'index'])->name('index');
+        Route::post('/', [MilkSaleController::class, 'store'])->name('store');
+        Route::put('/{milkSale}', [MilkSaleController::class, 'update'])->name('update');
+        Route::delete('/{milkSale}', [MilkSaleController::class, 'destroy'])->name('destroy');
+        Route::get('/{milkSale}/slip', [MilkSaleController::class, 'slip'])->name('slip');
+        Route::get('/buyer-rates/{buyer}', [MilkSaleController::class, 'getBuyerRates'])->name('buyer-rates');
+    });
+    Route::get('/milk_sale', function () {
+        return redirect()->route('milk-sales.index');
+    });
+
+    // Buyers (Commercial Customers & Khata - Matching media_1791389622008.png & media_1791389718502.png)
+    Route::prefix('buyers')->name('buyers.')->group(function () {
+        Route::get('/', [BuyerController::class, 'index'])->name('index');
+        Route::post('/', [BuyerController::class, 'store'])->name('store');
+        Route::put('/{buyer}', [BuyerController::class, 'update'])->name('update');
+        Route::post('/{buyer}/toggle-status', [BuyerController::class, 'toggleStatus'])->name('toggle-status');
+        Route::delete('/{buyer}', [BuyerController::class, 'destroy'])->name('destroy');
+        Route::get('/khata', [BuyerController::class, 'khata'])->name('khata');
+        Route::post('/payments', [BuyerController::class, 'storePayment'])->name('payments.store');
+        Route::get('/{buyer}/bill', [BuyerController::class, 'bill'])->name('bill');
+    });
+    Route::get('/buyer_khata', function () {
+        return redirect()->route('buyers.khata');
+    });
+
+    // Vehicles Management (Matching media_1791389598973.png)
+    Route::prefix('vehicles')->name('vehicles.')->group(function () {
+        Route::get('/', [VehicleController::class, 'index'])->name('index');
+        Route::post('/', [VehicleController::class, 'store'])->name('store');
+        Route::put('/{vehicle}', [VehicleController::class, 'update'])->name('update');
+        Route::delete('/{vehicle}', [VehicleController::class, 'destroy'])->name('destroy');
+    });
+    Route::get('/add_vehicle', function () {
+        return redirect()->route('vehicles.index');
     });
 
     // Milk Procurement & Collection
