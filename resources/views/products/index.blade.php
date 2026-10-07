@@ -81,9 +81,10 @@
         </div>
     </div>
 
-    <!-- Search & Download Filter Bar matching screenshot -->
-    <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
-        <form method="GET" action="{{ route('products.index') }}" class="w-full sm:w-96 flex items-center relative">
+    <!-- Search & Filter Bar matching application theme -->
+    <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+        <!-- Search Input -->
+        <form method="GET" action="{{ route('products.index') }}" class="w-full md:w-80 flex items-center relative">
             @if(request('product_for'))
                 <input type="hidden" name="product_for" value="{{ request('product_for') }}">
             @endif
@@ -103,7 +104,51 @@
             >
         </form>
 
-        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+        <!-- Product For Filter (Themed UI) -->
+        <form id="productForFilterForm" method="GET" action="{{ route('products.index') }}" class="flex flex-wrap items-center gap-2.5 text-xs">
+            @if(request('search'))
+                <input type="hidden" name="search" value="{{ request('search') }}">
+            @endif
+            @if(request('category_id'))
+                <input type="hidden" name="category_id" value="{{ request('category_id') }}">
+            @endif
+            @if(request('stock_status'))
+                <input type="hidden" name="stock_status" value="{{ request('stock_status') }}">
+            @endif
+
+            @php
+                $currentProductFor = request('product_for', 'all');
+            @endphp
+
+            <span class="font-bold text-slate-600 uppercase tracking-wider text-[11px] mr-1 flex items-center gap-1.5">
+                <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-slate-400"></i>
+                <span>Product For:</span>
+            </span>
+
+            <div class="inline-flex items-center gap-3.5 bg-slate-50 border border-slate-200 px-3.5 py-1.5 rounded-xl">
+                <label class="inline-flex items-center gap-1.5 cursor-pointer select-none group">
+                    <input type="radio" name="product_for" value="all" {{ ($currentProductFor === 'all' || !$currentProductFor) ? 'checked' : '' }} onchange="this.form.submit()" class="w-3.5 h-3.5 text-emerald-600 border-slate-300 focus:ring-emerald-500 cursor-pointer">
+                    <span class="text-xs transition {{ ($currentProductFor === 'all' || !$currentProductFor) ? 'font-bold text-emerald-700' : 'text-slate-600 group-hover:text-slate-900' }}">All</span>
+                </label>
+
+                <label class="inline-flex items-center gap-1.5 cursor-pointer select-none group">
+                    <input type="radio" name="product_for" value="farmer" {{ $currentProductFor === 'farmer' ? 'checked' : '' }} onchange="this.form.submit()" class="w-3.5 h-3.5 text-emerald-600 border-slate-300 focus:ring-emerald-500 cursor-pointer">
+                    <span class="text-xs transition {{ $currentProductFor === 'farmer' ? 'font-bold text-emerald-700' : 'text-slate-600 group-hover:text-slate-900' }}">Farmer</span>
+                </label>
+
+                <label class="inline-flex items-center gap-1.5 cursor-pointer select-none group">
+                    <input type="radio" name="product_for" value="customer" {{ $currentProductFor === 'customer' ? 'checked' : '' }} onchange="this.form.submit()" class="w-3.5 h-3.5 text-emerald-600 border-slate-300 focus:ring-emerald-500 cursor-pointer">
+                    <span class="text-xs transition {{ $currentProductFor === 'customer' ? 'font-bold text-emerald-700' : 'text-slate-600 group-hover:text-slate-900' }}">Customer</span>
+                </label>
+
+                <label class="inline-flex items-center gap-1.5 cursor-pointer select-none group">
+                    <input type="radio" name="product_for" value="both" {{ $currentProductFor === 'both' ? 'checked' : '' }} onchange="this.form.submit()" class="w-3.5 h-3.5 text-emerald-600 border-slate-300 focus:ring-emerald-500 cursor-pointer">
+                    <span class="text-xs transition {{ $currentProductFor === 'both' ? 'font-bold text-emerald-700' : 'text-slate-600 group-hover:text-slate-900' }}">Both</span>
+                </label>
+            </div>
+        </form>
+
+        <div class="flex items-center gap-2 justify-end">
             <button onclick="window.print()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition shadow-2xs">
                 <i data-lucide="download" class="w-3.5 h-3.5 text-slate-500"></i>
                 <span>Download</span>
@@ -111,55 +156,8 @@
         </div>
     </div>
 
-    <!-- Products Data Table with Header matching screenshot -->
+    <!-- Products Data Table matching application theme -->
     <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <!-- Blue Header from user screenshot -->
-        <div class="bg-[#3b82f6] px-6 py-4.5 text-white">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                    <h3 class="text-xl font-bold tracking-tight text-white">Product List</h3>
-                    <div class="mt-2.5">
-                        <span class="block text-xs font-semibold text-blue-100 uppercase tracking-wider mb-2">Product For</span>
-                        <form id="productForFilterForm" method="GET" action="{{ route('products.index') }}" class="flex flex-wrap items-center gap-5 sm:gap-7 text-sm font-medium">
-                            @if(request('search'))
-                                <input type="hidden" name="search" value="{{ request('search') }}">
-                            @endif
-                            @if(request('category_id'))
-                                <input type="hidden" name="category_id" value="{{ request('category_id') }}">
-                            @endif
-                            @if(request('stock_status'))
-                                <input type="hidden" name="stock_status" value="{{ request('stock_status') }}">
-                            @endif
-
-                            @php
-                                $currentProductFor = request('product_for', 'all');
-                            @endphp
-
-                            <label class="inline-flex items-center gap-2 cursor-pointer select-none text-white hover:text-blue-100 transition">
-                                <input type="radio" name="product_for" value="all" {{ ($currentProductFor === 'all' || !$currentProductFor) ? 'checked' : '' }} onchange="this.form.submit()" class="w-4 h-4 text-blue-600 bg-white border-white focus:ring-0 focus:ring-offset-0 cursor-pointer">
-                                <span>All</span>
-                            </label>
-
-                            <label class="inline-flex items-center gap-2 cursor-pointer select-none text-white hover:text-blue-100 transition">
-                                <input type="radio" name="product_for" value="farmer" {{ $currentProductFor === 'farmer' ? 'checked' : '' }} onchange="this.form.submit()" class="w-4 h-4 text-blue-600 bg-white border-white focus:ring-0 focus:ring-offset-0 cursor-pointer">
-                                <span>Farmer</span>
-                            </label>
-
-                            <label class="inline-flex items-center gap-2 cursor-pointer select-none text-white hover:text-blue-100 transition">
-                                <input type="radio" name="product_for" value="customer" {{ $currentProductFor === 'customer' ? 'checked' : '' }} onchange="this.form.submit()" class="w-4 h-4 text-blue-600 bg-white border-white focus:ring-0 focus:ring-offset-0 cursor-pointer">
-                                <span>Customer</span>
-                            </label>
-
-                            <label class="inline-flex items-center gap-2 cursor-pointer select-none text-white hover:text-blue-100 transition">
-                                <input type="radio" name="product_for" value="both" {{ $currentProductFor === 'both' ? 'checked' : '' }} onchange="this.form.submit()" class="w-4 h-4 text-blue-600 bg-white border-white focus:ring-0 focus:ring-offset-0 cursor-pointer">
-                                <span>Both</span>
-                            </label>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs text-slate-600">
                 <thead class="bg-slate-50/70 border-b border-slate-200/80 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
