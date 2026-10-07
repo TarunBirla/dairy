@@ -40,6 +40,7 @@ class ProductController extends Controller
 
         $totalProducts = Product::count();
         $inStockCount = Product::where('in_stock', true)->count();
+        $outOfStockCount = Product::where('in_stock', false)->count();
         if (Category::count() === 0) {
             Category::firstOrCreate(['name' => 'Fresh Dairy'], ['slug' => 'fresh-dairy', 'description' => 'Daily farm-fresh cow and buffalo milk products']);
             Category::firstOrCreate(['name' => 'Traditional Sweets & Mawa'], ['slug' => 'sweets-mawa', 'description' => 'Pure khoya, mawa and dairy sweets']);
