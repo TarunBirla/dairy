@@ -54,24 +54,30 @@
             }
         }
     </script>
-    <!-- Font Awesome & Google Fonts -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Google Fonts: Plus Jakarta Sans Universal Preload & Stylesheet -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600;1,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
-        * {
-            font-family: 'Plus Jakarta Sans', sans-serif !important;
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600;1,700&display=swap');
+
+        html, body, h1, h2, h3, h4, h5, h6, p, span, a, div, button, input, textarea, select, label {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
         }
-        .font-black, .font-extrabold {
+
+        .font-black, .font-extrabold, h1, h2, h3 {
             font-weight: 700 !important;
         }
+
         [x-cloak] { display: none !important; }
-        .bg-navy-brand { background-color: #002e79; }
-        .text-navy-brand { color: #002e79; }
-        .border-navy-brand { border-color: #002e79; }
+        .bg-navy-brand { background-color: #002e79 !important; }
+        .text-navy-brand { color: #002e79 !important; }
+        .border-navy-brand { border-color: #002e79 !important; }
     </style>
 </head>
-<body class="bg-[#FBFBFE] text-slate-800 antialiased font-sans flex flex-col min-h-screen">
+<body class="bg-[#FBFBFE] text-slate-800 antialiased flex flex-col min-h-screen" style="font-family: 'Plus Jakarta Sans', sans-serif !important;">
 
     <!-- Top Info Bar -->
     <div class="bg-[#002e79] text-white text-[12px] py-2 px-4 sm:px-8 flex justify-between items-center border-b border-blue-900/40">
