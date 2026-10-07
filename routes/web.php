@@ -24,6 +24,7 @@ use App\Http\Controllers\MilkDispatchController;
 use App\Http\Controllers\ProductBookingController;
 use App\Http\Controllers\SmsController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SupportTicketController;
@@ -211,6 +212,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/{product}/quick-stock', [ProductController::class, 'quickStockAdd'])->name('quick-stock');
         Route::delete('/{product}', [ProductController::class, 'destroy'])->name('destroy');
     });
+
+    // Buy Products (Purchases & Stock Inward)
+    Route::resource('purchases', PurchaseController::class);
+    Route::get('purchases/{purchase}/print', [PurchaseController::class, 'printSlip'])->name('purchases.print');
+    Route::post('purchases/dealers/quick-create', [PurchaseController::class, 'quickCreateDealer'])->name('purchases.dealers.quick-create');
 
     // Inventory Ledger & Bottle Management
     Route::prefix('inventory')->name('inventory.')->group(function () {

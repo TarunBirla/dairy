@@ -14,7 +14,7 @@
 @section('content')
 <div class="space-y-6" x-data="productListingPage()" @open-add-product.window="openCreateModal()">
 
-    <!-- Navigation Tabs (Products vs Categories) -->
+    <!-- Navigation Tabs (Products vs Categories vs Buy Products) -->
     <div class="flex items-center gap-2 border-b border-slate-200 pb-3">
         <a href="{{ route('products.index') }}" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition bg-emerald-600 text-white shadow-xs flex items-center gap-1.5">
             <i data-lucide="package" class="w-3.5 h-3.5"></i>
@@ -23,6 +23,10 @@
         <a href="{{ route('products.categories.index') }}" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1.5">
             <i data-lucide="layers" class="w-3.5 h-3.5"></i>
             <span>Categories</span>
+        </a>
+        <a href="{{ route('purchases.index') }}" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1.5">
+            <i data-lucide="shopping-cart" class="w-3.5 h-3.5"></i>
+            <span>Buy Products</span>
         </a>
     </div>
 
