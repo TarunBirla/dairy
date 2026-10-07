@@ -3,33 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login | {{ \App\Models\SystemSetting::get('dairy_name', 'Simple Dairy') }}</title>
+    <title>Login | {{ \App\Models\SystemSetting::get('dairy_name', 'Gopal Dairy') }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
 </head>
-<body class="bg-[#F8FAFC] text-slate-800 antialiased min-h-screen flex items-center justify-center p-4">
+<body class="bg-[#F4F6FC] text-slate-800 antialiased min-h-screen flex items-center justify-center p-4">
 
-    <div class="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 bg-white rounded-3xl shadow-xl border border-slate-200/80 overflow-hidden">
+    <div class="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 bg-white rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden">
         
         <!-- Left Side: Login Form -->
         <div class="p-8 sm:p-10 flex flex-col justify-between">
             <div>
-                <!-- Brand Logo & Title -->
-                <div class="flex items-center space-x-3 mb-6">
-                    <div class="w-11 h-11 rounded-2xl bg-emerald-600 text-white font-bold flex items-center justify-center text-lg shadow-sm">
-                        SD
-                    </div>
-                    <div>
-                        <h1 class="text-base font-extrabold text-slate-900 tracking-tight leading-tight">
-                            {{ \App\Models\SystemSetting::get('dairy_name', 'Simple Dairy') }}
-                        </h1>
-                        <p class="text-xs text-slate-400">Dairy Management & Delivery Platform</p>
-                    </div>
+                <!-- Brand Logo using public/logo.PNG -->
+                <div class="mb-6">
+                    <a href="{{ route('home') }}">
+                        <img src="{{ asset('logo.PNG') }}" alt="Gopal Dairy" class="h-12 w-auto object-contain">
+                    </a>
                 </div>
 
                 <div class="mb-6">
-                    <h2 class="text-xl font-bold text-slate-900">Welcome Back</h2>
-                    <p class="text-xs text-slate-500 mt-1">Sign in with your registered email or mobile number.</p>
+                    <h2 class="text-2xl font-black text-slate-900 tracking-tight">Portal Sign In</h2>
+                    <p class="text-xs text-slate-500 mt-1">Access dairy operations, collection slips & delivery routes.</p>
                 </div>
 
                 @if($errors->any())
@@ -41,7 +37,7 @@
                 <form action="{{ route('login.post') }}" method="POST" class="space-y-4">
                     @csrf
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Email or Mobile Number</label>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Email or Mobile Number</label>
                         <div class="relative">
                             <input 
                                 type="text" 
@@ -49,15 +45,15 @@
                                 required 
                                 value="{{ old('login', 'admin@simpledairy.com') }}"
                                 placeholder="e.g. admin@simpledairy.com or 9876543210" 
-                                class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 focus:outline-none transition"
+                                class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#002e79]/20 focus:border-[#002e79] focus:outline-none transition"
                             >
                         </div>
                     </div>
 
                     <div>
                         <div class="flex items-center justify-between mb-1">
-                            <label class="block text-xs font-semibold text-slate-700">Password</label>
-                            <span class="text-[11px] text-emerald-600">Default: password</span>
+                            <label class="block text-xs font-bold text-slate-700">Password</label>
+                            <span class="text-[11px] text-[#002e79] font-medium">Default: password</span>
                         </div>
                         <input 
                             type="password" 
@@ -65,54 +61,55 @@
                             required 
                             value="password"
                             placeholder="••••••••" 
-                            class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 focus:outline-none transition"
+                            class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#002e79]/20 focus:border-[#002e79] focus:outline-none transition"
                         >
                     </div>
 
                     <div class="flex items-center justify-between text-xs pt-1">
                         <label class="flex items-center space-x-2 text-slate-600 cursor-pointer">
-                            <input type="checkbox" name="remember" class="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300">
-                            <span>Remember session</span>
+                            <input type="checkbox" name="remember" class="rounded text-[#002e79] focus:ring-[#002e79] border-slate-300">
+                            <span>Keep me logged in</span>
                         </label>
+                        <a href="{{ route('home') }}" class="text-[#002e79] hover:underline font-semibold text-xs">Back to Website</a>
                     </div>
 
                     <button 
                         type="submit" 
-                        class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-xs transition transform hover:scale-[1.01]"
+                        class="w-full py-3 bg-[#002e79] hover:bg-[#00235b] text-white font-extrabold text-xs rounded-xl shadow-lg shadow-blue-900/20 transition transform hover:scale-[1.01]"
                     >
-                        Sign In to DairyMaster
+                        Sign In to Portal
                     </button>
                 </form>
             </div>
 
             <div class="pt-6 border-t border-slate-100 text-[11px] text-slate-400 text-center">
-                &copy; {{ date('Y') }} Simple Dairy Platform • High Security Operations
+                &copy; {{ date('Y') }} Gopal Dairy Management &bull; Secure Enterprise Portal
             </div>
         </div>
 
         <!-- Right Side: 1-Click Role Switcher Demo Bar -->
-        <div class="bg-gradient-to-br from-emerald-50 via-teal-50 to-slate-50 p-8 sm:p-10 border-t md:border-t-0 md:border-l border-slate-200 flex flex-col justify-between">
+        <div class="bg-gradient-to-br from-blue-50/70 via-slate-50 to-orange-50/40 p-8 sm:p-10 border-t md:border-t-0 md:border-l border-slate-200 flex flex-col justify-between">
             <div>
                 <div class="flex items-center gap-2 mb-2">
-                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800">1-Click Fast Login</span>
-                    <span class="text-xs text-slate-400">• Testing All Roles</span>
+                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-blue-100 text-[#002e79]">1-Click Demo Login</span>
+                    <span class="text-xs text-slate-400">&bull; Select Role</span>
                 </div>
-                <h3 class="text-base font-bold text-slate-900 mb-1">Select Any User Role</h3>
-                <p class="text-xs text-slate-500 mb-4">Click below to test the platform as different stakeholders:</p>
+                <h3 class="text-base font-black text-slate-900 mb-1">Testing Quick Roles</h3>
+                <p class="text-xs text-slate-500 mb-4">Click below to enter the dashboard instantly under any role:</p>
 
                 <div class="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
                     @foreach($demoUsers as $u)
                         <a 
                             href="{{ route('login.demo', $u->id) }}" 
-                            class="block p-3 bg-white rounded-xl border border-slate-200 hover:border-emerald-400 hover:shadow-xs transition group"
+                            class="block p-3 bg-white rounded-xl border border-slate-200 hover:border-[#002e79] hover:shadow-xs transition group"
                         >
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center space-x-3">
-                                    <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 font-bold flex items-center justify-center text-xs group-hover:bg-emerald-600 group-hover:text-white transition">
+                                    <div class="w-8 h-8 rounded-lg bg-blue-50 text-[#002e79] font-black flex items-center justify-center text-xs group-hover:bg-[#002e79] group-hover:text-white transition">
                                         {{ strtoupper(substr($u->name, 0, 2)) }}
                                     </div>
                                     <div>
-                                        <p class="text-xs font-bold text-slate-800 group-hover:text-emerald-700 transition leading-tight">{{ $u->name }}</p>
+                                        <p class="text-xs font-bold text-slate-800 group-hover:text-[#002e79] transition leading-tight">{{ $u->name }}</p>
                                         <p class="text-[11px] text-slate-400">{{ $u->email }}</p>
                                     </div>
                                 </div>
@@ -125,15 +122,12 @@
                 </div>
             </div>
 
-            <div class="mt-4 p-3 bg-white/80 rounded-xl border border-slate-200/80 text-[11px] text-slate-600">
-                <span class="font-bold text-emerald-700">Tip:</span> You can also switch roles anytime directly from the top navigation bar inside the dashboard!
+            <div class="mt-4 p-3 bg-white rounded-xl border border-slate-200 text-[11px] text-slate-600">
+                <span class="font-bold text-[#002e79]">Admin Note:</span> All 7 roles are fully configured with custom permissions and navigation modules.
             </div>
         </div>
 
     </div>
 
-    <script>
-        lucide.createIcons();
-    </script>
 </body>
 </html>

@@ -14,13 +14,22 @@
                 extend: {
                     colors: {
                         brand: {
-                            50: '#ecfdf5',
-                            100: '#d1fae5',
-                            200: '#a7f3d0',
-                            500: '#10b981',
-                            600: '#059669',
-                            700: '#047857',
-                            800: '#065f46',
+                            // 50: '#ecfdf5',
+                            // 100: '#d1fae5',
+                            
+                            // 200: '#a7f3d0',
+                            // 500: '#10b981',
+                            // 600: '#059669',
+                            // 700: '#047857',
+                            // 800: '#065f46',
+
+                            50:  '#eef4ff',
+                            100: '#dbe8ff',
+                            200: '#b8d0ff',
+                            500: '#002e79',
+                            600: '#002765',
+                            700: '#001f52',
+                            800: '#00183f',
                         }
                     }
                 }
@@ -46,28 +55,16 @@
         :class="mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
     >
         <!-- Brand / User Header matching screenshot -->
-        <div class="p-4 border-b border-slate-100 flex items-center justify-between">
-            <a href="{{ route('dashboard') }}" class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-bold flex items-center justify-center text-sm shadow-md shadow-emerald-600/20 shrink-0">
-                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M19 8c.83 0 1.5.67 1.5 1.5v4c0 .83-.67 1.5-1.5 1.5H5c-.83 0-1.5-.67-1.5-1.5v-4C3.5 8.67 4.17 8 5 8h14z"/>
-                        <path d="M7 15v4a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-4"/>
-                        <path d="M14 15v4a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-4"/>
-                        <circle cx="9" cy="11.5" r="1.5" fill="currentColor"/>
-                        <circle cx="15" cy="11.5" r="1.5" fill="currentColor"/>
-                        <path d="M8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
-                </div>
+        <div class="p-3.5 border-b border-slate-100 flex items-center justify-between">
+            <a href="{{ route('dashboard') }}" class="flex items-center space-x-2.5">
+                <img src="{{ asset('logo.PNG') }}" alt="Gopal Dairy" class="h-9 w-auto object-contain max-w-[130px]">
                 <div class="truncate">
-                    <h1 class="text-xs font-black uppercase tracking-wider text-slate-900 leading-tight truncate">
-                        {{ \App\Models\SystemSetting::get('dairy_name', 'DairyMaster') }}
-                    </h1>
-                    <span class="text-[10px] text-emerald-600 font-bold block truncate">
+                    <span class="text-[10px] text-[#002e79] font-black block uppercase tracking-wider truncate">
                         {{ auth()->user()->role ? ucfirst(str_replace('_', ' ', auth()->user()->role)) : 'Owner' }}
                     </span>
                 </div>
             </a>
-            <a href="{{ route('home') }}" target="_blank" title="View Public Website" class="text-slate-400 hover:text-emerald-600 p-1">
+            <a href="{{ route('home') }}" target="_blank" title="View Public Website" class="text-slate-400 hover:text-[#002e79] p-1">
                 <i data-lucide="external-link" class="w-4 h-4"></i>
             </a>
             <button @click="mobileMenuOpen = false" class="lg:hidden text-slate-400 hover:text-slate-600">

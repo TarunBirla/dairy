@@ -3,127 +3,177 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Pure Farm Fresh Milk & Dairy Delivery') | {{ \App\Models\SystemSetting::get('dairy_name', 'DairyMaster') }}</title>
+    <title>@yield('title', 'DairyMaster - Complete Dairy Management & Milk Delivery')</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            800: '#00235b',
+                            900: '#002e79', // Brand Primary #002e79
+                            950: '#001a45',
+                        },
+                        amber: {
+                            500: '#e07a2c',
+                            600: '#c25e16',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
         [x-cloak] { display: none !important; }
+        .bg-navy-brand { background-color: #002e79; }
+        .text-navy-brand { color: #002e79; }
+        .border-navy-brand { border-color: #002e79; }
     </style>
 </head>
-<body class="bg-[#FAFAFA] text-slate-800 antialiased font-sans flex flex-col min-h-screen">
+<body class="bg-[#FBFBFE] text-slate-800 antialiased font-sans flex flex-col min-h-screen">
 
-    <!-- Top Announcement Bar -->
-    <div class="bg-emerald-950 text-emerald-300 text-xs py-2 px-4 text-center font-medium">
-        <span>🥛 100% Raw A2 Cow & Buffalo Milk &bull; Morning & Evening Doorstep Delivery Before 7:00 AM!</span>
+    <!-- Top Info Bar -->
+    <div class="bg-[#002e79] text-white text-[12px] py-2 px-4 sm:px-8 flex justify-between items-center border-b border-blue-900/40">
+        <div class="flex items-center gap-6">
+            <span class="flex items-center gap-1.5"><i class="fa-solid fa-phone text-amber-400 text-xs"></i> +91 98765 43210</span>
+            <span class="hidden sm:flex items-center gap-1.5"><i class="fa-solid fa-envelope text-amber-400 text-xs"></i> info@gopaldairy.com</span>
+            <span class="hidden md:flex items-center gap-1.5"><i class="fa-solid fa-clock text-amber-400 text-xs"></i> Fresh Morning Dispatch: 5:00 AM - 8:30 AM</span>
+        </div>
+        <div class="flex items-center gap-4 text-xs font-semibold">
+            <a href="{{ route('login') }}" class="hover:text-amber-300 transition flex items-center gap-1">
+                <i class="fa-solid fa-circle-user text-amber-400"></i> Portal Login
+            </a>
+        </div>
     </div>
 
-    <!-- Navigation Header -->
-    <header class="bg-white border-b border-slate-100 sticky top-0 z-40">
+    <!-- Main Navigation Header -->
+    <header class="bg-white/95 backdrop-blur-md border-b border-slate-100 sticky top-0 z-50 shadow-xs">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
             
-            <!-- Logo with Cow / Farmer / Milk Brand Theme -->
-            <a href="{{ route('home') }}" class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
-                    <!-- Cow / Milk Icon -->
-                    <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M19 8c.83 0 1.5.67 1.5 1.5v4c0 .83-.67 1.5-1.5 1.5H5c-.83 0-1.5-.67-1.5-1.5v-4C3.5 8.67 4.17 8 5 8h14z"/>
-                        <path d="M7 15v4a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-4"/>
-                        <path d="M14 15v4a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-4"/>
-                        <circle cx="9" cy="11.5" r="1.5" fill="currentColor"/>
-                        <circle cx="15" cy="11.5" r="1.5" fill="currentColor"/>
-                        <path d="M8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
-                </div>
-                <div>
-                    <span class="text-xl font-black text-slate-900 tracking-tight leading-none block">
-                        {{ \App\Models\SystemSetting::get('dairy_name', 'DairyMaster') }}
-                    </span>
-                    <span class="text-[10px] uppercase font-bold tracking-widest text-emerald-600 block mt-0.5">Farm Fresh &bull; Pure Milk &bull; Daily Delivery</span>
-                </div>
+            <!-- Logo Section with User's logo.PNG -->
+            <a href="{{ route('home') }}" class="flex items-center gap-3 group">
+                <img src="{{ asset('logo.PNG') }}" alt="Gopal Dairy Logo" class="h-12 w-auto object-contain max-w-[180px] drop-shadow-xs group-hover:scale-102 transition">
             </a>
 
             <!-- Nav Links -->
-            <nav class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
-                <a href="{{ route('home') }}" class="hover:text-emerald-600 transition {{ request()->routeIs('home') ? 'text-emerald-600' : '' }}">Home</a>
-                <a href="{{ route('products.frontend') }}" class="hover:text-emerald-600 transition {{ request()->routeIs('products.frontend') ? 'text-emerald-600' : '' }}">Our Products</a>
-                <a href="{{ route('about') }}" class="hover:text-emerald-600 transition {{ request()->routeIs('about') ? 'text-emerald-600' : '' }}">About Farm</a>
-                <a href="{{ route('contact') }}" class="hover:text-emerald-600 transition {{ request()->routeIs('contact') ? 'text-emerald-600' : '' }}">Contact Us</a>
+            <nav class="hidden md:flex items-center gap-8 text-[14px] font-bold text-slate-700">
+                <a href="{{ route('home') }}" class="transition hover:text-[#002e79] {{ request()->routeIs('home') ? 'text-[#002e79] font-black border-b-2 border-[#002e79] pb-1' : '' }}">Home</a>
+                <a href="{{ route('about') }}" class="transition hover:text-[#002e79] {{ request()->routeIs('about') ? 'text-[#002e79] font-black border-b-2 border-[#002e79] pb-1' : '' }}">About Us</a>
+                <a href="{{ route('products.frontend') }}" class="transition hover:text-[#002e79] {{ request()->routeIs('products.frontend') ? 'text-[#002e79] font-black border-b-2 border-[#002e79] pb-1' : '' }}">Products</a>
+                <a href="{{ route('contact') }}" class="transition hover:text-[#002e79] {{ request()->routeIs('contact') ? 'text-[#002e79] font-black border-b-2 border-[#002e79] pb-1' : '' }}">Contact</a>
             </nav>
 
-            <!-- Auth Buttons -->
+            <!-- CTA Buttons -->
             <div class="flex items-center gap-3">
                 @auth
-                    <a href="{{ route('dashboard') }}" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-2">
-                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
-                        <span>Admin Dashboard</span>
+                    <a href="{{ route('dashboard') }}" class="px-5 py-2.5 bg-[#002e79] hover:bg-[#00235b] text-white font-bold text-xs rounded-xl shadow-md shadow-blue-900/20 transition flex items-center gap-2">
+                        <i class="fa-solid fa-gauge-high text-amber-400"></i>
+                        <span>Dashboard</span>
                     </a>
                 @else
-                    <a href="{{ route('login') }}" class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5">
-                        <i data-lucide="log-in" class="w-4 h-4 text-emerald-400"></i>
-                        <span>Login / Portal</span>
+                    <a href="{{ route('login') }}" class="px-6 py-2.5 bg-[#c25e16] hover:bg-[#a94f10] text-white font-bold text-xs rounded-xl shadow-md shadow-orange-900/20 transition flex items-center gap-2">
+                        <span>Get Started</span>
+                        <i class="fa-solid fa-arrow-right text-xs"></i>
                     </a>
                 @endauth
             </div>
         </div>
     </header>
 
-    <!-- Content -->
+    <!-- Content Area -->
     <main class="flex-grow">
         @yield('content')
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-slate-900 text-white pt-16 pb-12 mt-20 border-t border-slate-800">
+    <!-- Professional Footer Matching Screenshot -->
+    <footer class="bg-[#1f1610] text-stone-300 pt-16 pb-8 border-t border-stone-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 pb-12 border-b border-slate-800">
-                <div>
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
-                            🥛
-                        </div>
-                        <span class="text-lg font-black tracking-tight">{{ \App\Models\SystemSetting::get('dairy_name', 'DairyMaster') }}</span>
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-10 pb-12 border-b border-stone-800 text-sm">
+                <!-- Col 1: Brand & Logo -->
+                <div class="md:col-span-2 space-y-4">
+                    <div class="bg-white/95 p-3 rounded-2xl inline-block max-w-[220px]">
+                        <img src="{{ asset('logo.PNG') }}" alt="Gopal Dairy Logo" class="h-10 w-auto object-contain">
                     </div>
-                    <p class="text-xs text-slate-400 leading-relaxed">
-                        Pure non-adulterated milk collected directly from village farmers, tested on FAT & SNF analyzer, chilled, and delivered at your doorstep every morning.
+                    <p class="text-xs text-stone-400 leading-relaxed pr-6">
+                        Complete dairy enterprise management & smart doorstep milk delivery solution. Empowering farmers with instant computerized FAT/SNF payouts and delivering pure, hygienic dairy to thousands of families.
                     </p>
+                    <div class="flex items-center gap-3 pt-2">
+                        <a href="#" class="w-8 h-8 rounded-lg bg-stone-800 hover:bg-[#002e79] text-white flex items-center justify-center text-xs transition"><i class="fa-brands fa-facebook-f"></i></a>
+                        <a href="#" class="w-8 h-8 rounded-lg bg-stone-800 hover:bg-[#002e79] text-white flex items-center justify-center text-xs transition"><i class="fa-brands fa-instagram"></i></a>
+                        <a href="#" class="w-8 h-8 rounded-lg bg-stone-800 hover:bg-[#002e79] text-white flex items-center justify-center text-xs transition"><i class="fa-brands fa-whatsapp"></i></a>
+                        <a href="#" class="w-8 h-8 rounded-lg bg-stone-800 hover:bg-[#002e79] text-white flex items-center justify-center text-xs transition"><i class="fa-brands fa-youtube"></i></a>
+                    </div>
                 </div>
+
+                <!-- Col 2: Quick Links -->
                 <div>
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-4">Quick Links</h4>
-                    <ul class="space-y-2 text-xs text-slate-400">
-                        <li><a href="{{ route('home') }}" class="hover:text-white">Home</a></li>
-                        <li><a href="{{ route('products.frontend') }}" class="hover:text-white">All Products & Milk</a></li>
-                        <li><a href="{{ route('about') }}" class="hover:text-white">About Our Dairy Farm</a></li>
-                        <li><a href="{{ route('contact') }}" class="hover:text-white">Contact & Support</a></li>
+                    <h4 class="text-xs font-black uppercase tracking-wider text-white mb-4">Quick Links</h4>
+                    <ul class="space-y-2.5 text-xs text-stone-400">
+                        <li><a href="{{ route('home') }}" class="hover:text-amber-400 transition">Home</a></li>
+                        <li><a href="{{ route('about') }}" class="hover:text-amber-400 transition">About Us</a></li>
+                        <li><a href="{{ route('products.frontend') }}" class="hover:text-amber-400 transition">Products</a></li>
+                        <li><a href="{{ route('contact') }}" class="hover:text-amber-400 transition">Contact Us</a></li>
+                        <li><a href="{{ route('login') }}" class="hover:text-amber-400 transition">Staff & Farmer Login</a></li>
                     </ul>
                 </div>
+
+                <!-- Col 3: Useful Links -->
                 <div>
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-4">Products</h4>
-                    <ul class="space-y-2 text-xs text-slate-400">
-                        <li>A2 Gir Cow Milk</li>
-                        <li>Fresh Buffalo Milk</li>
-                        <li>Desi Danedaar Ghee</li>
-                        <li>Fresh Malai Paneer</li>
-                        <li>Thick Cream Curd</li>
+                    <h4 class="text-xs font-black uppercase tracking-wider text-white mb-4">Our Services</h4>
+                    <ul class="space-y-2.5 text-xs text-stone-400">
+                        <li><a href="#" class="hover:text-amber-400 transition">Milk Collection Centers</a></li>
+                        <li><a href="#" class="hover:text-amber-400 transition">Doorstep Delivery Routes</a></li>
+                        <li><a href="#" class="hover:text-amber-400 transition">Daily Milk Subscriptions</a></li>
+                        <li><a href="#" class="hover:text-amber-400 transition">Farmer Passbook & Advances</a></li>
+                        <li><a href="#" class="hover:text-amber-400 transition">Privacy Policy & Terms</a></li>
                     </ul>
                 </div>
+
+                <!-- Col 4: Contact & App -->
                 <div>
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-4">Staff & Farmer Login</h4>
-                    <p class="text-xs text-slate-400 mb-3">Access dairy operations, collection slips, POS billing, or route delivery boy portal.</p>
-                    <a href="{{ route('login') }}" class="inline-block px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition">
-                        Sign In to DairyMaster Portal &rarr;
-                    </a>
+                    <h4 class="text-xs font-black uppercase tracking-wider text-white mb-4">Contact Info</h4>
+                    <div class="space-y-2.5 text-xs text-stone-400">
+                        <p class="flex items-start gap-2">
+                            <i class="fa-solid fa-location-dot text-amber-500 mt-0.5"></i>
+                            <span>Dairy Complex, Main Industrial Area, Indore, MP</span>
+                        </p>
+                        <p class="flex items-center gap-2">
+                            <i class="fa-solid fa-phone text-amber-500"></i>
+                            <span>+91 98765 43210</span>
+                        </p>
+                        <p class="flex items-center gap-2">
+                            <i class="fa-solid fa-envelope text-amber-500"></i>
+                            <span>info@gopaldairy.com</span>
+                        </p>
+                    </div>
+
+                    <div class="pt-5">
+                        <span class="text-[11px] font-bold text-stone-300 block mb-2">Get Customer App</span>
+                        <div class="bg-stone-900 border border-stone-800 rounded-xl p-2.5 flex items-center gap-3">
+                            <i class="fa-brands fa-google-play text-2xl text-emerald-400"></i>
+                            <div>
+                                <span class="text-[9px] text-stone-400 uppercase block leading-tight">GET IT ON</span>
+                                <span class="text-xs font-bold text-white leading-tight">Google Play</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500">
-                <p>&copy; {{ date('Y') }} {{ \App\Models\SystemSetting::get('dairy_name', 'DairyMaster') }}. All rights reserved.</p>
-                <p class="mt-2 sm:mt-0 font-medium text-emerald-500">Built with Laravel &bull; Real-time Milk Procure & Delivery System</p>
+
+            <!-- Bottom Copyright -->
+            <div class="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-stone-500">
+                <p>&copy; {{ date('Y') }} Gopal Dairy Management. All Rights Reserved.</p>
+                <p class="mt-2 sm:mt-0 font-medium">Enterprise Dairy Management Platform</p>
             </div>
         </div>
     </footer>
 
-    <script>
-        lucide.createIcons();
-    </script>
 </body>
 </html>
