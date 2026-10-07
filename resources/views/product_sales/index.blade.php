@@ -32,6 +32,10 @@
             <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>
             <span>Sales Products (Farmer Sales)</span>
         </a>
+        <a href="{{ route('inventory.index') }}" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1.5 whitespace-nowrap">
+            <i data-lucide="boxes" class="w-3.5 h-3.5"></i>
+            <span>Product Stock</span>
+        </a>
     </div>
 
     <!-- Page Title & Subtitle -->

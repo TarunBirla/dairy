@@ -226,6 +226,9 @@ Route::middleware('auth')->group(function () {
     // Inventory Ledger & Bottle Management
     Route::prefix('inventory')->name('inventory.')->group(function () {
         Route::get('/', [InventoryController::class, 'index'])->name('index');
+        Route::put('/stock/{product}', [InventoryController::class, 'updateStock'])->name('stock.update');
+        Route::get('/stock/{product}/details', [InventoryController::class, 'stockDetails'])->name('stock.details');
+        Route::get('/stock/print', [InventoryController::class, 'printStock'])->name('stock.print');
         Route::post('/transaction', [InventoryController::class, 'storeTransaction'])->name('transaction');
         Route::get('/bottles', [InventoryController::class, 'bottles'])->name('bottles');
         Route::post('/bottles', [InventoryController::class, 'updateBottles'])->name('bottles.update');
