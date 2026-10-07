@@ -23,13 +23,17 @@ class RateChartController extends Controller
         $search = $request->get('search');
         $perPage = (int) $request->get('per_page', 20);
 
-        $query = RateChart::withCount(['farmers', 'collectionCenters']);
+        $relations = ['farmers'];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('collection_centers', 'rate_chart_id')) {
+            $relations[] = 'collectionCenters';
+        }
+        $query = RateChart::withCount($relations);
 
         if ($status && $status !== 'all') {
             $query->where('status', $status);
         }
 
-        if ($category && $category !== 'all') {
+        if ($category && $category !== 'all' && \Illuminate\Support\Facades\Schema::hasColumn('rate_charts', 'category')) {
             $query->where('category', $category);
         }
 
