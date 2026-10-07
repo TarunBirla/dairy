@@ -290,6 +290,31 @@
                         </div>
                     </div>
 
+                    <!-- Product Dealer Dropdown (Dealers & Dealers Payment) -->
+                    <div x-data="{ open: {{ (request()->routeIs('dealers.*') || request()->routeIs('dealer-payments.*')) ? 'true' : 'false' }} }" class="space-y-0.5">
+                        <button type="button" @click="open = !open" class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition {{ (request()->routeIs('dealers.*') || request()->routeIs('dealer-payments.*')) ? 'bg-emerald-50/70 text-emerald-800 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="store" class="w-4 h-4 {{ (request()->routeIs('dealers.*') || request()->routeIs('dealer-payments.*')) ? 'text-emerald-600' : 'text-slate-400' }}"></i>
+                                <span>Product Dealer</span>
+                            </div>
+                            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180 text-emerald-600' : ''"></i>
+                        </button>
+                        
+                        <div x-show="open" x-cloak class="pl-7 pr-1 py-1 space-y-0.5 border-l-2 border-emerald-100 ml-3">
+                            <!-- Dealers List -->
+                            <a href="{{ route('dealers.index') }}" class="flex items-center justify-between px-2.5 py-1.5 rounded-md transition text-[11px] {{ request()->routeIs('dealers.*') ? 'text-emerald-700 font-bold bg-emerald-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
+                                <span>Dealers</span>
+                                <span class="text-[9px] px-1.5 py-0.2 bg-emerald-50 text-emerald-600 font-semibold rounded">Master</span>
+                            </a>
+
+                            <!-- Dealers Payment -->
+                            <a href="{{ route('dealer-payments.index') }}" class="flex items-center justify-between px-2.5 py-1.5 rounded-md transition text-[11px] {{ request()->routeIs('dealer-payments.*') ? 'text-emerald-700 font-bold bg-emerald-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
+                                <span>Dealers Payment</span>
+                                <span class="text-[9px] px-1.5 py-0.2 bg-indigo-50 text-indigo-600 font-semibold rounded">Dues</span>
+                            </a>
+                        </div>
+                    </div>
+
                     <a href="{{ route('expenses.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('expenses.index') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                         <i data-lucide="credit-card" class="w-4 h-4 text-slate-400"></i>
                         <span>Expenses</span>

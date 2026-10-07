@@ -30,6 +30,8 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\DealerController;
+use App\Http\Controllers\DealerPaymentController;
 
 // Public Website Pages
 Route::get('/', [WebsiteController::class, 'home'])->name('home');
@@ -223,6 +225,30 @@ Route::middleware('auth')->group(function () {
     Route::resource('purchases', PurchaseController::class);
     Route::get('purchases/{purchase}/print', [PurchaseController::class, 'printSlip'])->name('purchases.print');
     Route::post('purchases/dealers/quick-create', [PurchaseController::class, 'quickCreateDealer'])->name('purchases.dealers.quick-create');
+
+    // Product Dealers & Dealer Payments (Matching Reference media)
+    Route::prefix('dealers')->name('dealers.')->group(function () {
+        Route::get('/', [DealerController::class, 'index'])->name('index');
+        Route::post('/', [DealerController::class, 'store'])->name('store');
+        Route::get('/print', [DealerController::class, 'printList'])->name('print');
+        Route::get('/{dealer}/print', [DealerController::class, 'printSlip'])->name('slip.print');
+        Route::put('/{dealer}', [DealerController::class, 'update'])->name('update');
+        Route::delete('/{dealer}', [DealerController::class, 'destroy'])->name('destroy');
+    });
+    Route::get('/food_dealer', function() {
+        return redirect()->route('dealers.index');
+    });
+
+    Route::prefix('dealer-payments')->name('dealer-payments.')->group(function () {
+        Route::get('/', [DealerPaymentController::class, 'index'])->name('index');
+        Route::post('/', [DealerPaymentController::class, 'store'])->name('store');
+        Route::get('/dues/{dealer}', [DealerPaymentController::class, 'getDues'])->name('dues');
+        Route::get('/transactions/{dealer}', [DealerPaymentController::class, 'transactions'])->name('transactions');
+        Route::get('/{dealerPayment}/print', [DealerPaymentController::class, 'printSlip'])->name('print');
+    });
+    Route::get('/food_dealer_payment', function() {
+        return redirect()->route('dealer-payments.index');
+    });
 
     // Sales Products (Product Sales to Farmers)
     Route::resource('product-sales', ProductSaleController::class);
