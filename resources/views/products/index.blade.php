@@ -5,7 +5,7 @@
 @section('header_title', 'Products / Product list')
 
 @section('header_action')
-    <button type="button" @click="window.dispatchEvent(new CustomEvent('open-add-product'))" onclick="window.dispatchEvent(new CustomEvent('open-add-product'))" class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition">
+    <button type="button" @click="openCreateModal()" class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition">
         <i data-lucide="plus" class="w-4 h-4"></i>
         <span>Add product</span>
     </button>
@@ -14,10 +14,28 @@
 @section('content')
 <div class="space-y-6" x-data="productListingPage()" @open-add-product.window="openCreateModal()">
 
+    <!-- Navigation Tabs (Products vs Categories) -->
+    <div class="flex items-center gap-2 border-b border-slate-200 pb-3">
+        <a href="{{ route('products.index') }}" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition bg-emerald-600 text-white shadow-xs flex items-center gap-1.5">
+            <i data-lucide="package" class="w-3.5 h-3.5"></i>
+            <span>All Products</span>
+        </a>
+        <a href="{{ route('products.categories.index') }}" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1.5">
+            <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+            <span>Categories</span>
+        </a>
+    </div>
+
     <!-- Page Title & Subtitle matching screenshot -->
-    <div>
-        <h2 class="text-xl font-bold text-slate-900">Products</h2>
-        <p class="text-xs text-slate-500 mt-0.5">Manage your product catalog, prices, and stock availability.</p>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <h2 class="text-xl font-bold text-slate-900">Products</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Manage your product catalog, prices, and stock availability.</p>
+        </div>
+        <button type="button" @click="openCreateModal()" class="sm:hidden inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>Add product</span>
+        </button>
     </div>
 
     <!-- 3 Stat Summary Cards matching screenshot -->
@@ -217,6 +235,7 @@
     <div 
         x-show="createModalOpen" 
         x-cloak 
+        id="addProductModalWrapper"
         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
         aria-labelledby="add-product-title" 
         role="dialog" 
@@ -229,7 +248,7 @@
         x-transition:leave-end="opacity-0"
     >
         <div 
-            @click.away="createModalOpen = false"
+            @click.away="if (!showCategoryModal && !showUnitModal) createModalOpen = false"
             x-show="createModalOpen"
             x-transition:enter="ease-out duration-200"
             x-transition:enter-start="opacity-0 scale-95 translate-y-2"
@@ -237,7 +256,7 @@
             x-transition:leave="ease-in duration-150"
             x-transition:leave-start="opacity-100 scale-100 translate-y-0"
             x-transition:leave-end="opacity-0 scale-95 translate-y-2"
-            class="bg-white rounded-2xl max-w-2xl sm:max-w-3xl w-full p-6 sm:p-7 shadow-2xl border border-slate-100 my-6 max-h-[92vh] overflow-y-auto"
+            class="bg-white rounded-2xl max-w-2xl sm:max-w-3xl w-full p-6 sm:p-7 shadow-2xl border border-slate-100 my-6 max-h-[92vh] overflow-y-auto relative"
         >
             <!-- Modal Header -->
             <div class="border-b border-slate-100 pb-4 mb-5 flex items-center justify-between">
@@ -275,37 +294,56 @@
                     </div>
                 </div>
 
-                <!-- Category & Unit Section -->
+                <!-- Category & Unit Section with Select2 -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <!-- Category with + Add new -->
+                    <!-- Category with Select2 + Add new -->
                     <div>
                         <div class="flex items-center justify-between mb-1.5">
                             <label class="block text-xs font-semibold text-slate-700">Product Category <span class="text-slate-400 font-normal">(Optional)</span></label>
-                            <button type="button" @click="showCategoryModal = true" class="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition flex items-center gap-1">
+                            <button type="button" @click="openCategorySubmodal()" class="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition flex items-center gap-1">
                                 <span>+ Add new</span>
                             </button>
                         </div>
-                        <select name="category_id" x-model="selectedCategoryId" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition bg-white">
-                            <option value="">Select Category</option>
-                            <template x-for="cat in categories" :key="cat.id">
-                                <option :value="cat.id" x-text="cat.name" :selected="cat.id == selectedCategoryId"></option>
-                            </template>
-                        </select>
+                        <div class="w-full">
+                            <select 
+                                name="category_id" 
+                                id="product_category_select" 
+                                class="w-full text-xs"
+                                data-placeholder="Select Category"
+                            >
+                                <option value="">Select Category</option>
+                                @foreach($categories as $cat)
+                                    <option value="{{ $cat->id }}" {{ old('category_id') == $cat->id ? 'selected' : '' }}>
+                                        {{ $cat->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
 
-                    <!-- Unit of Measure with + Add new -->
+                    <!-- Unit of Measure with Select2 + Add new -->
                     <div>
                         <div class="flex items-center justify-between mb-1.5">
                             <label class="block text-xs font-semibold text-slate-700">Unit of Measure *</label>
-                            <button type="button" @click="showUnitModal = true" class="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition flex items-center gap-1">
+                            <button type="button" @click="openUnitSubmodal()" class="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition flex items-center gap-1">
                                 <span>+ Add new</span>
                             </button>
                         </div>
-                        <select name="unit" x-model="selectedUnit" required class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition bg-white">
-                            <template x-for="u in units" :key="u.value">
-                                <option :value="u.value" x-text="u.label" :selected="u.value == selectedUnit"></option>
-                            </template>
-                        </select>
+                        <div class="w-full">
+                            <select 
+                                name="unit" 
+                                id="product_unit_select" 
+                                required 
+                                class="w-full text-xs"
+                                data-placeholder="Select Unit"
+                            >
+                                <option value="liter" {{ old('unit', 'liter') == 'liter' ? 'selected' : '' }}>Liter (ltr)</option>
+                                <option value="kg" {{ old('unit') == 'kg' ? 'selected' : '' }}>Kilogram (kg)</option>
+                                <option value="bottle" {{ old('unit') == 'bottle' ? 'selected' : '' }}>Bottle</option>
+                                <option value="piece" {{ old('unit') == 'piece' ? 'selected' : '' }}>Piece / Bag</option>
+                                <option value="pack" {{ old('unit') == 'pack' ? 'selected' : '' }}>Pack / Pouch</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -352,69 +390,128 @@
         </div>
     </div>
 
-    <!-- Submodal: Category Modal -->
-    <div x-show="showCategoryModal" x-cloak class="fixed inset-0 z-60 overflow-y-auto" aria-labelledby="modal-category-title" role="dialog" aria-modal="true">
-        <div class="flex items-center justify-center min-h-screen px-4 text-center sm:block sm:p-0">
-            <div x-show="showCategoryModal" x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showCategoryModal = false"></div>
-            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div x-show="showCategoryModal" class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-slate-100 p-6 relative z-10">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <h3 class="text-base font-bold text-slate-900" id="modal-category-title">Add product category</h3>
-                        <p class="text-xs text-slate-500 mt-1">Categories help group similar products on bills and catalogue.</p>
-                    </div>
-                    <button type="button" @click="showCategoryModal = false" class="text-slate-400 hover:text-slate-600 p-1">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
+    <!-- ================= SUBMODAL: ADD CATEGORY (Elevated z-[80]) ================= -->
+    <div 
+        x-show="showCategoryModal" 
+        x-cloak 
+        class="fixed inset-0 z-[80] overflow-y-auto flex items-center justify-center p-4" 
+        aria-labelledby="modal-category-title" 
+        role="dialog" 
+        aria-modal="true"
+    >
+        <!-- Distinct Backdrop -->
+        <div 
+            x-show="showCategoryModal" 
+            x-transition:enter="ease-out duration-200" 
+            x-transition:enter-start="opacity-0" 
+            x-transition:enter-end="opacity-100" 
+            class="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity" 
+            @click="showCategoryModal = false"
+        ></div>
+
+        <!-- Modal Dialog -->
+        <div 
+            x-show="showCategoryModal" 
+            x-transition:enter="ease-out duration-200" 
+            x-transition:enter-start="opacity-0 scale-95 translate-y-2" 
+            x-transition:enter-end="opacity-100 scale-100 translate-y-0" 
+            class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 relative z-10 my-8"
+        >
+            <div class="flex items-start justify-between pb-3 border-b border-slate-100">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900" id="modal-category-title">Add product category</h3>
+                    <p class="text-xs text-slate-500 mt-1">Categories help group similar products on bills and catalogue.</p>
+                </div>
+                <button type="button" @click="showCategoryModal = false" class="text-slate-400 hover:text-slate-600 p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="mt-4 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Category name *</label>
+                    <input 
+                        type="text" 
+                        x-model="newCategoryName" 
+                        id="new_category_input"
+                        @keydown.enter.prevent="saveCategory()" 
+                        placeholder="e.g. Milk, Curd, Ghee, Sweets" 
+                        class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition"
+                    >
+                    <p x-show="categoryError" x-text="categoryError" class="text-rose-600 text-[11px] mt-1"></p>
                 </div>
 
-                <div class="mt-5 space-y-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Category name *</label>
-                        <input type="text" x-model="newCategoryName" @keydown.enter.prevent="saveCategory()" placeholder="e.g. Milk, Curd, Ghee" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition">
-                        <p x-show="categoryError" x-text="categoryError" class="text-rose-600 text-[11px] mt-1"></p>
-                    </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Description <span class="text-slate-400 font-normal">(Optional)</span></label>
+                    <textarea 
+                        x-model="newCategoryDescription" 
+                        rows="2" 
+                        placeholder="Brief details about products in this category..." 
+                        class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition"
+                    ></textarea>
                 </div>
+            </div>
 
-                <div class="mt-6 flex justify-end gap-2.5">
-                    <button type="button" @click="showCategoryModal = false" class="px-4 py-2.5 text-xs font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-xl transition">Cancel</button>
-                    <button type="button" @click="saveCategory()" :disabled="savingCategory" class="px-5 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl shadow-xs transition flex items-center gap-1.5">
-                        <span x-show="!savingCategory">Save category</span>
-                        <span x-show="savingCategory">Saving...</span>
-                    </button>
-                </div>
+            <div class="mt-6 flex justify-end gap-2.5 border-t border-slate-100 pt-3">
+                <button type="button" @click="showCategoryModal = false" class="px-4 py-2.5 text-xs font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-xl transition">Cancel</button>
+                <button type="button" @click="saveCategory()" :disabled="savingCategory" class="px-5 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl shadow-xs transition flex items-center gap-1.5">
+                    <span x-show="!savingCategory">Save category</span>
+                    <span x-show="savingCategory">Saving...</span>
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Submodal: Unit Modal -->
-    <div x-show="showUnitModal" x-cloak class="fixed inset-0 z-60 overflow-y-auto" aria-labelledby="modal-unit-title" role="dialog" aria-modal="true">
-        <div class="flex items-center justify-center min-h-screen px-4 text-center sm:block sm:p-0">
-            <div x-show="showUnitModal" x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showUnitModal = false"></div>
-            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div x-show="showUnitModal" class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-slate-100 p-6 relative z-10">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <h3 class="text-base font-bold text-slate-900" id="modal-unit-title">Add unit of measure</h3>
-                        <p class="text-xs text-slate-500 mt-1">Specify unit label and symbol for packaging or billing.</p>
-                    </div>
-                    <button type="button" @click="showUnitModal = false" class="text-slate-400 hover:text-slate-600 p-1">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                </div>
+    <!-- ================= SUBMODAL: ADD UNIT (Elevated z-[80]) ================= -->
+    <div 
+        x-show="showUnitModal" 
+        x-cloak 
+        class="fixed inset-0 z-[80] overflow-y-auto flex items-center justify-center p-4" 
+        aria-labelledby="modal-unit-title" 
+        role="dialog" 
+        aria-modal="true"
+    >
+        <div 
+            x-show="showUnitModal" 
+            x-transition:enter="ease-out duration-200" 
+            x-transition:enter-start="opacity-0" 
+            x-transition:enter-end="opacity-100" 
+            class="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity" 
+            @click="showUnitModal = false"
+        ></div>
 
-                <div class="mt-5 space-y-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Unit name / label *</label>
-                        <input type="text" x-model="newUnitLabel" @keydown.enter.prevent="saveUnit()" placeholder="e.g. 500ml Pouch, Jar, Can, Box" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition">
-                        <p x-show="unitError" x-text="unitError" class="text-rose-600 text-[11px] mt-1"></p>
-                    </div>
+        <div 
+            x-show="showUnitModal" 
+            class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 relative z-10 my-8"
+        >
+            <div class="flex items-start justify-between pb-3 border-b border-slate-100">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900" id="modal-unit-title">Add unit of measure</h3>
+                    <p class="text-xs text-slate-500 mt-1">Specify unit label and symbol for packaging or billing.</p>
                 </div>
+                <button type="button" @click="showUnitModal = false" class="text-slate-400 hover:text-slate-600 p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
 
-                <div class="mt-6 flex justify-end gap-2.5">
-                    <button type="button" @click="showUnitModal = false" class="px-4 py-2.5 text-xs font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-xl transition">Cancel</button>
-                    <button type="button" @click="saveUnit()" class="px-5 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition">Save unit</button>
+            <div class="mt-4 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Unit name / label *</label>
+                    <input 
+                        type="text" 
+                        x-model="newUnitLabel" 
+                        id="new_unit_input"
+                        @keydown.enter.prevent="saveUnit()" 
+                        placeholder="e.g. 500ml Pouch, Jar, Can, Box" 
+                        class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition"
+                    >
+                    <p x-show="unitError" x-text="unitError" class="text-rose-600 text-[11px] mt-1"></p>
                 </div>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-2.5 border-t border-slate-100 pt-3">
+                <button type="button" @click="showUnitModal = false" class="px-4 py-2.5 text-xs font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-xl transition">Cancel</button>
+                <button type="button" @click="saveUnit()" class="px-5 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition">Save unit</button>
             </div>
         </div>
     </div>
@@ -464,28 +561,63 @@
             showCategoryModal: false,
             showUnitModal: false,
             newCategoryName: '',
+            newCategoryDescription: '',
             categoryError: '',
             savingCategory: false,
-            selectedCategoryId: '{{ old('category_id') }}',
-            categories: @json($categories),
 
             newUnitLabel: '',
             unitError: '',
-            selectedUnit: '{{ old('unit', 'liter') }}',
-            units: [
-                { value: 'liter', label: 'Liter (ltr)' },
-                { value: 'kg', label: 'Kilogram (kg)' },
-                { value: 'bottle', label: 'Bottle' },
-                { value: 'piece', label: 'Piece / Bag' },
-                { value: 'pack', label: 'Pack / Pouch' },
-            ],
+
+            init() {
+                if (this.createModalOpen) {
+                    this.initModalSelect2();
+                }
+            },
 
             openCreateModal() {
                 this.createModalOpen = true;
+                this.initModalSelect2();
+            },
+
+            initModalSelect2() {
                 this.$nextTick(() => {
-                    if (window.lucide) {
-                        window.lucide.createIcons();
+                    if (window.lucide) window.lucide.createIcons();
+                    
+                    if (window.jQuery && jQuery.fn.select2) {
+                        const $modalParent = $('#addProductModalWrapper');
+
+                        // Initialize Category Select2
+                        const $catSelect = $('#product_category_select');
+                        if ($catSelect.length && !$catSelect.hasClass('select2-hidden-accessible')) {
+                            $catSelect.select2({
+                                width: '100%',
+                                dropdownParent: $modalParent,
+                                placeholder: 'Select Category',
+                                allowClear: true
+                            });
+                        }
+
+                        // Initialize Unit Select2
+                        const $unitSelect = $('#product_unit_select');
+                        if ($unitSelect.length && !$unitSelect.hasClass('select2-hidden-accessible')) {
+                            $unitSelect.select2({
+                                width: '100%',
+                                dropdownParent: $modalParent,
+                                placeholder: 'Select Unit'
+                            });
+                        }
                     }
+                });
+            },
+
+            openCategorySubmodal() {
+                this.newCategoryName = '';
+                this.newCategoryDescription = '';
+                this.categoryError = '';
+                this.showCategoryModal = true;
+                this.$nextTick(() => {
+                    const inp = document.getElementById('new_category_input');
+                    if (inp) inp.focus();
                 });
             },
 
@@ -505,17 +637,31 @@
                             'X-CSRF-TOKEN': '{{ csrf_token() }}',
                             'Accept': 'application/json'
                         },
-                        body: JSON.stringify({ name: this.newCategoryName.trim() })
+                        body: JSON.stringify({ 
+                            name: this.newCategoryName.trim(),
+                            description: this.newCategoryDescription.trim()
+                        })
                     });
 
                     const data = await response.json();
                     if (response.ok && data.success) {
-                        const exists = this.categories.find(c => c.id == data.category.id);
-                        if (!exists) {
-                            this.categories.push(data.category);
+                        const category = data.category;
+                        
+                        // Dynamically update the Select2 Category dropdown!
+                        if (window.jQuery) {
+                            const $catSelect = $('#product_category_select');
+                            
+                            // Check if option already exists
+                            if ($catSelect.find("option[value='" + category.id + "']").length === 0) {
+                                const newOption = new Option(category.name, category.id, true, true);
+                                $catSelect.append(newOption);
+                            }
+                            // Select it and trigger change
+                            $catSelect.val(category.id).trigger('change');
                         }
-                        this.selectedCategoryId = data.category.id;
+
                         this.newCategoryName = '';
+                        this.newCategoryDescription = '';
                         this.showCategoryModal = false;
                     } else {
                         this.categoryError = data.message || 'Error saving category.';
@@ -527,18 +673,33 @@
                 }
             },
 
+            openUnitSubmodal() {
+                this.newUnitLabel = '';
+                this.unitError = '';
+                this.showUnitModal = true;
+                this.$nextTick(() => {
+                    const inp = document.getElementById('new_unit_input');
+                    if (inp) inp.focus();
+                });
+            },
+
             saveUnit() {
                 if (!this.newUnitLabel.trim()) {
                     this.unitError = 'Please enter unit name.';
                     return;
                 }
-                const clean = this.newUnitLabel.trim();
-                const val = clean.toLowerCase().replace(/[^a-z0-9]/g, '_');
-                const exists = this.units.find(u => u.value === val);
-                if (!exists) {
-                    this.units.push({ value: val, label: clean });
+                const label = this.newUnitLabel.trim();
+                const val = label.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+                if (window.jQuery) {
+                    const $unitSelect = $('#product_unit_select');
+                    if ($unitSelect.find("option[value='" + val + "']").length === 0) {
+                        const newOption = new Option(label, val, true, true);
+                        $unitSelect.append(newOption);
+                    }
+                    $unitSelect.val(val).trigger('change');
                 }
-                this.selectedUnit = val;
+
                 this.newUnitLabel = '';
                 this.unitError = '';
                 this.showUnitModal = false;

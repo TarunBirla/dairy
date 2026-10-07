@@ -53,6 +53,11 @@
         }
     </script>
     
+    <!-- jQuery & Select2 -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
     <!-- Alpine.js & Lucide Icons -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -67,6 +72,83 @@
         [x-cloak] { display: none !important; }
         .sidebar-scroll::-webkit-scrollbar { width: 4px; }
         .sidebar-scroll::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 4px; }
+
+        /* Select2 Custom Theme matching Plus Jakarta Sans and Tailwind */
+        .select2-container {
+            width: 100% !important;
+        }
+        .select2-container .select2-selection--single {
+            height: 42px !important;
+            padding: 6px 12px !important;
+            font-size: 12px !important;
+            font-family: 'Plus Jakarta Sans', sans-serif !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 0.75rem !important;
+            background-color: #ffffff !important;
+            display: flex !important;
+            align-items: center !important;
+            transition: all 0.15s ease-in-out !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            color: #1e293b !important;
+            line-height: 28px !important;
+            padding-left: 0 !important;
+            font-weight: 500 !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__placeholder {
+            color: #94a3b8 !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 40px !important;
+            right: 10px !important;
+        }
+        .select2-container--default.select2-container--focus .select2-selection--single,
+        .select2-container--default.select2-container--open .select2-selection--single {
+            border-color: #059669 !important;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2) !important;
+            outline: none !important;
+        }
+        .select2-dropdown {
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 0.75rem !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+            overflow: hidden !important;
+            font-family: 'Plus Jakarta Sans', sans-serif !important;
+            font-size: 12px !important;
+            background-color: #ffffff !important;
+            z-index: 999999 !important;
+        }
+        .select2-container--open {
+            z-index: 999999 !important;
+        }
+        .select2-search--dropdown {
+            padding: 8px !important;
+        }
+        .select2-search--dropdown .select2-search__field {
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 0.5rem !important;
+            padding: 6px 10px !important;
+            font-size: 12px !important;
+            font-family: inherit !important;
+            outline: none !important;
+        }
+        .select2-search--dropdown .select2-search__field:focus {
+            border-color: #059669 !important;
+        }
+        .select2-results__option {
+            padding: 8px 12px !important;
+            font-size: 12px !important;
+            color: #334155 !important;
+        }
+        .select2-container--default .select2-results__option--highlighted[aria-selected] {
+            background-color: #059669 !important;
+            color: #ffffff !important;
+        }
+        .select2-container--default .select2-results__option[aria-selected=true] {
+            background-color: #ecfdf5 !important;
+            color: #047857 !important;
+            font-weight: 600 !important;
+        }
     </style>
 </head>
 <body class="bg-[#F8FAFC] text-slate-800 antialiased min-h-screen flex" style="font-family: 'Plus Jakarta Sans', sans-serif;" x-data="{ sidebarOpen: true, mobileMenuOpen: false }">
@@ -173,6 +255,12 @@
                                @if(request()->routeIs('products.index')) @click.prevent="window.dispatchEvent(new CustomEvent('open-add-product'))" @endif
                                class="flex items-center justify-between px-2.5 py-1.5 rounded-md transition text-[11px] {{ (request()->routeIs('products.create') || request('open_create')) ? 'text-emerald-700 font-bold bg-emerald-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
                                 <span>+ Add Product</span>
+                            </a>
+
+                            <!-- Categories Master -->
+                            <a href="{{ route('products.categories.index') }}" class="flex items-center justify-between px-2.5 py-1.5 rounded-md transition text-[11px] {{ request()->routeIs('products.categories.*') ? 'text-emerald-700 font-bold bg-emerald-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
+                                <span>Categories</span>
+                                <span class="text-[10px] px-1.5 py-0.2 bg-slate-100 rounded text-slate-500 font-normal">Master</span>
                             </a>
 
                             <!-- Buy Product (Purchase / Stock Inward) -->
@@ -492,6 +580,35 @@
                 group.style.display = (hasMatch || query === '') ? 'block' : 'none';
             });
         }
+
+        // Global Select2 Initializer with search + modal support
+        window.initSelect2 = function(selector, options) {
+            if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+                $(selector || '.select2').each(function() {
+                    var $this = $(this);
+                    if ($this.hasClass('select2-hidden-accessible')) {
+                        $this.select2('destroy');
+                    }
+                    var modalParent = $this.closest('[role="dialog"], .modal-dialog, .modal-box, .fixed');
+                    var placeholderText = $this.attr('placeholder') || $this.find('option[value=""]').first().text() || 'Select an option';
+                    var config = Object.assign({
+                        width: '100%',
+                        placeholder: placeholderText,
+                        allowClear: !$this.prop('required') && $this.find('option[value=""]').length > 0,
+                    }, options || {});
+
+                    if (modalParent.length) {
+                        config.dropdownParent = modalParent;
+                    }
+
+                    $this.select2(config);
+                });
+            }
+        };
+
+        $(document).ready(function() {
+            window.initSelect2('.select2');
+        });
     </script>
     @stack('scripts')
 </body>

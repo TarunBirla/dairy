@@ -23,6 +23,11 @@ use App\Http\Controllers\WebsiteController;
 use App\Http\Controllers\MilkDispatchController;
 use App\Http\Controllers\ProductBookingController;
 use App\Http\Controllers\SmsController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\SettingController;
+use App\Http\Controllers\SupportTicketController;
+use App\Http\Controllers\AuditLogController;
 
 // Public Website Pages
 Route::get('/', [WebsiteController::class, 'home'])->name('home');
@@ -178,7 +183,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [ProductController::class, 'index'])->name('index');
         Route::get('/create', [ProductController::class, 'create'])->name('create');
         Route::post('/', [ProductController::class, 'store'])->name('store');
-        Route::post('/categories/ajax', [ProductController::class, 'storeCategoryAjax'])->name('categories.ajax');
+        
+        // Category Management
+        Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
+        Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
+        Route::put('/categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
+        Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+        Route::post('/categories/ajax', [CategoryController::class, 'storeAjax'])->name('categories.ajax');
+
         Route::get('/{product}/edit', [ProductController::class, 'edit'])->name('edit');
         Route::put('/{product}', [ProductController::class, 'update'])->name('update');
         Route::post('/{product}/toggle-stock', [ProductController::class, 'toggleStock'])->name('toggle-stock');
