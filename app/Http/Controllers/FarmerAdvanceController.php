@@ -47,6 +47,10 @@ class FarmerAdvanceController extends Controller
                         $table->string('payment_mode')->default('Cash')->after('interest_balance');
                     }
                 });
+
+                if (Schema::hasColumn('farmer_advances', 'deleted_at')) {
+                    \DB::table('farmer_advances')->whereNotNull('deleted_at')->update(['deleted_at' => null]);
+                }
             }
 
             if (!Schema::hasTable('farmer_advance_repayments')) {
@@ -60,51 +64,7 @@ class FarmerAdvanceController extends Controller
                     $table->text('remark')->nullable();
                     $table->foreignId('recorded_by')->nullable()->constrained('users')->nullOnDelete();
                     $table->timestamps();
-                    $table->softDeletes();
                 });
-            }
-
-            // Seed sample advances matching reference screenshot if empty
-            if (FarmerAdvance::count() === 0 && Farmer::count() > 0) {
-                $farmers = Farmer::take(5)->get();
-                $samples = [
-                    ['amount' => 500.00, 'paid' => 0.00, 'voucher' => '001', 'remark' => '-PAID BY DR', 'mode' => 'Cash', 'interest' => 0.00],
-                    ['amount' => 5000.00, 'paid' => 4420.00, 'voucher' => '002', 'remark' => 'Emergency Advance', 'mode' => 'UPI', 'interest' => 0.00],
-                    ['amount' => 2000.00, 'paid' => 1600.00, 'voucher' => '003', 'remark' => 'Cattle Feed loan', 'mode' => 'Cash', 'interest' => 0.00],
-                    ['amount' => 10000.00, 'paid' => 0.00, 'voucher' => '004', 'remark' => 'Seasonal Festival Advance', 'mode' => 'Bank Transfer', 'interest' => 0.00],
-                    ['amount' => 5000.00, 'paid' => 5000.00, 'voucher' => '005', 'remark' => 'Full Cleared Loan', 'mode' => 'Cash', 'interest' => 0.00],
-                ];
-
-                foreach ($farmers as $idx => $f) {
-                    if (isset($samples[$idx])) {
-                        $s = $samples[$idx];
-                        $adv = FarmerAdvance::create([
-                            'farmer_id' => $f->id,
-                            'amount' => $s['amount'],
-                            'advance_date' => now()->subDays(5 - $idx)->format('Y-m-d'),
-                            'voucher_no' => $s['voucher'],
-                            'purpose' => $s['remark'],
-                            'notes' => $s['remark'],
-                            'interest_rate' => $s['interest'],
-                            'deducted_amount' => $s['paid'],
-                            'paid_amount' => $s['paid'],
-                            'paid_date' => $s['paid'] > 0 ? now()->format('Y-m-d') : null,
-                            'payment_mode' => $s['mode'],
-                            'status' => $s['paid'] >= $s['amount'] ? 'recovered' : ($s['paid'] > 0 ? 'partially_deducted' : 'pending'),
-                        ]);
-
-                        if ($s['paid'] > 0) {
-                            FarmerAdvanceRepayment::create([
-                                'farmer_advance_id' => $adv->id,
-                                'farmer_id' => $f->id,
-                                'repayment_date' => now()->format('Y-m-d'),
-                                'amount' => $s['paid'],
-                                'payment_mode' => $s['mode'],
-                                'remark' => 'Partial repayment received',
-                            ]);
-                        }
-                    }
-                }
             }
         } catch (\Throwable $e) {
             // Ignore in constructor
