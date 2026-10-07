@@ -36,6 +36,73 @@ Route::post('login', [AuthController::class, 'login'])->name('login.post');
 Route::get('demo-login/{user}', [AuthController::class, 'demoLogin'])->name('login.demo');
 Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 
+// One-Click Live Database Setup Route (Migrate + Seed + Diagnostics)
+Route::match(['get', 'post'], '/setup-database', function (\Illuminate\Http\Request $request) {
+    // If action is requested or auto-run
+    $run = $request->query('run', false);
+    $wipe = $request->query('wipe', false);
+
+    $logs = [];
+    $status = 'idle';
+
+    if ($run) {
+        try {
+            ini_set('max_execution_time', '300');
+            ini_set('memory_limit', '512M');
+
+            // Step 1: Check Connection
+            \Illuminate\Support\Facades\DB::connection()->getPdo();
+            $logs[] = "✅ Database connection established successfully with database: " . config('database.connections.mysql.database');
+
+            // Step 2: Wipe or Migrate
+            if ($wipe) {
+                \Illuminate\Support\Facades\Artisan::call('migrate:fresh', ['--force' => true]);
+                $logs[] = "🔄 Tables wiped & freshly created:\n" . trim(\Illuminate\Support\Facades\Artisan::output());
+            } else {
+                \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+                $logs[] = "🔄 Migrations executed:\n" . trim(\Illuminate\Support\Facades\Artisan::output());
+            }
+
+            // Step 3: Run Database Seeders
+            \Illuminate\Support\Facades\Artisan::call('db:seed', ['--force' => true]);
+            $logs[] = "🌱 Database seeded with all initial data:\n" . trim(\Illuminate\Support\Facades\Artisan::output());
+
+            // Step 4: Clear & optimize cache
+            \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+            $logs[] = "🧹 Application cache cleared successfully.";
+
+            $status = 'success';
+        } catch (\Throwable $e) {
+            $logs[] = "❌ Error: " . $e->getMessage();
+            $status = 'error';
+        }
+    }
+
+    $tablesCount = 0;
+    $usersCount = 0;
+    $dbConnected = false;
+    $dbError = null;
+
+    try {
+        \Illuminate\Support\Facades\DB::connection()->getPdo();
+        $dbConnected = true;
+        $dbName = config('database.connections.mysql.database');
+        $rawTables = \Illuminate\Support\Facades\DB::select('SHOW TABLES');
+        $tablesCount = count($rawTables);
+        if (\Illuminate\Support\Facades\Schema::hasTable('users')) {
+            $usersCount = \App\Models\User::count();
+        }
+    } catch (\Throwable $e) {
+        $dbError = $e->getMessage();
+    }
+
+    return view('install_db', compact('status', 'logs', 'tablesCount', 'usersCount', 'dbConnected', 'dbError', 'run'));
+})->name('setup.database');
+Route::get('/install-db', function () {
+    return redirect()->route('setup.database', ['run' => 1]);
+});
+
+
 // Authenticated Application Routes
 Route::middleware('auth')->group(function () {
     // Dashboard & Profile

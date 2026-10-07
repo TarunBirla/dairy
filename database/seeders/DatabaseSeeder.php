@@ -829,5 +829,77 @@ class DatabaseSeeder extends Seeder
             'recipient_phone' => $customers[0]->phone,
             'status' => 'sent',
         ]);
+
+        // 17. Customer Groups
+        $vipGroup = \App\Models\CustomerGroup::firstOrCreate(['name' => 'VIP Customers'], [
+            'slug' => 'vip-customers',
+            'description' => 'Priority morning early delivery customers',
+            'color' => '#10b981'
+        ]);
+        $commercialGroup = \App\Models\CustomerGroup::firstOrCreate(['name' => 'Commercial / Hotels'], [
+            'slug' => 'commercial-hotels',
+            'description' => 'Hotels, tea stalls and sweet shops',
+            'color' => '#3b82f6'
+        ]);
+        if (isset($customers[0])) {
+            $customers[0]->groups()->syncWithoutDetaching([$vipGroup->id]);
+        }
+        if (isset($customers[2])) {
+            $customers[2]->groups()->syncWithoutDetaching([$commercialGroup->id]);
+        }
+
+        // 18. Website Settings & Banners
+        $defaultSettings = [
+            'hero_title' => 'Pure Farm Fresh Milk Delivered to Your Doorstep Every Morning',
+            'hero_subtitle' => '100% natural, unprocessed, lab-tested cow & buffalo milk sourced directly from trusted village farmers.',
+            'about_story' => 'Simple Dairy was founded with a single mission: to reconnect urban families with genuine farm milk and dairy products.',
+            'phone' => '+91 98765 43210',
+            'email' => 'contact@simpledairy.com',
+            'address' => 'Plot 42, Dairy Processing Zone, Industrial Area, Indore, MP',
+            'morning_time' => '05:30 AM - 08:30 AM',
+            'evening_time' => '05:00 PM - 08:00 PM',
+        ];
+        foreach ($defaultSettings as $key => $val) {
+            \App\Models\WebsiteSetting::updateOrCreate(['key' => $key], ['value' => $val]);
+        }
+
+        \App\Models\WebsiteBanner::firstOrCreate(['title' => '100% Shudh Desi Cow & Buffalo Milk'], [
+            'subtitle' => 'Farm-fresh raw & pasteurized milk directly from local farmers at fair transparent rates.',
+            'badge_text' => 'Direct From Verified Farmers',
+            'cta_text' => 'Start Milk Subscription',
+            'cta_url' => '/login',
+            'bg_gradient' => 'from-emerald-900 via-teal-950 to-slate-950',
+            'sort_order' => 1,
+            'is_active' => true,
+        ]);
+
+        \App\Models\WebsiteBanner::firstOrCreate(['title' => 'Fresh Bilona Ghee, Malai Paneer & Khoya'], [
+            'subtitle' => 'Traditional bilona method churned pure ghee, daily fresh paneer & authentic sweets.',
+            'badge_text' => 'Premium Quality Dairy',
+            'cta_text' => 'Explore Product Catalogue',
+            'cta_url' => '/products-catalogue',
+            'bg_gradient' => 'from-blue-900 via-indigo-950 to-slate-950',
+            'sort_order' => 2,
+            'is_active' => true,
+        ]);
+
+        // 19. Milk Dispatch Sample
+        \App\Models\MilkDispatch::create([
+            'dispatch_number' => 'DSP-202610-001',
+            'branch_id' => $mainBranch->id,
+            'dispatch_date' => $today,
+            'shift' => 'morning',
+            'milk_type' => 'mixed',
+            'quantity_liters' => 500.00,
+            'fat' => 4.80,
+            'snf' => 8.80,
+            'temperature' => 4.20,
+            'destination_type' => 'processing_plant',
+            'destination_name' => 'Main Indore BMC Plant',
+            'tanker_number' => 'MP-09-GA-4521',
+            'driver_name' => 'Sukhdev Singh',
+            'driver_phone' => '9827099887',
+            'status' => 'dispatched',
+        ]);
     }
 }
