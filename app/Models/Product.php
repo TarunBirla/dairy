@@ -14,6 +14,7 @@ class Product extends Model
         'category_id',
         'name',
         'code',
+        'product_for',
         'product_type',
         'unit',
         'pack_size',

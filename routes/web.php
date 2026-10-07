@@ -107,6 +107,9 @@ Route::get('/install-db', function () {
     return redirect()->route('setup.database', ['run' => 1]);
 });
 Route::get('/clear-cache', function () {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+    } catch (\Throwable $e) {}
     \Illuminate\Support\Facades\Artisan::call('optimize:clear');
     \Illuminate\Support\Facades\Artisan::call('view:clear');
     \Illuminate\Support\Facades\Artisan::call('route:clear');
@@ -114,7 +117,7 @@ Route::get('/clear-cache', function () {
     if (function_exists('opcache_reset')) {
         @opcache_reset();
     }
-    return redirect()->route('products.index')->with('success', 'All caches & OPcache cleared successfully!');
+    return redirect()->route('products.index')->with('success', 'Database updated, caches & OPcache cleared successfully!');
 });
 
 

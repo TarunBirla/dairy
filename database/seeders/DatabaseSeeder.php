@@ -417,6 +417,7 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => 'khalli',
                 'code' => 'PRD-006',
+                'product_for' => 'farmer',
                 'category_id' => $catFeed->id,
                 'product_type' => 'feed',
                 'unit' => 'piece',

@@ -8,11 +8,20 @@ use App\Models\Product;
 use App\Models\Category;
 use App\Models\InventoryTransaction;
 use App\Models\AuditLog;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
 
 class ProductController extends Controller
 {
     public function index(Request $request)
     {
+        // Graceful automatic schema check in case migration has not been triggered yet
+        if (Schema::hasTable('products') && !Schema::hasColumn('products', 'product_for')) {
+            Schema::table('products', function (Blueprint $table) {
+                $table->string('product_for')->default('customer')->after('code');
+            });
+        }
+
         $query = Product::with('category');
 
         if ($request->filled('search')) {
@@ -33,6 +42,16 @@ class ProductController extends Controller
                 $query->where('in_stock', true);
             } elseif ($request->stock_status === 'out_of_stock') {
                 $query->where('in_stock', false);
+            }
+        }
+
+        if ($request->filled('product_for') && in_array($request->product_for, ['farmer', 'customer', 'both'])) {
+            if ($request->product_for === 'farmer') {
+                $query->whereIn('product_for', ['farmer', 'both']);
+            } elseif ($request->product_for === 'customer') {
+                $query->whereIn('product_for', ['customer', 'both']);
+            } elseif ($request->product_for === 'both') {
+                $query->where('product_for', 'both');
             }
         }
 
@@ -70,6 +89,7 @@ class ProductController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'code' => 'required|string|unique:products,code',
+            'product_for' => 'nullable|in:farmer,customer,both',
             'category_id' => 'nullable|exists:categories,id',
             'product_type' => 'nullable|string|max:50',
             'unit' => 'required|string|max:50',
@@ -81,6 +101,10 @@ class ProductController extends Controller
             'min_stock_alert' => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
         ]);
+
+        if (empty($validated['product_for'])) {
+            $validated['product_for'] = 'customer';
+        }
 
         if (empty($validated['product_type'])) {
             $validated['product_type'] = 'milk';
@@ -117,6 +141,7 @@ class ProductController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'product_for' => 'nullable|in:farmer,customer,both',
             'category_id' => 'nullable|exists:categories,id',
             'product_type' => 'nullable|string|max:50',
             'unit' => 'required|string|max:50',
@@ -127,6 +152,10 @@ class ProductController extends Controller
             'min_stock_alert' => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
         ]);
+
+        if (empty($validated['product_for'])) {
+            $validated['product_for'] = $product->product_for ?: 'customer';
+        }
 
         if (empty($validated['product_type'])) {
             $validated['product_type'] = $product->product_type ?: 'milk';

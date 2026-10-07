@@ -84,6 +84,15 @@
     <!-- Search & Download Filter Bar matching screenshot -->
     <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
         <form method="GET" action="{{ route('products.index') }}" class="w-full sm:w-96 flex items-center relative">
+            @if(request('product_for'))
+                <input type="hidden" name="product_for" value="{{ request('product_for') }}">
+            @endif
+            @if(request('category_id'))
+                <input type="hidden" name="category_id" value="{{ request('category_id') }}">
+            @endif
+            @if(request('stock_status'))
+                <input type="hidden" name="stock_status" value="{{ request('stock_status') }}">
+            @endif
             <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3"></i>
             <input 
                 type="text" 
@@ -102,8 +111,55 @@
         </div>
     </div>
 
-    <!-- Products Data Table matching screenshot exactly! -->
+    <!-- Products Data Table with Header matching screenshot -->
     <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <!-- Blue Header from user screenshot -->
+        <div class="bg-[#3b82f6] px-6 py-4.5 text-white">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                    <h3 class="text-xl font-bold tracking-tight text-white">Product List</h3>
+                    <div class="mt-2.5">
+                        <span class="block text-xs font-semibold text-blue-100 uppercase tracking-wider mb-2">Product For</span>
+                        <form id="productForFilterForm" method="GET" action="{{ route('products.index') }}" class="flex flex-wrap items-center gap-5 sm:gap-7 text-sm font-medium">
+                            @if(request('search'))
+                                <input type="hidden" name="search" value="{{ request('search') }}">
+                            @endif
+                            @if(request('category_id'))
+                                <input type="hidden" name="category_id" value="{{ request('category_id') }}">
+                            @endif
+                            @if(request('stock_status'))
+                                <input type="hidden" name="stock_status" value="{{ request('stock_status') }}">
+                            @endif
+
+                            @php
+                                $currentProductFor = request('product_for', 'all');
+                            @endphp
+
+                            <label class="inline-flex items-center gap-2 cursor-pointer select-none text-white hover:text-blue-100 transition">
+                                <input type="radio" name="product_for" value="all" {{ ($currentProductFor === 'all' || !$currentProductFor) ? 'checked' : '' }} onchange="this.form.submit()" class="w-4 h-4 text-blue-600 bg-white border-white focus:ring-0 focus:ring-offset-0 cursor-pointer">
+                                <span>All</span>
+                            </label>
+
+                            <label class="inline-flex items-center gap-2 cursor-pointer select-none text-white hover:text-blue-100 transition">
+                                <input type="radio" name="product_for" value="farmer" {{ $currentProductFor === 'farmer' ? 'checked' : '' }} onchange="this.form.submit()" class="w-4 h-4 text-blue-600 bg-white border-white focus:ring-0 focus:ring-offset-0 cursor-pointer">
+                                <span>Farmer</span>
+                            </label>
+
+                            <label class="inline-flex items-center gap-2 cursor-pointer select-none text-white hover:text-blue-100 transition">
+                                <input type="radio" name="product_for" value="customer" {{ $currentProductFor === 'customer' ? 'checked' : '' }} onchange="this.form.submit()" class="w-4 h-4 text-blue-600 bg-white border-white focus:ring-0 focus:ring-offset-0 cursor-pointer">
+                                <span>Customer</span>
+                            </label>
+
+                            <label class="inline-flex items-center gap-2 cursor-pointer select-none text-white hover:text-blue-100 transition">
+                                <input type="radio" name="product_for" value="both" {{ $currentProductFor === 'both' ? 'checked' : '' }} onchange="this.form.submit()" class="w-4 h-4 text-blue-600 bg-white border-white focus:ring-0 focus:ring-offset-0 cursor-pointer">
+                                <span>Both</span>
+                            </label>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs text-slate-600">
                 <thead class="bg-slate-50/70 border-b border-slate-200/80 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
@@ -132,7 +188,22 @@
                                         <i data-lucide="package" class="w-4 h-4"></i>
                                     </div>
                                     <div>
-                                        <p class="font-bold text-slate-900 text-sm leading-tight">{{ $product->name }}</p>
+                                        <div class="flex items-center gap-2">
+                                            <p class="font-bold text-slate-900 text-sm leading-tight">{{ $product->name }}</p>
+                                            @if(($product->product_for ?? 'customer') === 'farmer')
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                    Farmer
+                                                </span>
+                                            @elseif(($product->product_for ?? 'customer') === 'both')
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                                                    Both
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                                    Customer
+                                                </span>
+                                            @endif
+                                        </div>
                                         <span class="text-[11px] text-slate-400 font-medium">
                                             {{ $product->category ? $product->category->name : $product->product_type }}
                                         </span>
@@ -282,6 +353,31 @@
             <form action="{{ route('products.store') }}" method="POST" class="space-y-4">
                 @csrf
                 
+                <!-- Product For Audience Selector -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Product For *</label>
+                    <div class="grid grid-cols-3 gap-2.5">
+                        <label class="relative flex items-center justify-center gap-2 px-3 py-2.5 border rounded-xl cursor-pointer text-xs font-semibold transition"
+                               :class="selectedProductFor === 'farmer' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 ring-1 ring-emerald-500 shadow-2xs' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'">
+                            <input type="radio" name="product_for" value="farmer" x-model="selectedProductFor" class="sr-only">
+                            <i data-lucide="tractor" class="w-4 h-4"></i>
+                            <span>Farmer</span>
+                        </label>
+                        <label class="relative flex items-center justify-center gap-2 px-3 py-2.5 border rounded-xl cursor-pointer text-xs font-semibold transition"
+                               :class="selectedProductFor === 'customer' ? 'bg-blue-50 border-blue-500 text-blue-700 ring-1 ring-blue-500 shadow-2xs' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'">
+                            <input type="radio" name="product_for" value="customer" x-model="selectedProductFor" class="sr-only">
+                            <i data-lucide="user" class="w-4 h-4"></i>
+                            <span>Customer</span>
+                        </label>
+                        <label class="relative flex items-center justify-center gap-2 px-3 py-2.5 border rounded-xl cursor-pointer text-xs font-semibold transition"
+                               :class="selectedProductFor === 'both' ? 'bg-purple-50 border-purple-500 text-purple-700 ring-1 ring-purple-500 shadow-2xs' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'">
+                            <input type="radio" name="product_for" value="both" x-model="selectedProductFor" class="sr-only">
+                            <i data-lucide="users" class="w-4 h-4"></i>
+                            <span>Both</span>
+                        </label>
+                    </div>
+                </div>
+
                 <!-- Product Name & Code -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -557,6 +653,7 @@
             createModalOpen: {{ (request('open_create') || $errors->any()) ? 'true' : 'false' }},
             quickModalOpen: false,
             quickProduct: null,
+            selectedProductFor: '{{ old('product_for', 'customer') }}',
 
             showCategoryModal: false,
             showUnitModal: false,
