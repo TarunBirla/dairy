@@ -15,39 +15,78 @@
 <div class="space-y-6" x-data="{ tab: 'collections', advanceModal: false }">
 
     <!-- Top Profile & Balance Card -->
-    <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div class="flex items-start sm:items-center space-x-4">
-            <div class="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-800 font-extrabold flex items-center justify-center text-xl shadow-xs">
-                {{ strtoupper(substr($farmer->name, 0, 2)) }}
-            </div>
-            <div>
-                <div class="flex items-center gap-2">
-                    <h2 class="text-xl font-extrabold text-slate-900">{{ $farmer->name }}</h2>
-                    <span class="font-mono text-xs px-2 py-0.5 rounded font-bold bg-slate-100 text-slate-700">{{ $farmer->farmer_code }}</span>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase {{ $farmer->status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800' }}">
-                        {{ $farmer->status }}
-                    </span>
+    <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div class="flex items-start sm:items-center space-x-4">
+                <img src="{{ $farmer->photo_url }}" alt="{{ $farmer->name }}" class="w-16 h-16 rounded-2xl object-cover border border-slate-200 shadow-xs shrink-0">
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h2 class="text-xl font-extrabold text-slate-900">{{ $farmer->name }}</h2>
+                        @if($farmer->name_hi)
+                            <span class="text-base font-semibold text-slate-500">({{ $farmer->name_hi }})</span>
+                        @endif
+                        <span class="font-mono text-xs px-2 py-0.5 rounded font-bold bg-slate-100 text-slate-700 border border-slate-200">{{ $farmer->farmer_code }}</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase {{ $farmer->status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800' }}">
+                            {{ $farmer->status }}
+                        </span>
+                    </div>
+                    <div class="text-xs text-slate-500 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                        <span>Phone: <b>{{ $farmer->phone ?? '—' }}</b></span>
+                        <span>Village: <b>{{ $farmer->village ?? '—' }}</b></span>
+                        <span>Route: <b>{{ $farmer->route ? $farmer->route->name : '—' }}</b></span>
+                        <span>Vehicle: <b>{{ $farmer->vehicle ? ucfirst($farmer->vehicle) : '—' }}</b></span>
+                        <span>Milk: <b class="capitalize">{{ $farmer->animal_type }}</b></span>
+                        @if($farmer->cow_milk_rate)
+                            <span>Cow Rate: <b>₹ {{ $farmer->cow_milk_rate }}/L</b></span>
+                        @endif
+                        @if($farmer->buffalo_milk_rate)
+                            <span>Buffalo Rate: <b>₹ {{ $farmer->buffalo_milk_rate }}/L</b></span>
+                        @endif
+                    </div>
                 </div>
-                <div class="text-xs text-slate-500 mt-1 flex flex-wrap gap-x-4 gap-y-1">
-                    <span>Phone: <b>{{ $farmer->phone ?? '—' }}</b></span>
-                    <span>Village: <b>{{ $farmer->village ?? '—' }}</b></span>
-                    <span>Milk: <b class="capitalize">{{ $farmer->animal_type }}</b></span>
-                    <span>Center: <b>{{ $farmer->collectionCenter ? $farmer->collectionCenter->name : 'Main Depot' }}</b></span>
+            </div>
+
+            <!-- Ledger Balance & Quick Action -->
+            <div class="bg-emerald-50/60 border border-emerald-200/80 p-4 rounded-xl flex items-center justify-between sm:justify-end gap-6">
+                <div>
+                    <span class="text-[10px] uppercase font-bold text-slate-500 block">Current Ledger Balance</span>
+                    <span class="text-2xl font-black text-slate-900">₹ {{ number_format($farmer->current_balance, 2) }}</span>
+                    <span class="text-[10px] text-emerald-700 font-semibold block">Payable by Dairy</span>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <button type="button" @click="advanceModal = true" class="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-2xs">
+                        + Issue Advance
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Ledger Balance & Quick Action -->
-        <div class="bg-emerald-50/60 border border-emerald-200/80 p-4 rounded-xl flex items-center justify-between sm:justify-end gap-6">
-            <div>
-                <span class="text-[10px] uppercase font-bold text-slate-500 block">Current Ledger Balance</span>
-                <span class="text-2xl font-black text-slate-900">₹ {{ number_format($farmer->current_balance, 2) }}</span>
-                <span class="text-[10px] text-emerald-700 font-semibold block">Payable by Dairy</span>
+        <!-- Bank & Financial Ledger Funds Strip -->
+        <div class="pt-3 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-xs">
+            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/70">
+                <span class="text-[10px] font-bold text-slate-400 uppercase block">Bank Details</span>
+                <span class="font-semibold text-slate-800 truncate block">{{ $farmer->bank_name ?: '—' }}</span>
+                <span class="text-[10px] font-mono text-slate-500 block">{{ $farmer->account_number ? 'A/C: ' . $farmer->account_number : '' }}</span>
             </div>
-            <div class="flex flex-col gap-2">
-                <button type="button" @click="advanceModal = true" class="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-2xs">
-                    + Issue Advance
-                </button>
+            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/70">
+                <span class="text-[10px] font-bold text-slate-400 uppercase block">Anamat (Deposit)</span>
+                <span class="font-bold text-slate-900 text-sm mt-0.5 block">₹ {{ number_format($farmer->anamat ?? 0, 2) }}</span>
+            </div>
+            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/70">
+                <span class="text-[10px] font-bold text-slate-400 uppercase block">Building Fund</span>
+                <span class="font-bold text-slate-900 text-sm mt-0.5 block">₹ {{ number_format($farmer->building_fund ?? 0, 2) }}</span>
+            </div>
+            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/70">
+                <span class="text-[10px] font-bold text-slate-400 uppercase block">Installment</span>
+                <span class="font-bold text-slate-900 text-sm mt-0.5 block">₹ {{ number_format($farmer->installment ?? 0, 2) }}</span>
+            </div>
+            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/70">
+                <span class="text-[10px] font-bold text-slate-400 uppercase block">Etc Deduction</span>
+                <span class="font-bold text-slate-900 text-sm mt-0.5 block">₹ {{ number_format($farmer->etc_amount ?? 0, 2) }}</span>
+            </div>
+            <div class="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200/70">
+                <span class="text-[10px] font-bold text-emerald-600 uppercase block">Grant / Subsidy</span>
+                <span class="font-bold text-emerald-800 text-sm mt-0.5 block">₹ {{ number_format($farmer->grant_amount ?? 0, 2) }}</span>
             </div>
         </div>
     </div>

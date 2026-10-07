@@ -135,9 +135,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [FarmerController::class, 'index'])->name('index');
         Route::get('/create', [FarmerController::class, 'create'])->name('create');
         Route::post('/', [FarmerController::class, 'store'])->name('store');
+        Route::get('/sample-template', [FarmerController::class, 'sampleTemplate'])->name('sample-template');
+        Route::post('/bulk-import', [FarmerController::class, 'bulkImport'])->name('bulk-import');
         Route::get('/{farmer}', [FarmerController::class, 'show'])->name('show');
         Route::get('/{farmer}/edit', [FarmerController::class, 'edit'])->name('edit');
         Route::put('/{farmer}', [FarmerController::class, 'update'])->name('update');
+        Route::delete('/{farmer}', [FarmerController::class, 'destroy'])->name('destroy');
         Route::post('/{farmer}/advance', [FarmerController::class, 'storeAdvance'])->name('advance.store');
     });
 
