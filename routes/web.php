@@ -118,6 +118,89 @@ Route::match(['get', 'post'], '/setup-database', function (\Illuminate\Http\Requ
 Route::get('/install-db', function () {
     return redirect()->route('setup.database', ['run' => 1]);
 });
+
+// Dedicated 1-Click Route to Add All Dispatch Columns directly to MySQL Database
+Route::get('/migrate-dispatch', function () {
+    $results = [];
+    $errors = [];
+
+    // Columns schema definitions
+    $columnsToAdd = [
+        'from_date' => "ALTER TABLE `milk_dispatches` ADD COLUMN `from_date` date NULL AFTER `dispatch_number`",
+        'from_shift' => "ALTER TABLE `milk_dispatches` ADD COLUMN `from_shift` varchar(20) NOT NULL DEFAULT 'Morning' AFTER `from_date`",
+        'to_date' => "ALTER TABLE `milk_dispatches` ADD COLUMN `to_date` date NULL AFTER `from_shift`",
+        'to_shift' => "ALTER TABLE `milk_dispatches` ADD COLUMN `to_shift` varchar(20) NOT NULL DEFAULT 'Morning' AFTER `to_date`",
+        'challan_date' => "ALTER TABLE `milk_dispatches` ADD COLUMN `challan_date` date NULL AFTER `to_shift`",
+        'challan_number' => "ALTER TABLE `milk_dispatches` ADD COLUMN `challan_number` varchar(50) NULL AFTER `challan_date`",
+        'dispatch_type' => "ALTER TABLE `milk_dispatches` ADD COLUMN `dispatch_type` varchar(30) NOT NULL DEFAULT 'Can' AFTER `challan_number`",
+        'drop_location' => "ALTER TABLE `milk_dispatches` ADD COLUMN `drop_location` varchar(191) NULL AFTER `dispatch_type`",
+        'milk_type' => "ALTER TABLE `milk_dispatches` ADD COLUMN `milk_type` varchar(30) NOT NULL DEFAULT 'Cow' AFTER `drop_location`",
+        'purchase_qty' => "ALTER TABLE `milk_dispatches` ADD COLUMN `purchase_qty` decimal(10,2) NOT NULL DEFAULT '0.00' AFTER `milk_type`",
+        'milk_quality' => "ALTER TABLE `milk_dispatches` ADD COLUMN `milk_quality` varchar(30) NOT NULL DEFAULT 'Good' AFTER `purchase_qty`",
+        'quantity_ltr' => "ALTER TABLE `milk_dispatches` ADD COLUMN `quantity_ltr` decimal(10,2) NOT NULL DEFAULT '0.00' AFTER `milk_quality`",
+        'prev_balance' => "ALTER TABLE `milk_dispatches` ADD COLUMN `prev_balance` decimal(10,2) NOT NULL DEFAULT '0.00' AFTER `quantity_ltr`",
+        'balance' => "ALTER TABLE `milk_dispatches` ADD COLUMN `balance` decimal(10,2) NOT NULL DEFAULT '0.00' AFTER `prev_balance`",
+        'loss' => "ALTER TABLE `milk_dispatches` ADD COLUMN `loss` decimal(10,2) NOT NULL DEFAULT '0.00' AFTER `balance`",
+        'clr' => "ALTER TABLE `milk_dispatches` ADD COLUMN `clr` decimal(6,2) NULL AFTER `snf`",
+        'can_number' => "ALTER TABLE `milk_dispatches` ADD COLUMN `can_number` varchar(50) NULL AFTER `clr`",
+        'acidity' => "ALTER TABLE `milk_dispatches` ADD COLUMN `acidity` decimal(5,2) NULL AFTER `can_number`",
+        'amount' => "ALTER TABLE `milk_dispatches` ADD COLUMN `amount` decimal(12,2) NOT NULL DEFAULT '0.00' AFTER `acidity`",
+        'route_name' => "ALTER TABLE `milk_dispatches` ADD COLUMN `route_name` varchar(191) NULL AFTER `amount`",
+        'vehicle_in_time' => "ALTER TABLE `milk_dispatches` ADD COLUMN `vehicle_in_time` varchar(20) NULL AFTER `route_name`",
+        'vehicle_out_time' => "ALTER TABLE `milk_dispatches` ADD COLUMN `vehicle_out_time` varchar(20) NULL AFTER `vehicle_in_time`",
+        'seal_number' => "ALTER TABLE `milk_dispatches` ADD COLUMN `seal_number` varchar(50) NULL AFTER `vehicle_out_time`",
+        'chamber_number' => "ALTER TABLE `milk_dispatches` ADD COLUMN `chamber_number` varchar(50) NULL AFTER `seal_number`",
+        'headload_kms' => "ALTER TABLE `milk_dispatches` ADD COLUMN `headload_kms` decimal(8,2) NOT NULL DEFAULT '0.00' AFTER `chamber_number`",
+        'difference' => "ALTER TABLE `milk_dispatches` ADD COLUMN `difference` decimal(10,2) NOT NULL DEFAULT '0.00' AFTER `headload_kms`",
+    ];
+
+    try {
+        // Ensure table exists
+        if (!\Illuminate\Support\Facades\Schema::hasTable('milk_dispatches')) {
+            \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+            $results[] = "Created base table 'milk_dispatches' via artisan migrate.";
+        }
+
+        // Check each column and add if missing
+        foreach ($columnsToAdd as $colName => $sql) {
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('milk_dispatches', $colName)) {
+                \Illuminate\Support\Facades\DB::statement($sql);
+                $results[] = "✅ Added column: `{$colName}`";
+            } else {
+                $results[] = "ℹ️ Column `{$colName}` already exists.";
+            }
+        }
+
+        // Run artisan migration as well
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        $artisanOut = trim(\Illuminate\Support\Facades\Artisan::output());
+        if ($artisanOut) {
+            $results[] = "🚀 Artisan output: " . $artisanOut;
+        }
+
+        // Clear view & route cache
+        \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+        $results[] = "🧹 Cache cleared successfully.";
+
+        $currentCols = \Illuminate\Support\Facades\Schema::getColumnListing('milk_dispatches');
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'All dispatch parameters added to MySQL milk_dispatches table successfully!',
+            'actions_performed' => $results,
+            'total_columns' => count($currentCols),
+            'columns_in_table' => $currentCols,
+        ], 200, [], JSON_PRETTY_PRINT);
+
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'partial_actions' => $results,
+        ], 500, [], JSON_PRETTY_PRINT);
+    }
+});
+
 Route::get('/clear-cache', function () {
     try {
         \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
@@ -452,7 +535,11 @@ Route::middleware('auth')->group(function () {
     // Milk Dispatched (Outward Delivery)
     Route::prefix('dispatch')->name('dispatch.')->group(function () {
         Route::get('/', [MilkDispatchController::class, 'index'])->name('index');
+        Route::get('/create', [MilkDispatchController::class, 'create'])->name('create');
         Route::post('/', [MilkDispatchController::class, 'store'])->name('store');
+        Route::get('/{dispatch}/edit', [MilkDispatchController::class, 'edit'])->name('edit');
+        Route::put('/{dispatch}', [MilkDispatchController::class, 'update'])->name('update');
+        Route::delete('/{dispatch}', [MilkDispatchController::class, 'destroy'])->name('destroy');
     });
 
     // Product Pre-orders & Bookings
