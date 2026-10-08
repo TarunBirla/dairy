@@ -297,29 +297,36 @@
 
             <div class="p-6 space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                    <!-- Route Name -->
+                    <!-- Route Name (Dropdown) -->
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Route Name</label>
-                        <input type="text" name="route_name" id="route_name" list="route_name_list" value="{{ old('route_name', $dispatch->route_name ?? ($dispatch->route->name ?? 'Bombay - Goa')) }}" placeholder="Select route" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-[#002e79] focus:outline-none bg-white">
-                        <datalist id="route_name_list">
-                            <option value="Bombay - Goa">
-                            <option value="sanawat - indoore">
-                            <option value="KHARGONE - MANGRIYA">
+                        <select name="route_name" id="route_name" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-[#002e79] focus:outline-none bg-white">
+                            <option value="">Select route</option>
                             @foreach($routes as $r)
-                                <option value="{{ $r->name }}">
+                                <option value="{{ $r->name }}" {{ old('route_name', $dispatch->route_name ?? ($dispatch->route->name ?? '')) == $r->name ? 'selected' : '' }}>
+                                    {{ $r->name }} {{ $r->code ? "({$r->code})" : '' }}
+                                </option>
                             @endforeach
-                        </datalist>
+                            <option value="Bombay - Goa" {{ old('route_name', $dispatch->route_name) == 'Bombay - Goa' ? 'selected' : '' }}>Bombay - Goa</option>
+                            <option value="sanawat - indoore" {{ old('route_name', $dispatch->route_name) == 'sanawat - indoore' ? 'selected' : '' }}>sanawat - indoore</option>
+                            <option value="KHARGONE - MANGRIYA" {{ old('route_name', $dispatch->route_name) == 'KHARGONE - MANGRIYA' ? 'selected' : '' }}>KHARGONE - MANGRIYA</option>
+                        </select>
                     </div>
 
-                    <!-- Vehicle No -->
+                    <!-- Vehicle No (Dropdown) -->
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Vehicle No.</label>
-                        <input type="text" name="vehicle_number" id="vehicle_number" list="vehicle_list" value="{{ old('vehicle_number', $dispatch->vehicle_number ?? 'JH0AB1123') }}" placeholder="Select vehicle" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-[#002e79] focus:outline-none font-mono">
-                        <datalist id="vehicle_list">
-                            <option value="JH0AB1123">
-                            <option value="MP09AB1234">
-                            <option value="MP09GA4521">
-                        </datalist>
+                        <select name="vehicle_number" id="vehicle_number" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-[#002e79] focus:outline-none bg-white font-mono">
+                            <option value="">Select vehicle</option>
+                            @foreach($vehicles as $v)
+                                <option value="{{ $v->vehicle_number }}" {{ old('vehicle_number', $dispatch->vehicle_number) == $v->vehicle_number ? 'selected' : '' }}>
+                                    {{ $v->vehicle_number }} {{ $v->driver_name ? "({$v->driver_name})" : '' }}
+                                </option>
+                            @endforeach
+                            <option value="JH0AB1123" {{ old('vehicle_number', $dispatch->vehicle_number) == 'JH0AB1123' ? 'selected' : '' }}>JH0AB1123</option>
+                            <option value="MP09AB1234" {{ old('vehicle_number', $dispatch->vehicle_number) == 'MP09AB1234' ? 'selected' : '' }}>MP09AB1234</option>
+                            <option value="MP09GA4521" {{ old('vehicle_number', $dispatch->vehicle_number) == 'MP09GA4521' ? 'selected' : '' }}>MP09GA4521</option>
+                        </select>
                     </div>
 
                     <!-- Vehicle In Time -->

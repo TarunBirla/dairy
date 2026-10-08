@@ -213,24 +213,74 @@ Route::get('/migrate-dispatch', function () {
 
 // Dedicated 1-Click Route to Migrate & Create Load / Unload Tables on Live Server
 Route::get('/migrate-load-unload', function () {
+    $results = [];
     try {
-        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-        $artisanOut = trim(\Illuminate\Support\Facades\Artisan::output());
+        // 1. Create product_loads table if not exists
+        if (!\Illuminate\Support\Facades\Schema::hasTable('product_loads')) {
+            \Illuminate\Support\Facades\Schema::create('product_loads', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->id();
+                $table->string('load_type', 30)->default('counter_sale');
+                $table->date('date');
+                $table->unsignedBigInteger('delivery_person_id')->nullable();
+                $table->string('delivery_person_name')->nullable();
+                $table->string('delivery_person_phone', 20)->nullable();
+                $table->string('shift', 20)->default('Morning');
+                $table->text('remark')->nullable();
+                $table->unsignedBigInteger('created_by')->nullable();
+                $table->timestamps();
+            });
+            $results[] = "✅ Created table: `product_loads`";
+        } else {
+            $results[] = "ℹ️ Table `product_loads` already exists.";
+        }
+
+        // 2. Create product_load_items table if not exists
+        if (!\Illuminate\Support\Facades\Schema::hasTable('product_load_items')) {
+            \Illuminate\Support\Facades\Schema::create('product_load_items', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('product_load_id');
+                $table->unsignedBigInteger('product_id')->nullable();
+                $table->string('product_name');
+                $table->decimal('quantity', 10, 2)->default(0.00);
+                $table->timestamps();
+
+                $table->foreign('product_load_id')->references('id')->on('product_loads')->onDelete('cascade');
+            });
+            $results[] = "✅ Created table: `product_load_items`";
+        } else {
+            $results[] = "ℹ️ Table `product_load_items` already exists.";
+        }
+
+        // 3. Try to run standard artisan migrate safely
+        try {
+            \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+            $artOut = trim(\Illuminate\Support\Facades\Artisan::output());
+            if ($artOut) {
+                $results[] = "🚀 Artisan migrate: " . $artOut;
+            }
+        } catch (\Throwable $migEx) {
+            $results[] = "Notice on artisan migrate: " . $migEx->getMessage();
+        }
+
+        // 4. Clear cache
         \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+        $results[] = "🧹 Cache cleared successfully.";
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Load / Unload tables (product_loads, product_load_items) created successfully!',
-            'artisan_output' => $artisanOut,
+            'message' => 'Load / Unload tables (product_loads, product_load_items) created successfully in MySQL!',
+            'actions_performed' => $results,
             'tables' => [
                 'product_loads' => \Illuminate\Support\Facades\Schema::hasTable('product_loads'),
                 'product_load_items' => \Illuminate\Support\Facades\Schema::hasTable('product_load_items'),
             ]
         ], 200, [], JSON_PRETTY_PRINT);
+
     } catch (\Throwable $e) {
         return response()->json([
             'status' => 'error',
-            'message' => $e->getMessage()
+            'message' => $e->getMessage(),
+            'partial_actions' => $results
         ], 500, [], JSON_PRETTY_PRINT);
     }
 });

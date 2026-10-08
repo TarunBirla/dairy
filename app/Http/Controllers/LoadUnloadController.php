@@ -12,8 +12,45 @@ use Carbon\Carbon;
 
 class LoadUnloadController extends Controller
 {
+    private function ensureTablesExist()
+    {
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('product_loads')) {
+                \Illuminate\Support\Facades\Schema::create('product_loads', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->id();
+                    $table->string('load_type', 30)->default('counter_sale');
+                    $table->date('date');
+                    $table->unsignedBigInteger('delivery_person_id')->nullable();
+                    $table->string('delivery_person_name')->nullable();
+                    $table->string('delivery_person_phone', 20)->nullable();
+                    $table->string('shift', 20)->default('Morning');
+                    $table->text('remark')->nullable();
+                    $table->unsignedBigInteger('created_by')->nullable();
+                    $table->timestamps();
+                });
+            }
+
+            if (!\Illuminate\Support\Facades\Schema::hasTable('product_load_items')) {
+                \Illuminate\Support\Facades\Schema::create('product_load_items', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->id();
+                    $table->unsignedBigInteger('product_load_id');
+                    $table->unsignedBigInteger('product_id')->nullable();
+                    $table->string('product_name');
+                    $table->decimal('quantity', 10, 2)->default(0.00);
+                    $table->timestamps();
+
+                    $table->foreign('product_load_id')->references('id')->on('product_loads')->onDelete('cascade');
+                });
+            }
+        } catch (\Throwable $e) {
+            // Ignore if concurrent or driver limitations
+        }
+    }
+
     public function index(Request $request)
     {
+        $this->ensureTablesExist();
+
         $loadType = $request->get('type', 'counter_sale');
         if (!in_array($loadType, ['counter_sale', 'delivery_sale'])) {
             $loadType = 'counter_sale';
@@ -88,6 +125,8 @@ class LoadUnloadController extends Controller
 
     public function store(Request $request)
     {
+        $this->ensureTablesExist();
+
         $validated = $request->validate([
             'load_type' => 'required|in:counter_sale,delivery_sale',
             'date' => 'required|date',

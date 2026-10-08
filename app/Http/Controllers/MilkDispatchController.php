@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\MilkDispatch;
 use App\Models\DeliveryRoute;
+use App\Models\Vehicle;
 use App\Models\User;
 use App\Models\Branch;
 use App\Models\AuditLog;
@@ -61,11 +62,15 @@ class MilkDispatchController extends Controller
 
     public function create()
     {
-        $routes = DeliveryRoute::where('status', 'active')->get();
+        $routes = DeliveryRoute::where('status', 'active')->orderBy('name')->get();
+        if ($routes->isEmpty()) {
+            $routes = DeliveryRoute::orderBy('name')->get();
+        }
+        $vehicles = Vehicle::orderBy('vehicle_number')->get();
         $deliveryBoys = User::where('role', User::ROLE_DELIVERY_BOY)->get();
         $nextChallanNo = 'CH' . (MilkDispatch::count() + 101);
 
-        return view('dispatch.create', compact('routes', 'deliveryBoys', 'nextChallanNo'));
+        return view('dispatch.create', compact('routes', 'vehicles', 'deliveryBoys', 'nextChallanNo'));
     }
 
     public function store(Request $request)
@@ -143,10 +148,14 @@ class MilkDispatchController extends Controller
 
     public function edit(MilkDispatch $dispatch)
     {
-        $routes = DeliveryRoute::where('status', 'active')->get();
+        $routes = DeliveryRoute::where('status', 'active')->orderBy('name')->get();
+        if ($routes->isEmpty()) {
+            $routes = DeliveryRoute::orderBy('name')->get();
+        }
+        $vehicles = Vehicle::orderBy('vehicle_number')->get();
         $deliveryBoys = User::where('role', User::ROLE_DELIVERY_BOY)->get();
 
-        return view('dispatch.edit', compact('dispatch', 'routes', 'deliveryBoys'));
+        return view('dispatch.edit', compact('dispatch', 'routes', 'vehicles', 'deliveryBoys'));
     }
 
     public function update(Request $request, MilkDispatch $dispatch)
