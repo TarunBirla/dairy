@@ -161,6 +161,14 @@ Route::get('/migrate-dispatch', function () {
             $results[] = "Created base table 'milk_dispatches' via artisan migrate.";
         }
 
+        // Fix status column to varchar(50) so 'completed' or any status works without enum truncation error
+        try {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `milk_dispatches` MODIFY COLUMN `status` varchar(50) NOT NULL DEFAULT 'completed'");
+            $results[] = "✅ Modified column `status` to varchar(50) (supports completed, in_transit, delivered, etc.)";
+        } catch (\Throwable $ex) {
+            $results[] = "Notice on status alter: " . $ex->getMessage();
+        }
+
         // Check each column and add if missing
         foreach ($columnsToAdd as $colName => $sql) {
             if (!\Illuminate\Support\Facades\Schema::hasColumn('milk_dispatches', $colName)) {

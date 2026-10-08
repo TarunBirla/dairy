@@ -109,14 +109,32 @@ class MilkDispatchController extends Controller
 
         $dispatchNumber = 'DSP-' . date('Ymd') . '-' . sprintf('%03d', MilkDispatch::whereDate('created_at', Carbon::today())->count() + 1);
 
-        $dispatch = MilkDispatch::create(array_merge($validated, [
-            'dispatch_number' => $dispatchNumber,
-            'dispatch_date' => $request->from_date,
-            'shift' => strtolower($request->from_shift) === 'evening' ? 'evening' : 'morning',
-            'total_milk_quantity' => $request->quantity_ltr,
-            'status' => 'completed',
-            'created_by' => auth()->id(),
-        ]));
+        // Try 'completed', if DB is still old enum fallback to 'delivered'
+        $statusVal = 'completed';
+        try {
+            $dispatch = MilkDispatch::create(array_merge($validated, [
+                'dispatch_number' => $dispatchNumber,
+                'dispatch_date' => $request->from_date,
+                'shift' => strtolower($request->from_shift) === 'evening' ? 'evening' : 'morning',
+                'total_milk_quantity' => $request->quantity_ltr,
+                'status' => 'completed',
+                'created_by' => auth()->id(),
+            ]));
+        } catch (\Throwable $e) {
+            // Fallback for legacy enum ['prepared', 'in_transit', 'delivered', 'returned']
+            if (str_contains($e->getMessage(), 'status')) {
+                $dispatch = MilkDispatch::create(array_merge($validated, [
+                    'dispatch_number' => $dispatchNumber,
+                    'dispatch_date' => $request->from_date,
+                    'shift' => strtolower($request->from_shift) === 'evening' ? 'evening' : 'morning',
+                    'total_milk_quantity' => $request->quantity_ltr,
+                    'status' => 'delivered',
+                    'created_by' => auth()->id(),
+                ]));
+            } else {
+                throw $e;
+            }
+        }
 
         AuditLog::log('Created Milk Dispatch', 'MilkDispatch', $dispatch->id);
 
