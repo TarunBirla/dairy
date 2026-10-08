@@ -164,7 +164,8 @@ Route::get('/migrate-dispatch', function () {
         // Fix status column to varchar(50) so 'completed' or any status works without enum truncation error
         try {
             \Illuminate\Support\Facades\DB::statement("ALTER TABLE `milk_dispatches` MODIFY COLUMN `status` varchar(50) NOT NULL DEFAULT 'completed'");
-            $results[] = "✅ Modified column `status` to varchar(50) (supports completed, in_transit, delivered, etc.)";
+            \Illuminate\Support\Facades\DB::statement("UPDATE `milk_dispatches` SET `status` = 'completed' WHERE `status` IS NULL OR `status` = 'delivered' OR `status` = 'prepared'");
+            $results[] = "✅ Modified column `status` to varchar(50) and normalized existing records to 'completed'";
         } catch (\Throwable $ex) {
             $results[] = "Notice on status alter: " . $ex->getMessage();
         }

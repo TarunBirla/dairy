@@ -11,6 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Ensure status column is VARCHAR(50) instead of old restrictive ENUM
+        try {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `milk_dispatches` MODIFY COLUMN `status` varchar(50) NOT NULL DEFAULT 'completed'");
+        } catch (\Throwable $e) {
+            // Ignore if driver does not support raw alter or column already modified
+        }
+
         Schema::table('milk_dispatches', function (Blueprint $table) {
             // Header Parameters
             if (!Schema::hasColumn('milk_dispatches', 'from_date')) {
