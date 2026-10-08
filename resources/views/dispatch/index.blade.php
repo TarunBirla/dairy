@@ -24,35 +24,44 @@
         </div>
     @endif
 
-    <!-- Top Filter Bar matching Screenshot 4 -->
-    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-        <form method="GET" action="{{ route('dispatch.index') }}" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
-            <div>
-                <label class="block text-[11px] font-bold text-slate-600 mb-1">From Date</label>
-                <input type="date" name="from_date" value="{{ request('from_date') }}" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-[#002e79] focus:outline-none">
+    <!-- Top Filter Bar matching Screenshot (media_1791439010468.png) -->
+    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
+        <form method="GET" action="{{ route('dispatch.index') }}" id="filterForm" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-4 items-end">
+            <!-- From Date -->
+            <div class="md:col-span-3">
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">From Date</label>
+                <input type="date" name="from_date" id="filter_from_date" value="{{ request('from_date') }}" class="w-full px-4 py-2.5 text-xs border border-slate-200 rounded-2xl focus:border-[#002e79] focus:outline-none bg-white text-slate-700">
             </div>
-            <div>
-                <label class="block text-[11px] font-bold text-slate-600 mb-1">To Date</label>
-                <input type="date" name="to_date" value="{{ request('to_date') }}" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-[#002e79] focus:outline-none">
+
+            <!-- To Date -->
+            <div class="md:col-span-3">
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">To Date</label>
+                <input type="date" name="to_date" id="filter_to_date" value="{{ request('to_date') }}" class="w-full px-4 py-2.5 text-xs border border-slate-200 rounded-2xl focus:border-[#002e79] focus:outline-none bg-white text-slate-700">
             </div>
-            <div>
-                <label class="block text-[11px] font-bold text-slate-600 mb-1">Shift</label>
-                <select name="shift" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-[#002e79] focus:outline-none bg-white">
-                    <option value="all" {{ request('shift') == 'all' ? 'selected' : '' }}>All</option>
-                    <option value="morning" {{ request('shift') == 'morning' ? 'selected' : '' }}>Morning</option>
-                    <option value="evening" {{ request('shift') == 'evening' ? 'selected' : '' }}>Evening</option>
+
+            <!-- Shift -->
+            <div class="md:col-span-2">
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">Shift</label>
+                <select name="shift" id="filter_shift" class="w-full px-4 py-2.5 text-xs border border-slate-200 rounded-2xl focus:border-[#002e79] focus:outline-none bg-white text-slate-700">
+                    <option value="all" {{ (!request('shift') || request('shift') == 'all') ? 'selected' : '' }}>All</option>
+                    <option value="Morning" {{ strtolower(request('shift')) == 'morning' ? 'selected' : '' }}>Morning</option>
+                    <option value="Evening" {{ strtolower(request('shift')) == 'evening' ? 'selected' : '' }}>Evening</option>
                 </select>
             </div>
-            <div>
-                <label class="block text-[11px] font-bold text-slate-600 mb-1">Drop Location</label>
-                <input type="text" name="drop_location" value="{{ request('drop_location') }}" placeholder="Search Destination" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-[#002e79] focus:outline-none">
+
+            <!-- Drop Location -->
+            <div class="md:col-span-2">
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">Drop Location</label>
+                <input type="text" name="drop_location" id="filter_drop_location" value="{{ request('drop_location') }}" placeholder="Search Destination" class="w-full px-4 py-2.5 text-xs border border-slate-200 rounded-2xl focus:border-[#002e79] focus:outline-none bg-white text-slate-700">
             </div>
-            <div class="flex items-center gap-2">
-                <button type="submit" class="py-2 px-4 bg-[#0d6efd] hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer">
-                    <i class="fa-solid fa-magnifying-glass text-xs"></i> Search
+
+            <!-- Action Buttons: Search & Reset -->
+            <div class="md:col-span-2 flex items-center gap-2">
+                <button type="submit" class="flex-1 py-2.5 px-5 bg-[#0066ff] hover:bg-blue-600 text-white font-bold text-xs rounded-2xl shadow-xs transition flex items-center justify-center cursor-pointer">
+                    Search
                 </button>
-                <a href="{{ route('dispatch.index') }}" class="py-2 px-4 bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5">
-                    <i class="fa-solid fa-rotate text-xs"></i> Reset
+                <a href="{{ route('dispatch.index') }}" class="py-2.5 px-4 bg-[#374151] hover:bg-slate-800 text-white font-bold text-xs rounded-2xl transition flex items-center justify-center">
+                    Reset
                 </a>
             </div>
         </form>

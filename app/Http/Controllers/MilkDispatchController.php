@@ -17,21 +17,62 @@ class MilkDispatchController extends Controller
     {
         $query = MilkDispatch::query();
 
-        if ($request->filled('from_date')) {
-            $query->whereDate('from_date', '>=', $request->from_date);
-        }
-        if ($request->filled('to_date')) {
-            $query->whereDate('to_date', '<=', $request->to_date);
-        }
-        if ($request->filled('shift') && $request->shift !== 'all') {
-            $query->where(function($q) use ($request) {
-                $q->where('from_shift', $request->shift)
-                  ->orWhere('to_shift', $request->shift)
-                  ->orWhere('shift', $request->shift);
+        // 1. Date Range Filter (checks challan_date, from_date, to_date, dispatch_date)
+        if ($request->filled('from_date') && $request->filled('to_date')) {
+            $from = $request->from_date;
+            $to = $request->to_date;
+            $query->where(function ($q) use ($from, $to) {
+                $q->whereBetween('challan_date', [$from, $to])
+                  ->orWhereBetween('from_date', [$from, $to])
+                  ->orWhereBetween('to_date', [$from, $to])
+                  ->orWhereBetween('dispatch_date', [$from, $to])
+                  ->orWhere(function ($sub) use ($from, $to) {
+                      $sub->whereDate('from_date', '<=', $to)
+                          ->whereDate('to_date', '>=', $from);
+                  });
+            });
+        } elseif ($request->filled('from_date')) {
+            $from = $request->from_date;
+            $query->where(function ($q) use ($from) {
+                $q->whereDate('challan_date', '>=', $from)
+                  ->orWhereDate('from_date', '>=', $from)
+                  ->orWhereDate('dispatch_date', '>=', $from)
+                  ->orWhereDate('to_date', '>=', $from);
+            });
+        } elseif ($request->filled('to_date')) {
+            $to = $request->to_date;
+            $query->where(function ($q) use ($to) {
+                $q->whereDate('challan_date', '<=', $to)
+                  ->orWhereDate('to_date', '<=', $to)
+                  ->orWhereDate('dispatch_date', '<=', $to)
+                  ->orWhereDate('from_date', '<=', $to);
             });
         }
+
+        // 2. Shift Filter (case-insensitive, matches from_shift, to_shift, shift)
+        if ($request->filled('shift') && strtolower($request->shift) !== 'all') {
+            $shift = strtolower(trim($request->shift));
+            $query->where(function ($q) use ($shift) {
+                $q->whereRaw('LOWER(from_shift) = ?', [$shift])
+                  ->orWhereRaw('LOWER(to_shift) = ?', [$shift])
+                  ->orWhereRaw('LOWER(shift) = ?', [$shift])
+                  ->orWhere('from_shift', 'like', "%{$shift}%")
+                  ->orWhere('to_shift', 'like', "%{$shift}%")
+                  ->orWhere('shift', 'like', "%{$shift}%");
+            });
+        }
+
+        // 3. Drop Location / Destination / Route / Challan / Vehicle search
         if ($request->filled('drop_location')) {
-            $query->where('drop_location', 'like', '%' . $request->drop_location . '%');
+            $search = trim($request->drop_location);
+            $query->where(function ($q) use ($search) {
+                $q->where('drop_location', 'like', "%{$search}%")
+                  ->orWhere('route_name', 'like', "%{$search}%")
+                  ->orWhere('challan_number', 'like', "%{$search}%")
+                  ->orWhere('dispatch_number', 'like', "%{$search}%")
+                  ->orWhere('vehicle_number', 'like', "%{$search}%")
+                  ->orWhere('milk_type', 'like', "%{$search}%");
+            });
         }
 
         $dispatches = $query->latest('id')->paginate(15)->withQueryString();
