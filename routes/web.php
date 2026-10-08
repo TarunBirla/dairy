@@ -40,6 +40,7 @@ use App\Http\Controllers\BuyerController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\DriverController;
 use App\Http\Controllers\VehicleAdvanceController;
+use App\Http\Controllers\LoadUnloadController;
 
 // Public Website Pages
 Route::get('/', [WebsiteController::class, 'home'])->name('home');
@@ -206,6 +207,30 @@ Route::get('/migrate-dispatch', function () {
             'status' => 'error',
             'message' => $e->getMessage(),
             'partial_actions' => $results,
+        ], 500, [], JSON_PRETTY_PRINT);
+    }
+});
+
+// Dedicated 1-Click Route to Migrate & Create Load / Unload Tables on Live Server
+Route::get('/migrate-load-unload', function () {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        $artisanOut = trim(\Illuminate\Support\Facades\Artisan::output());
+        \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Load / Unload tables (product_loads, product_load_items) created successfully!',
+            'artisan_output' => $artisanOut,
+            'tables' => [
+                'product_loads' => \Illuminate\Support\Facades\Schema::hasTable('product_loads'),
+                'product_load_items' => \Illuminate\Support\Facades\Schema::hasTable('product_load_items'),
+            ]
+        ], 200, [], JSON_PRETTY_PRINT);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage()
         ], 500, [], JSON_PRETTY_PRINT);
     }
 });
@@ -549,6 +574,22 @@ Route::middleware('auth')->group(function () {
         Route::get('/{dispatch}/edit', [MilkDispatchController::class, 'edit'])->name('edit');
         Route::put('/{dispatch}', [MilkDispatchController::class, 'update'])->name('update');
         Route::delete('/{dispatch}', [MilkDispatchController::class, 'destroy'])->name('destroy');
+    });
+
+    // Load / Unload (Counter Sale & Delivery Sale)
+    Route::prefix('load-unload')->name('load-unload.')->group(function () {
+        Route::get('/', [LoadUnloadController::class, 'index'])->name('index');
+        Route::get('/counter-sale', [LoadUnloadController::class, 'counterSale'])->name('counter-sale');
+        Route::get('/delivery-sale', [LoadUnloadController::class, 'deliverySale'])->name('delivery-sale');
+        Route::post('/', [LoadUnloadController::class, 'store'])->name('store');
+        Route::get('/{load}', [LoadUnloadController::class, 'show'])->name('show');
+        Route::delete('/{load}', [LoadUnloadController::class, 'destroy'])->name('destroy');
+    });
+    Route::get('/counter-sale', function () {
+        return redirect()->route('load-unload.counter-sale');
+    });
+    Route::get('/delivery-sale', function () {
+        return redirect()->route('load-unload.delivery-sale');
     });
 
     // Product Pre-orders & Bookings

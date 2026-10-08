@@ -426,6 +426,33 @@
             <div class="menu-group">
                 <p class="px-2 pb-1 text-[10px] font-bold tracking-wider uppercase text-slate-400">Delivery & Dispatch</p>
                 <div class="space-y-0.5">
+                    <!-- Load / Unload (Counter Sale & Delivery Sale) -->
+                    <div x-data="{ open: {{ request()->routeIs('load-unload.*') ? 'true' : 'false' }} }" class="space-y-0.5">
+                        <button type="button" @click="open = !open" 
+                                class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition {{ request()->routeIs('load-unload.*') ? 'bg-blue-50 text-[#002e79] font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="package-plus" class="w-4 h-4 text-[#002e79]"></i>
+                                <span>Load / Unload</span>
+                            </div>
+                            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180 text-[#002e79]' : ''"></i>
+                        </button>
+                        
+                        <div x-show="open" x-cloak class="pl-7 pr-1 py-1 space-y-0.5 border-l-2 border-blue-200 ml-3">
+                            <a href="{{ route('load-unload.counter-sale') }}" class="flex items-center justify-between px-2.5 py-1.5 rounded-md transition text-[11px] {{ (request('type') === 'counter_sale' || request()->routeIs('load-unload.counter-sale')) ? 'text-[#002e79] font-bold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
+                                <span class="flex items-center gap-1.5">
+                                    <i class="fa-solid fa-store text-[10px] text-blue-600"></i> Counter Sale
+                                </span>
+                                <span class="text-[9px] px-1.5 py-0.2 bg-blue-100/70 text-[#002e79] font-bold rounded">Load</span>
+                            </a>
+                            <a href="{{ route('load-unload.delivery-sale') }}" class="flex items-center justify-between px-2.5 py-1.5 rounded-md transition text-[11px] {{ (request('type') === 'delivery_sale' || request()->routeIs('load-unload.delivery-sale')) ? 'text-emerald-700 font-bold bg-emerald-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
+                                <span class="flex items-center gap-1.5">
+                                    <i class="fa-solid fa-truck-ramp-box text-[10px] text-emerald-600"></i> Delivery Sale
+                                </span>
+                                <span class="text-[9px] px-1.5 py-0.2 bg-emerald-100 text-emerald-800 font-bold rounded">Stock</span>
+                            </a>
+                        </div>
+                    </div>
+
                     <!-- Milk Dispatched -->
                     <a href="{{ route('dispatch.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('dispatch.*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                         <i data-lucide="truck" class="w-4 h-4 text-emerald-600"></i>
