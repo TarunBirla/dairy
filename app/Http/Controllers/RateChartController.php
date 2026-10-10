@@ -103,9 +103,9 @@ class RateChartController extends Controller
             'name' => 'required|string|max:255',
             'category' => 'nullable|string|in:collection,milk_sale,chilling_center',
             'milk_type' => 'required|in:cow,buffalo,mixed',
-            'format' => 'nullable|string|in:fat_snf,fat_only,fixed_rate',
-            'type' => 'nullable|string|in:increase_per_point,matrix_slab,flat',
-            'calculation_type' => 'nullable|string|in:fat_snf_formula,matrix,flat',
+            'format' => 'nullable|string|in:fat_snf,fat_clr,fat_only,fixed_rate',
+            'type' => 'nullable|string|in:rate_per_kg,increase_per_point,matrix_slab,flat',
+            'calculation_type' => 'nullable|string|in:fat_snf_formula,matrix,flat,rate_per_kg',
             'starting_amount' => 'nullable|numeric|min:0',
             'fixed_rate' => 'nullable|numeric|min:0',
             'base_rate' => 'nullable|numeric|min:0',
@@ -125,9 +125,9 @@ class RateChartController extends Controller
         ]);
 
         $validated['category'] = $validated['category'] ?? 'collection';
-        $validated['format'] = $validated['format'] ?? 'fat_snf';
-        $validated['type'] = $validated['type'] ?? 'increase_per_point';
-        $validated['calculation_type'] = $validated['calculation_type'] ?? ($validated['type'] === 'matrix_slab' ? 'matrix' : ($validated['format'] === 'fixed_rate' ? 'flat' : 'fat_snf_formula'));
+        $validated['format'] = $validated['format'] ?? 'fat_clr';
+        $validated['type'] = $validated['type'] ?? 'rate_per_kg';
+        $validated['calculation_type'] = $validated['calculation_type'] ?? ($validated['type'] === 'matrix_slab' ? 'matrix' : ($validated['format'] === 'fixed_rate' ? 'flat' : ($validated['type'] === 'rate_per_kg' ? 'rate_per_kg' : 'fat_snf_formula')));
         $validated['starting_amount'] = (float) ($validated['starting_amount'] ?? 0);
         $validated['fixed_rate'] = (float) ($validated['fixed_rate'] ?? 0);
         $validated['base_rate'] = (float) ($validated['base_rate'] ?? ($validated['starting_amount'] > 0 ? $validated['starting_amount'] : ($validated['fixed_rate'] > 0 ? $validated['fixed_rate'] : 35.00)));
@@ -174,9 +174,9 @@ class RateChartController extends Controller
             'name' => 'required|string|max:255',
             'category' => 'nullable|string|in:collection,milk_sale,chilling_center',
             'milk_type' => 'required|in:cow,buffalo,mixed',
-            'format' => 'nullable|string|in:fat_snf,fat_only,fixed_rate',
-            'type' => 'nullable|string|in:increase_per_point,matrix_slab,flat',
-            'calculation_type' => 'nullable|string|in:fat_snf_formula,matrix,flat',
+            'format' => 'nullable|string|in:fat_snf,fat_clr,fat_only,fixed_rate',
+            'type' => 'nullable|string|in:rate_per_kg,increase_per_point,matrix_slab,flat',
+            'calculation_type' => 'nullable|string|in:fat_snf_formula,matrix,flat,rate_per_kg',
             'starting_amount' => 'nullable|numeric|min:0',
             'fixed_rate' => 'nullable|numeric|min:0',
             'base_rate' => 'nullable|numeric|min:0',
@@ -196,9 +196,9 @@ class RateChartController extends Controller
         ]);
 
         $validated['category'] = $validated['category'] ?? $rate->category ?? 'collection';
-        $validated['format'] = $validated['format'] ?? $rate->format ?? 'fat_snf';
-        $validated['type'] = $validated['type'] ?? $rate->type ?? 'increase_per_point';
-        $validated['calculation_type'] = $validated['calculation_type'] ?? ($validated['type'] === 'matrix_slab' ? 'matrix' : ($validated['format'] === 'fixed_rate' ? 'flat' : 'fat_snf_formula'));
+        $validated['format'] = $validated['format'] ?? $rate->format ?? 'fat_clr';
+        $validated['type'] = $validated['type'] ?? $rate->type ?? 'rate_per_kg';
+        $validated['calculation_type'] = $validated['calculation_type'] ?? ($validated['type'] === 'matrix_slab' ? 'matrix' : ($validated['format'] === 'fixed_rate' ? 'flat' : ($validated['type'] === 'rate_per_kg' ? 'rate_per_kg' : 'fat_snf_formula')));
         $validated['starting_amount'] = (float) ($validated['starting_amount'] ?? $rate->starting_amount ?? 0);
         $validated['fixed_rate'] = (float) ($validated['fixed_rate'] ?? $rate->fixed_rate ?? 0);
         $validated['base_rate'] = (float) ($validated['base_rate'] ?? ($validated['starting_amount'] > 0 ? $validated['starting_amount'] : ($validated['fixed_rate'] > 0 ? $validated['fixed_rate'] : $rate->base_rate)));

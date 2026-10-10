@@ -101,15 +101,39 @@ class RateChart extends Model
         $snfRules = is_array($this->snf_rules) ? $this->snf_rules : (json_decode($this->snf_rules ?? '[]', true) ?: []);
 
         $rate = 0.0;
-        if (!empty($fatSteps) || !empty($snfSteps)) {
+        if ($this->type === 'rate_per_kg') {
+            $fatRate = 0.0;
+            foreach ($fatSteps as $step) {
+                $from = (float) ($step['from'] ?? $step['step'] ?? 0);
+                $to = (float) ($step['to'] ?? 999);
+                if ($fat >= $from && $fat <= $to) {
+                    $amt = (float) ($step['amount'] ?? 0);
+                    $fatRate = $amt / 100.0;
+                    break;
+                }
+            }
+            $secondaryRate = 0.0;
+            if ($this->format !== 'fat_only') {
+                foreach ($snfSteps as $step) {
+                    $from = (float) ($step['from'] ?? $step['step'] ?? 0);
+                    $to = (float) ($step['to'] ?? 999);
+                    if ($snf >= $from && $snf <= $to) {
+                        $amt = (float) ($step['amount'] ?? 0);
+                        $secondaryRate = $amt / 100.0;
+                        break;
+                    }
+                }
+            }
+            $rate = ($fat * $fatRate) + ($snf * $secondaryRate);
+        } elseif (!empty($fatSteps) || !empty($snfSteps)) {
             $rate = (float) ($this->starting_amount > 0 ? $this->starting_amount : $this->base_rate);
             foreach ($fatSteps as $step) {
-                if ($fat >= (float) ($step['step'] ?? 0)) {
+                if ($fat >= (float) ($step['step'] ?? $step['from'] ?? 0)) {
                     $rate += (float) ($step['amount'] ?? 0);
                 }
             }
             foreach ($snfSteps as $step) {
-                if ($snf >= (float) ($step['step'] ?? 0)) {
+                if ($snf >= (float) ($step['step'] ?? $step['from'] ?? 0)) {
                     $rate += (float) ($step['amount'] ?? 0);
                 }
             }
