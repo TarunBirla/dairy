@@ -758,11 +758,19 @@ Route::middleware('auth')->group(function () {
         Route::get('/matrix', [UserController::class, 'matrix'])->name('matrix');
     });
 
-    // Settings & Simulator
+    // Settings & Center Information
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('/', [SettingController::class, 'index'])->name('index');
         Route::post('/', [SettingController::class, 'update'])->name('update');
         Route::post('/test-notification', [SettingController::class, 'testNotification'])->name('test-notification');
+        
+        // Center Information (Mobile Dairy UI parity)
+        Route::get('/center-information', [SettingController::class, 'centerInformation'])->name('center-information');
+        Route::post('/center-information/save', [SettingController::class, 'saveCenterSetting'])->name('center-information.save');
+        Route::post('/center-information/add-user', [SettingController::class, 'addCenterUser'])->name('center-information.add-user');
+    });
+    Route::get('/admin/center-information', function () {
+        return redirect()->route('settings.center-information');
     });
 
     // Support Tickets

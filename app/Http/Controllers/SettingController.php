@@ -47,6 +47,106 @@ class SettingController extends Controller
             'status' => 'sent',
         ]);
 
-        return back()->with('success', "Simulated {$validated['channel']} notification queued and sent to {$validated['phone']}!");
+    public function centerInformation(Request $request)
+    {
+        $settings = SystemSetting::all()->pluck('value', 'key');
+        $center = CollectionCenter::with('operator')->first();
+        
+        // Fetch users who have roles in the center or system
+        $centerUsers = \App\Models\User::whereIn('role', [
+            \App\Models\User::ROLE_SUPER_ADMIN,
+            \App\Models\User::ROLE_DAIRY_ADMIN,
+            \App\Models\User::ROLE_BRANCH_MANAGER,
+            \App\Models\User::ROLE_COLLECTION_MANAGER,
+            \App\Models\User::ROLE_COLLECTION_OPERATOR,
+        ])->get();
+
+        // If no center users found, fallback to active staff or users
+        if ($centerUsers->isEmpty()) {
+            $centerUsers = \App\Models\User::take(10)->get();
+        }
+
+        // Active tab, defaults to 'collection'
+        $activeTab = $request->query('tab', 'collection');
+
+        // Parse print setting if stored as JSON
+        $printSetting = json_decode($settings['collection_print_settings'] ?? '{}', true);
+        $bonusPenalty = json_decode($settings['bonus_penalty_settings'] ?? '{}', true);
+
+        return view('settings.center_information', compact(
+            'settings',
+            'center',
+            'centerUsers',
+            'activeTab',
+            'printSetting',
+            'bonusPenalty'
+        ));
+    }
+
+    public function saveCenterSetting(Request $request)
+    {
+        $data = $request->except(['_token', 'setting_key']);
+        $settingKey = $request->input('setting_key');
+
+        if ($settingKey) {
+            // Save as json or single string based on request
+            if ($request->has('setting_value')) {
+                SystemSetting::set($settingKey, $request->input('setting_value'), 'collection_setting');
+            } else {
+                SystemSetting::set($settingKey, json_encode($data), 'collection_setting');
+            }
+        } else {
+            // Bulk key-value save
+            foreach ($request->except('_token') as $key => $val) {
+                if (is_array($val)) {
+                    SystemSetting::set($key, json_encode($val), 'collection_setting');
+                } else {
+                    SystemSetting::set($key, $val, 'collection_setting');
+                }
+            }
+        }
+
+        AuditLog::log('Updated Center Settings', 'SystemSetting');
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Setting updated successfully!'
+            ]);
+        }
+
+        return back()->with('success', 'Setting updated successfully!');
+    }
+
+    public function addCenterUser(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:191',
+            'mobile' => 'required|string|max:20',
+            'role' => 'required|string',
+            'email' => 'nullable|email',
+            'password' => 'nullable|string|min:4',
+        ]);
+
+        $user = \App\Models\User::create([
+            'name' => $validated['name'],
+            'phone' => $validated['mobile'],
+            'email' => $validated['email'] ?? strtolower(str_replace(' ', '', $validated['name'])) . rand(100, 999) . '@dairy.local',
+            'role' => $validated['role'],
+            'password' => \Illuminate\Support\Facades\Hash::make($validated['password'] ?? '123456'),
+            'status' => 'active',
+        ]);
+
+        AuditLog::log("Added Center User: {$user->name}", 'User', $user->id);
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Center user added successfully!',
+                'user' => $user
+            ]);
+        }
+
+        return back()->with('success', 'Center user added successfully!');
     }
 }

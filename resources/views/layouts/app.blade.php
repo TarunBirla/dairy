@@ -540,10 +540,30 @@
                         <i data-lucide="shield-check" class="w-4 h-4 text-slate-400"></i>
                         <span>Users & Role Matrix</span>
                     </a>
-                    <a href="{{ route('settings.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('settings.*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
-                        <i data-lucide="settings" class="w-4 h-4 text-slate-400"></i>
-                        <span>Dairy Settings</span>
-                    </a>
+                    <!-- Dairy Settings & Center Information -->
+                    <div x-data="{ open: {{ request()->routeIs('settings.*') ? 'true' : 'false' }} }" class="space-y-0.5">
+                        <button type="button" @click="open = !open" 
+                                class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition {{ request()->routeIs('settings.*') ? 'bg-emerald-50 text-emerald-800 font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="settings" class="w-4 h-4 text-emerald-600"></i>
+                                <span>Settings</span>
+                            </div>
+                            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180 text-emerald-700' : ''"></i>
+                        </button>
+                        
+                        <div x-show="open" x-cloak class="pl-7 pr-1 py-1 space-y-0.5 border-l-2 border-emerald-200 ml-3">
+                            <a href="{{ route('settings.center-information') }}" class="flex items-center justify-between px-2.5 py-1.5 rounded-md transition text-[11px] {{ request()->routeIs('settings.center-information') ? 'text-emerald-700 font-bold bg-emerald-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
+                                <span class="flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle text-[6px] text-emerald-500"></i> Center Information
+                                </span>
+                            </a>
+                            <a href="{{ route('settings.index') }}" class="flex items-center justify-between px-2.5 py-1.5 rounded-md transition text-[11px] {{ request()->routeIs('settings.index') ? 'text-emerald-700 font-bold bg-emerald-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
+                                <span class="flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle text-[6px] text-slate-400"></i> General Settings
+                                </span>
+                            </a>
+                        </div>
+                    </div>
                     <a href="{{ route('audit.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('audit.*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                         <i data-lucide="activity" class="w-4 h-4 text-slate-400"></i>
                         <span>Audit Trail</span>
