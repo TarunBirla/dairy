@@ -143,12 +143,12 @@
                         <option value="">-- Select Farmer or Code --</option>
                         @foreach($farmers as $f)
                             <option value="{{ $f->id }}" 
-                                    data-code="{{ $f->farmer_code }}" 
+                                    data-code="{{ $f->farmer_code ?: $f->id }}" 
                                     data-name="{{ $f->name }}" 
                                     data-phone="{{ $f->phone }}" 
                                     data-village="{{ $f->village }}" 
                                     data-animal="{{ $f->animal_type }}">
-                                {{ $f->farmer_code }} - {{ $f->name }} ({{ $f->phone ?? 'No phone' }})
+                                {{ $f->farmer_code ?: 'FMR-' . $f->id }} - {{ $f->name }} ({{ $f->phone ?? 'No phone' }})
                             </option>
                         @endforeach
                     </select>
@@ -566,7 +566,12 @@ function milkCollectionManager() {
             const self = this;
 
             // Farmer Select2 with rich search
-            $('#collection_farmer_select').select2({
+            var $fSelect = $('#collection_farmer_select');
+            if ($fSelect.hasClass('select2-hidden-accessible')) {
+                $fSelect.select2('destroy');
+            }
+
+            $fSelect.select2({
                 placeholder: '-- Select Farmer or Code --',
                 allowClear: true,
                 width: '100%',
@@ -574,28 +579,48 @@ function milkCollectionManager() {
                     if ($.trim(params.term) === '') {
                         return data;
                     }
-                    if (typeof data.text === 'undefined') {
+                    if (!data || !data.text) {
                         return null;
                     }
-                    const term = params.term.toLowerCase();
-                    const text = data.text.toLowerCase();
-                    const elem = $(data.element);
-                    const code = (elem.data('code') || '').toString().toLowerCase();
-                    const phone = (elem.data('phone') || '').toString().toLowerCase();
-                    const village = (elem.data('village') || '').toString().toLowerCase();
 
-                    if (text.indexOf(term) > -1 || code.indexOf(term) > -1 || phone.indexOf(term) > -1 || village.indexOf(term) > -1) {
+                    var term = params.term.toLowerCase().trim();
+                    var text = data.text.toLowerCase();
+
+                    // Direct match in option text
+                    if (text.indexOf(term) > -1) {
                         return data;
                     }
+
+                    // Check data attributes if element exists
+                    if (data.element) {
+                        var code = ($(data.element).attr('data-code') || $(data.element).data('code') || '').toString().toLowerCase();
+                        var numOnly = code.replace(/\D/g, '');
+                        var phone = ($(data.element).attr('data-phone') || $(data.element).data('phone') || '').toString().toLowerCase();
+                        var village = ($(data.element).attr('data-village') || $(data.element).data('village') || '').toString().toLowerCase();
+                        var name = ($(data.element).attr('data-name') || $(data.element).data('name') || '').toString().toLowerCase();
+
+                        if (code.indexOf(term) > -1 || 
+                            (numOnly && numOnly.indexOf(term) > -1) || 
+                            phone.indexOf(term) > -1 || 
+                            village.indexOf(term) > -1 || 
+                            name.indexOf(term) > -1) {
+                            return data;
+                        }
+                    }
+
                     return null;
                 }
             }).on('change', function() {
-                const val = $(this).val();
+                var val = $(this).val();
                 self.onFarmerSelect(val);
             });
 
             // Center Select2
-            $('#collection_center_select').select2({
+            var $cSelect = $('#collection_center_select');
+            if ($cSelect.hasClass('select2-hidden-accessible')) {
+                $cSelect.select2('destroy');
+            }
+            $cSelect.select2({
                 placeholder: 'Select Center',
                 width: '100%'
             }).on('change', function() {
