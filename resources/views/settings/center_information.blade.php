@@ -641,7 +641,7 @@
     </div>
 
     <!-- Modal 10: Receipt Image Preview (Matching Screenshot 2, Bottom Left) -->
-    <div x-show="showReceiptPreview" x-cloak class="fixed inset-0 z-60 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+    <div x-show="showReceiptPreview" x-cloak class="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4" style="z-index: 99999;">
         <div @click.away="showReceiptPreview = false" class="bg-white rounded-lg shadow-2xl border border-slate-200 max-w-sm w-full overflow-hidden">
             <div class="px-5 py-3 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
                 <h4>Collection Print Preview</h4>
@@ -846,14 +846,14 @@ function centerInformationApp() {
         // Settings Values
         collectionType: '{{ $settings["collection_type"] ?? "FAT only" }}',
         milkType: '{{ $settings["milk_type"] ?? "Cow, Buffalo" }}',
-        collectionShift: '{{ $settings["collection_shift"] ?? "Auto (Morning + Evening)" }}',
-        showPreviousCollection: '{{ $settings["show_previous_collection"] ?? "Yesterday\'s both shift" }}',
-        collectionInput: '{{ $settings["collection_input"] ?? "Manual + Automatic" }}',
-        offlineCollection: '{{ $settings["offline_collection"] ?? "On" }}',
-        morningShiftTime: '{{ $settings["morning_shift_time"] ?? "Not Available" }}',
-        eveningShiftTime: '{{ $settings["evening_shift_time"] ?? "Not Available" }}',
-        printFormat: '{{ $printSetting["format"] ?? "Format-2" }}',
-        bonusPenaltyStatus: '{{ $settings["bonus_penalty_status"] ?? "" }}',
+        collectionShift: {!! json_encode($settings["collection_shift"] ?? "Auto (Morning + Evening)") !!},
+        showPreviousCollection: {!! json_encode($settings["show_previous_collection"] ?? "Yesterday's both shift") !!},
+        collectionInput: {!! json_encode($settings["collection_input"] ?? "Manual + Automatic") !!},
+        offlineCollection: {!! json_encode($settings["offline_collection"] ?? "On") !!},
+        morningShiftTime: {!! json_encode($settings["morning_shift_time"] ?? "Not Available") !!},
+        eveningShiftTime: {!! json_encode($settings["evening_shift_time"] ?? "Not Available") !!},
+        printFormat: {!! json_encode($printSetting["format"] ?? "Format-2") !!},
+        bonusPenaltyStatus: {!! json_encode($settings["bonus_penalty_status"] ?? "") !!},
 
         // Radio & Form states
         collectionTypeOptions: [
