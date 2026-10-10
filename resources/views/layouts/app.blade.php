@@ -74,7 +74,7 @@
         .sidebar-scroll::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 4px; }
 
         /* Select2 Custom Theme matching Plus Jakarta Sans and Tailwind */
-        .select2-container {
+        .select2-container:not(.select2-container--open) {
             width: 100% !important;
         }
         .select2-container .select2-selection--single {
@@ -88,6 +88,21 @@
             display: flex !important;
             align-items: center !important;
             transition: all 0.15s ease-in-out !important;
+        }
+        #collection-entry-section .select2-selection--single {
+            height: 32px !important;
+            padding: 2px 8px !important;
+            font-size: 12px !important;
+            border-radius: 0.5rem !important;
+        }
+        #collection-entry-section .select2-selection--single .select2-selection__rendered {
+            line-height: 26px !important;
+            padding-left: 0 !important;
+            font-size: 12px !important;
+        }
+        #collection-entry-section .select2-selection--single .select2-selection__arrow {
+            height: 30px !important;
+            right: 6px !important;
         }
         .select2-container--default .select2-selection--single .select2-selection__rendered {
             color: #1e293b !important;

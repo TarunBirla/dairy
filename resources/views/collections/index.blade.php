@@ -6,7 +6,7 @@
 
 @section('header_action')
     <button type="button" 
-            onclick="document.getElementById('collection-entry-section').scrollIntoView({behavior: 'smooth'}); $('#collection_farmer_select').select2('open');" 
+            onclick="document.getElementById('collection-entry-section').scrollIntoView({behavior: 'smooth'}); setTimeout(function() { $('#collection_farmer_select').select2('open'); }, 200);" 
             class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition">
         <i data-lucide="plus" class="w-3.5 h-3.5"></i>
         <span>Quick Intake</span>
@@ -104,7 +104,7 @@
 
             <!-- Right Controls: Center + Notes toggle -->
             <div class="flex items-center gap-2">
-                <div class="flex items-center gap-1.5 w-36 sm:w-44">
+                <div class="flex items-center gap-1.5 w-36 sm:w-44 relative" id="center_select_col">
                     <span class="text-[11px] font-semibold text-slate-500 shrink-0">Center:</span>
                     <select id="collection_center_select" class="text-xs border border-slate-300 rounded-md bg-white w-full">
                         @foreach($centers as $c)
@@ -137,7 +137,7 @@
             <div class="grid grid-cols-12 gap-2 items-start">
                 
                 <!-- Customer / Farmer Code (Select2) (3.5 cols on desktop) -->
-                <div class="col-span-12 sm:col-span-6 lg:col-span-3">
+                <div class="col-span-12 sm:col-span-6 lg:col-span-3 relative" id="farmer_select_col">
                     <label class="block text-[10px] font-bold text-slate-700 mb-0.5 uppercase tracking-wider">Customer Code *</label>
                     <select id="collection_farmer_select" class="w-full text-xs font-semibold">
                         <option value="">-- Select Farmer or Code --</option>
@@ -575,6 +575,7 @@ function milkCollectionManager() {
                 placeholder: '-- Select Farmer or Code --',
                 allowClear: true,
                 width: '100%',
+                dropdownParent: $('#farmer_select_col'),
                 matcher: function(params, data) {
                     if ($.trim(params.term) === '') {
                         return data;
@@ -622,7 +623,8 @@ function milkCollectionManager() {
             }
             $cSelect.select2({
                 placeholder: 'Select Center',
-                width: '100%'
+                width: '100%',
+                dropdownParent: $('#center_select_col')
             }).on('change', function() {
                 self.form.collection_center_id = $(this).val();
             });
