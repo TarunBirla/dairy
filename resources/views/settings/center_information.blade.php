@@ -21,6 +21,202 @@
         </div>
     </div>
 
+    <!-- ==================== CENTER DETAILS SECTION (Mobile Dairy Parity) ==================== -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        
+        <!-- LEFT COLUMN: Center + Billing Info -->
+        <div class="space-y-4">
+            <!-- Center Card -->
+            <div class="bg-white rounded border border-slate-200 overflow-hidden shadow-2xs">
+                <div class="px-3.5 py-2.5 bg-[#f8faff] border-b border-slate-200 flex items-center justify-between">
+                    <span class="text-xs font-bold text-[#002e79]">Center</span>
+                    <button type="button" @click="showEditCenterModal = true" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                        Edit
+                    </button>
+                </div>
+                <div class="divide-y divide-slate-100 text-xs">
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Unique Id</span>
+                        <span class="w-1/2 text-slate-800" x-text="centerDetails.unique_id"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Center Name (mother tongue)</span>
+                        <span class="w-1/2 text-slate-800" x-text="centerDetails.name_mother_tongue"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Center Name (English)</span>
+                        <span class="w-1/2 text-slate-800" x-text="centerDetails.name_english"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Address (mother tongue)</span>
+                        <span class="w-1/2 text-slate-800" x-text="centerDetails.address_mother_tongue"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Address (English)</span>
+                        <span class="w-1/2 text-slate-800" x-text="centerDetails.address_english"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Chilling Center</span>
+                        <span class="w-1/2 text-slate-800" x-text="centerDetails.chilling_center || '-'"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Vehicle Route</span>
+                        <span class="w-1/2 text-slate-800" x-text="centerDetails.vehicle_route || '-'"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Block</span>
+                        <span class="w-1/2 text-slate-800" x-text="centerDetails.block || '-'"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Billing Info Card -->
+            <div class="bg-white rounded border border-slate-200 overflow-hidden shadow-2xs">
+                <div class="px-3.5 py-2.5 bg-[#f8faff] border-b border-slate-200 flex items-center justify-between">
+                    <span class="text-xs font-bold text-[#002e79]">Billing Info</span>
+                    <button type="button" @click="showEditBillingModal = true" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                        Edit
+                    </button>
+                </div>
+                <div class="px-3.5 py-2 text-[11px] text-slate-500 border-b border-slate-100 italic">
+                    After any purchase from Mobile Dairy, the payment receipt will be created with the below mentioned details
+                </div>
+                <div class="divide-y divide-slate-100 text-xs">
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Name</span>
+                        <span class="w-1/2 text-slate-800 uppercase" x-text="billingInfo.name"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Address</span>
+                        <span class="w-1/2 text-slate-800" x-text="billingInfo.address"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Pincode</span>
+                        <span class="w-1/2 text-slate-800" x-text="billingInfo.pincode"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Phone Number</span>
+                        <span class="w-1/2 text-slate-800" x-text="billingInfo.phone"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Email</span>
+                        <span class="w-1/2 text-slate-800" x-text="billingInfo.email"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">GSTIN</span>
+                        <span class="w-1/2 text-slate-800" x-text="billingInfo.gstin"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Subscription + Location + Addition Type + Deduction Type -->
+        <div class="space-y-4">
+            <!-- Subscription Card -->
+            <div class="bg-white rounded border border-slate-200 overflow-hidden shadow-2xs">
+                <div class="px-3.5 py-2.5 bg-[#f8faff] border-b border-slate-200 flex items-center justify-between">
+                    <span class="text-xs font-bold text-[#002e79]">Subscription</span>
+                    <div class="flex items-center gap-3">
+                        <button type="button" @click="showPayNowModal = true" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-0.5 transition">
+                            <span>₹</span> Pay Now
+                        </button>
+                        <button type="button" @click="showHistoryModal = true" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            History
+                        </button>
+                    </div>
+                </div>
+                <div class="divide-y divide-slate-100 text-xs">
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Subscription</span>
+                        <span class="w-1/2 text-slate-800" x-text="subscriptionInfo.plan"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Period</span>
+                        <span class="w-1/2 text-slate-800" x-text="subscriptionInfo.period"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Status</span>
+                        <span class="w-1/2">
+                            <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" x-text="subscriptionInfo.status"></span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Location Card -->
+            <div class="bg-white rounded border border-slate-200 overflow-hidden shadow-2xs">
+                <div class="px-3.5 py-2.5 bg-[#f8faff] border-b border-slate-200 flex items-center justify-between">
+                    <span class="text-xs font-bold text-[#002e79]">Location</span>
+                    <div class="flex items-center gap-3">
+                        <a :href="'https://www.google.com/maps?q=' + locationInfo.latitude + ',' + locationInfo.longitude" target="_blank" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            View On Map
+                        </a>
+                        <button type="button" @click="showEditLocationModal = true" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                            Edit
+                        </button>
+                    </div>
+                </div>
+                <div class="divide-y divide-slate-100 text-xs">
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Latitude</span>
+                        <span class="w-1/2 text-slate-800" x-text="locationInfo.latitude"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Longitude</span>
+                        <span class="w-1/2 text-slate-800" x-text="locationInfo.longitude"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Addition Type Card -->
+            <div class="bg-white rounded border border-slate-200 overflow-hidden shadow-2xs">
+                <div class="px-3.5 py-2.5 bg-[#f8faff] border-b border-slate-200 flex items-center justify-between">
+                    <span class="text-xs font-bold text-[#002e79]">Addition Type</span>
+                    <button type="button" @click="openAddAdditionModal()" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition">
+                        + Add Extra Payment
+                    </button>
+                </div>
+                <div class="divide-y divide-slate-100 text-xs">
+                    <template x-for="(item, idx) in additionTypes" :key="'add-' + idx">
+                        <div class="px-3.5 py-2 flex items-center justify-between hover:bg-slate-50 transition">
+                            <span class="w-1/2 font-medium text-slate-800" x-text="item.name"></span>
+                            <span class="w-1/3 text-slate-600 font-mono text-[11px]" x-text="item.value"></span>
+                            <button type="button" @click="openItemAction('addition', idx)" class="text-slate-400 hover:text-slate-700 p-1 rounded font-bold text-sm leading-none">
+                                &#8942;
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Deduction Type Card -->
+            <div class="bg-white rounded border border-slate-200 overflow-hidden shadow-2xs">
+                <div class="px-3.5 py-2.5 bg-[#f8faff] border-b border-slate-200 flex items-center justify-between">
+                    <span class="text-xs font-bold text-[#002e79]">Deduction Type</span>
+                    <button type="button" @click="openAddDeductionModal()" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition">
+                        + Add Deduction
+                    </button>
+                </div>
+                <div class="divide-y divide-slate-100 text-xs max-h-[420px] overflow-y-auto">
+                    <template x-for="(item, idx) in deductionTypes" :key="'ded-' + idx">
+                        <div class="px-3.5 py-2 flex items-center justify-between hover:bg-slate-50 transition">
+                            <span class="w-1/2 font-medium text-slate-800" x-text="item.name"></span>
+                            <span class="w-1/3 text-slate-600 font-mono text-[11px]" x-text="item.value"></span>
+                            <button type="button" @click="openItemAction('deduction', idx)" class="text-slate-400 hover:text-slate-700 p-1 rounded font-bold text-sm leading-none">
+                                &#8942;
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Settings Card with Tabs -->
     <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
         
@@ -2379,6 +2575,293 @@
                 </div>
             </form>
         </div>
+    <!-- Edit Center Modal -->
+    <div x-show="showEditCenterModal" x-cloak class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden text-xs" @click.outside="showEditCenterModal = false">
+            <div class="bg-[#002e79] text-white px-5 py-3.5 flex items-center justify-between font-bold">
+                <h4>Edit Center Information</h4>
+                <button type="button" @click="showEditCenterModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <form @submit.prevent="saveCenterDetails()" class="p-5 space-y-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Unique Id</label>
+                    <input type="text" x-model="centerDetailsData.unique_id" readonly class="w-full px-3 py-1.5 border border-slate-200 rounded bg-slate-50 text-slate-500 font-mono">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Center Name (mother tongue)</label>
+                    <input type="text" x-model="centerDetailsData.name_mother_tongue" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Center Name (English)</label>
+                    <input type="text" x-model="centerDetailsData.name_english" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Address (mother tongue)</label>
+                    <input type="text" x-model="centerDetailsData.address_mother_tongue" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Address (English)</label>
+                    <input type="text" x-model="centerDetailsData.address_english" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Chilling Center</label>
+                        <input type="text" x-model="centerDetailsData.chilling_center" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500" placeholder="-">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Vehicle Route</label>
+                        <input type="text" x-model="centerDetailsData.vehicle_route" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500" placeholder="-">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Block</label>
+                        <input type="text" x-model="centerDetailsData.block" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500" placeholder="-">
+                    </div>
+                </div>
+                <div class="pt-3 flex justify-end gap-2 font-bold">
+                    <button type="button" @click="showEditCenterModal = false" class="px-4 py-1.5 rounded bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
+                    <button type="submit" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Billing Info Modal -->
+    <div x-show="showEditBillingModal" x-cloak class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden text-xs" @click.outside="showEditBillingModal = false">
+            <div class="bg-[#002e79] text-white px-5 py-3.5 flex items-center justify-between font-bold">
+                <h4>Edit Billing Info</h4>
+                <button type="button" @click="showEditBillingModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <form @submit.prevent="saveBillingInfo()" class="p-5 space-y-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Name</label>
+                    <input type="text" x-model="billingInfoData.name" required class="w-full px-3 py-1.5 border border-slate-200 rounded uppercase focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Address</label>
+                    <textarea x-model="billingInfoData.address" rows="2" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Pincode</label>
+                        <input type="text" x-model="billingInfoData.pincode" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Phone Number</label>
+                        <input type="text" x-model="billingInfoData.phone" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Email</label>
+                        <input type="email" x-model="billingInfoData.email" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">GSTIN</label>
+                        <input type="text" x-model="billingInfoData.gstin" class="w-full px-3 py-1.5 border border-slate-200 rounded uppercase focus:border-blue-500">
+                    </div>
+                </div>
+                <div class="pt-3 flex justify-end gap-2 font-bold">
+                    <button type="button" @click="showEditBillingModal = false" class="px-4 py-1.5 rounded bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
+                    <button type="submit" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Location Modal -->
+    <div x-show="showEditLocationModal" x-cloak class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden text-xs" @click.outside="showEditLocationModal = false">
+            <div class="bg-[#002e79] text-white px-5 py-3.5 flex items-center justify-between font-bold">
+                <h4>Edit Location Coordinates</h4>
+                <button type="button" @click="showEditLocationModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <form @submit.prevent="saveLocationInfo()" class="p-5 space-y-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Latitude</label>
+                    <input type="text" x-model="locationInfoData.latitude" required class="w-full px-3 py-1.5 border border-slate-200 rounded font-mono focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Longitude</label>
+                    <input type="text" x-model="locationInfoData.longitude" required class="w-full px-3 py-1.5 border border-slate-200 rounded font-mono focus:border-blue-500">
+                </div>
+                <div class="pt-1">
+                    <button type="button" @click="getCurrentLocation()" class="w-full py-1.5 px-3 border border-blue-600 text-blue-600 rounded hover:bg-blue-50 font-semibold flex items-center justify-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+                        Get Current GPS Location
+                    </button>
+                </div>
+                <div class="pt-3 flex justify-end gap-2 font-bold">
+                    <button type="button" @click="showEditLocationModal = false" class="px-4 py-1.5 rounded bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
+                    <button type="submit" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Subscription Pay Now Modal -->
+    <div x-show="showPayNowModal" x-cloak class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden text-xs" @click.outside="showPayNowModal = false">
+            <div class="bg-[#002e79] text-white px-5 py-3.5 flex items-center justify-between font-bold">
+                <h4>Subscription Payment & Renew</h4>
+                <button type="button" @click="showPayNowModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="p-3 bg-slate-50 rounded border border-slate-200 space-y-1.5">
+                    <div class="flex justify-between font-semibold">
+                        <span class="text-slate-600">Active Plan:</span>
+                        <span class="text-slate-900 font-bold" x-text="subscriptionInfo.plan"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-600">Validity Period:</span>
+                        <span class="text-slate-800" x-text="subscriptionInfo.period"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-600">Status:</span>
+                        <span class="text-emerald-700 font-bold" x-text="subscriptionInfo.status"></span>
+                    </div>
+                </div>
+                <div class="p-4 bg-blue-50 border border-blue-200 rounded text-center space-y-2">
+                    <div class="text-sm font-bold text-blue-900">Annual Renewal: ₹ 3,200 / year</div>
+                    <p class="text-slate-600 text-[11px]">Instant online payment activation for uninterrupted Dairy automation & Farmer SMS sync.</p>
+                </div>
+                <div class="flex justify-end gap-2 font-bold">
+                    <button type="button" @click="showPayNowModal = false" class="px-4 py-1.5 rounded bg-slate-200 text-slate-700 hover:bg-slate-300">Close</button>
+                    <button type="button" @click="alert('Redirecting to Payment Gateway...'); showPayNowModal = false;" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Proceed to Pay</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subscription History Modal -->
+    <div x-show="showHistoryModal" x-cloak class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden text-xs" @click.outside="showHistoryModal = false">
+            <div class="bg-[#002e79] text-white px-5 py-3.5 flex items-center justify-between font-bold">
+                <h4>Subscription History</h4>
+                <button type="button" @click="showHistoryModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3">
+                <table class="w-full text-left border border-slate-200 rounded overflow-hidden">
+                    <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                        <tr>
+                            <th class="p-2">Plan</th>
+                            <th class="p-2">Period</th>
+                            <th class="p-2">Amount</th>
+                            <th class="p-2">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-slate-700">
+                        <tr>
+                            <td class="p-2 font-medium" x-text="subscriptionInfo.plan"></td>
+                            <td class="p-2 text-[11px]" x-text="subscriptionInfo.period"></td>
+                            <td class="p-2 font-mono">₹ 3,200</td>
+                            <td class="p-2 text-emerald-700 font-bold">Paid</td>
+                        </tr>
+                        <tr class="bg-slate-50/50">
+                            <td class="p-2 font-medium">Standard Plan - One Year</td>
+                            <td class="p-2 text-[11px]">05 Apr 2025 To 04 Apr 2026</td>
+                            <td class="p-2 font-mono">₹ 2,800</td>
+                            <td class="p-2 text-emerald-700 font-bold">Paid</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="flex justify-end pt-2">
+                    <button type="button" @click="showHistoryModal = false" class="px-4 py-1.5 rounded bg-slate-200 text-slate-700 hover:bg-slate-300 font-bold">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Extra Payment Modal -->
+    <div x-show="showAddAdditionModal" x-cloak class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden text-xs" @click.outside="showAddAdditionModal = false">
+            <div class="bg-[#002e79] text-white px-5 py-3.5 flex items-center justify-between font-bold">
+                <h4>Add Extra Payment</h4>
+                <button type="button" @click="showAddAdditionModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <form @submit.prevent="saveNewAddition()" class="p-5 space-y-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Addition Name *</label>
+                    <input type="text" x-model="newAddition.name" required class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500" placeholder="e.g. Festival Bonus">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Rate / Value</label>
+                        <input type="text" x-model="newAddition.value" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500" placeholder="e.g. 1.00">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Unit / Criteria</label>
+                        <select x-model="newAddition.unit" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
+                            <option value="/ltr">/ltr</option>
+                            <option value="Flat">Flat</option>
+                            <option value="Farmer Wise">Farmer Wise</option>
+                            <option value="-">-</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="pt-3 flex justify-end gap-2 font-bold">
+                    <button type="button" @click="showAddAdditionModal = false" class="px-4 py-1.5 rounded bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
+                    <button type="submit" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Deduction Modal -->
+    <div x-show="showAddDeductionModal" x-cloak class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden text-xs" @click.outside="showAddDeductionModal = false">
+            <div class="bg-[#002e79] text-white px-5 py-3.5 flex items-center justify-between font-bold">
+                <h4>Add Deduction Type</h4>
+                <button type="button" @click="showAddDeductionModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <form @submit.prevent="saveNewDeduction()" class="p-5 space-y-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Deduction Name *</label>
+                    <input type="text" x-model="newDeduction.name" required class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500" placeholder="e.g. Maintenance">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Rate / Value</label>
+                        <input type="text" x-model="newDeduction.value" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500" placeholder="e.g. 0.00">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Unit / Criteria</label>
+                        <select x-model="newDeduction.unit" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
+                            <option value="/ltr">/ltr</option>
+                            <option value="/Invoice">/Invoice</option>
+                            <option value="Farmer Wise">Farmer Wise</option>
+                            <option value="Round down">Round down</option>
+                            <option value="Flat">Flat</option>
+                            <option value="-">-</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="pt-3 flex justify-end gap-2 font-bold">
+                    <button type="button" @click="showAddDeductionModal = false" class="px-4 py-1.5 rounded bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
+                    <button type="submit" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Row Action (Edit / Delete) Modal -->
+    <div x-show="showItemActionModal" x-cloak class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-xs w-full overflow-hidden text-xs" @click.outside="showItemActionModal = false">
+            <div class="bg-[#002e79] text-white px-4 py-3 flex items-center justify-between font-bold">
+                <span x-text="'Manage: ' + selectedItemData.name"></span>
+                <button type="button" @click="showItemActionModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-4 space-y-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Rate / Value</label>
+                    <input type="text" x-model="selectedItemData.value" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
+                </div>
+                <div class="pt-2 flex flex-col gap-2">
+                    <button type="button" @click="saveItemEdit()" class="w-full py-1.5 bg-[#005c53] hover:bg-[#004740] text-white font-bold rounded">Update Value</button>
+                    <button type="button" @click="deleteItem()" class="w-full py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded">Remove Item</button>
+                </div>
+            </div>
+        </div>
     </div>
 
 </div>
@@ -2391,6 +2874,35 @@ function centerInformationApp() {
         modal: null,
         showReceiptPreview: false,
         showAddUserModal: false,
+
+        // Center Details state
+        showEditCenterModal: false,
+        showEditBillingModal: false,
+        showEditLocationModal: false,
+        showPayNowModal: false,
+        showHistoryModal: false,
+        showAddAdditionModal: false,
+        showAddDeductionModal: false,
+        showItemActionModal: false,
+        selectedItemType: null,
+        selectedItemIndex: null,
+        selectedItemData: { name: '', value: '' },
+
+        centerDetails: {!! json_encode($centerDetails) !!},
+        centerDetailsData: { ...{!! json_encode($centerDetails) !!} },
+
+        billingInfo: {!! json_encode($billingInfo) !!},
+        billingInfoData: { ...{!! json_encode($billingInfo) !!} },
+
+        subscriptionInfo: {!! json_encode($subscriptionInfo) !!},
+        locationInfo: {!! json_encode($locationInfo) !!},
+        locationInfoData: { ...{!! json_encode($locationInfo) !!} },
+
+        additionTypes: {!! json_encode($additionTypes) !!},
+        deductionTypes: {!! json_encode($deductionTypes) !!},
+
+        newAddition: { name: '', value: '1.00', unit: '/ltr' },
+        newDeduction: { name: '', value: '0.00', unit: '/ltr' },
 
         // Settings Values
         collectionType: '{{ $settings["collection_type"] ?? "FAT only" }}',
@@ -2861,6 +3373,156 @@ function centerInformationApp() {
                 console.error(err);
                 alert('Error saving annual bonus print settings: ' + err.message);
             }
+        },
+
+        async saveCenterDetails() {
+            try {
+                await this.postData({
+                    setting_key: 'center_details',
+                    ...this.centerDetailsData
+                });
+                this.centerDetails = { ...this.centerDetailsData };
+                this.showEditCenterModal = false;
+            } catch (err) {
+                alert('Error saving center details: ' + err.message);
+            }
+        },
+
+        async saveBillingInfo() {
+            try {
+                await this.postData({
+                    setting_key: 'center_billing_info',
+                    ...this.billingInfoData
+                });
+                this.billingInfo = { ...this.billingInfoData };
+                this.showEditBillingModal = false;
+            } catch (err) {
+                alert('Error saving billing info: ' + err.message);
+            }
+        },
+
+        async saveLocationInfo() {
+            try {
+                await this.postData({
+                    setting_key: 'center_location_info',
+                    ...this.locationInfoData
+                });
+                this.locationInfo = { ...this.locationInfoData };
+                this.showEditLocationModal = false;
+            } catch (err) {
+                alert('Error saving location info: ' + err.message);
+            }
+        },
+
+        getCurrentLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        this.locationInfoData.latitude = pos.coords.latitude.toString();
+                        this.locationInfoData.longitude = pos.coords.longitude.toString();
+                    },
+                    (err) => {
+                        alert('Could not fetch location: ' + err.message);
+                    }
+                );
+            } else {
+                alert('Geolocation is not supported by your browser.');
+            }
+        },
+
+        openAddAdditionModal() {
+            this.newAddition = { name: '', value: '1.00', unit: '/ltr' };
+            this.showAddAdditionModal = true;
+        },
+
+        async saveNewAddition() {
+            if (!this.newAddition.name) {
+                alert('Name is required');
+                return;
+            }
+            const valStr = this.newAddition.unit === '-' ? '-' : (this.newAddition.unit === 'Farmer Wise' ? 'Farmer Wise' : (this.newAddition.value + this.newAddition.unit));
+            this.additionTypes.push({
+                name: this.newAddition.name,
+                value: valStr
+            });
+            try {
+                await this.postData({
+                    setting_key: 'center_addition_types',
+                    setting_value: JSON.stringify(this.additionTypes)
+                });
+                this.showAddAdditionModal = false;
+            } catch (err) {
+                alert('Error saving extra payment: ' + err.message);
+            }
+        },
+
+        openAddDeductionModal() {
+            this.newDeduction = { name: '', value: '0.00', unit: '/ltr' };
+            this.showAddDeductionModal = true;
+        },
+
+        async saveNewDeduction() {
+            if (!this.newDeduction.name) {
+                alert('Name is required');
+                return;
+            }
+            const valStr = this.newDeduction.unit === '-' ? '-' : (this.newDeduction.unit === 'Farmer Wise' ? 'Farmer Wise' : (this.newDeduction.unit === 'Round down' ? 'Round down' : (this.newDeduction.value + this.newDeduction.unit)));
+            this.deductionTypes.push({
+                name: this.newDeduction.name,
+                value: valStr
+            });
+            try {
+                await this.postData({
+                    setting_key: 'center_deduction_types',
+                    setting_value: JSON.stringify(this.deductionTypes)
+                });
+                this.showAddDeductionModal = false;
+            } catch (err) {
+                alert('Error saving deduction: ' + err.message);
+            }
+        },
+
+        openItemAction(type, index) {
+            this.selectedItemType = type;
+            this.selectedItemIndex = index;
+            const item = type === 'addition' ? this.additionTypes[index] : this.deductionTypes[index];
+            this.selectedItemData = { ...item };
+            this.showItemActionModal = true;
+        },
+
+        async saveItemEdit() {
+            if (this.selectedItemType === 'addition') {
+                this.additionTypes[this.selectedItemIndex].value = this.selectedItemData.value;
+                await this.postData({
+                    setting_key: 'center_addition_types',
+                    setting_value: JSON.stringify(this.additionTypes)
+                });
+            } else {
+                this.deductionTypes[this.selectedItemIndex].value = this.selectedItemData.value;
+                await this.postData({
+                    setting_key: 'center_deduction_types',
+                    setting_value: JSON.stringify(this.deductionTypes)
+                });
+            }
+            this.showItemActionModal = false;
+        },
+
+        async deleteItem() {
+            if (!confirm('Are you sure you want to remove ' + this.selectedItemData.name + '?')) return;
+            if (this.selectedItemType === 'addition') {
+                this.additionTypes.splice(this.selectedItemIndex, 1);
+                await this.postData({
+                    setting_key: 'center_addition_types',
+                    setting_value: JSON.stringify(this.additionTypes)
+                });
+            } else {
+                this.deductionTypes.splice(this.selectedItemIndex, 1);
+                await this.postData({
+                    setting_key: 'center_deduction_types',
+                    setting_value: JSON.stringify(this.deductionTypes)
+                });
+            }
+            this.showItemActionModal = false;
         }
     }
 }
