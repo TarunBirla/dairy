@@ -47,6 +47,9 @@ class SettingController extends Controller
             'status' => 'sent',
         ]);
 
+        return back()->with('success', "Simulated {$validated['channel']} notification queued and sent to {$validated['phone']}!");
+    }
+
     public function centerInformation(Request $request)
     {
         $settings = SystemSetting::all()->pluck('value', 'key');
