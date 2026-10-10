@@ -2619,32 +2619,71 @@ function centerInformationApp() {
             return map[tab] || 'Settings';
         },
 
+        async postData(payload) {
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+            const response = await fetch('{{ route("settings.center-information.save") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': token
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const text = await response.text();
+            let res;
+            try {
+                res = JSON.parse(text);
+            } catch (e) {
+                console.error("Non-JSON response:", text);
+                throw new Error("Server returned invalid response format");
+            }
+
+            if (!response.ok || !res.success) {
+                throw new Error(res.message || ('Server error (' + response.status + ')'));
+            }
+            return res;
+        },
+
         async saveSetting(key, val, modalToClose) {
             try {
-                const response = await fetch('{{ route("settings.center-information.save") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({
-                        setting_key: key,
-                        setting_value: val
-                    })
+                await this.postData({
+                    setting_key: key,
+                    setting_value: val
                 });
-                const res = await response.json();
-                if (res.success) {
-                    if (key === 'collection_type') this.collectionType = val;
-                    if (key === 'milk_type') this.milkType = val;
-                    if (key === 'collection_shift') this.collectionShift = val;
-                    if (key === 'show_previous_collection') this.showPreviousCollection = val;
-                    if (key === 'collection_input') this.collectionInput = val;
-                    if (key === 'offline_collection') this.offlineCollection = val;
-                    this.modal = null;
-                }
+
+                if (key === 'collection_type') this.collectionType = val;
+                if (key === 'milk_type') this.milkType = val;
+                if (key === 'collection_shift') this.collectionShift = val;
+                if (key === 'show_previous_collection') this.showPreviousCollection = val;
+                if (key === 'collection_input') this.collectionInput = val;
+                if (key === 'offline_collection') this.offlineCollection = val;
+                if (key === 'farmer_app_link_in_sms') this.farmerAppLinkInSms = val;
+                if (key === 'total_in_collection_sms') this.totalInCollectionSms = val;
+                if (key === 'center_name_in_sms') this.centerNameInSms = val;
+                if (key === 'payment_period') this.paymentPeriod = val;
+                if (key === 'rate_chart_status') this.rateChartStatus = val;
+                if (key === 'farmer_wise_rate') this.farmerWiseRate = val;
+                if (key === 'show_advance_interest_rate_farmer_app') this.showAdvanceInterestRate = val;
+                if (key === 'show_rate_chart_farmer_app') this.showRateChart = val;
+                if (key === 'show_collection_after_invoice_save') this.showCollectionAfterInvoiceSave = val;
+                if (key === 'show_collection_after_shift_finish') this.showCollectionAfterShiftFinish = val;
+                if (key === 'hide_collection_rate_farmer_app') this.hideCollectionRate = val;
+                if (key === 'milk_sale_billing_period') this.milkSaleBillingPeriod = val;
+                if (key === 'other_bank_details') this.otherBankDetails = val;
+                if (key === 'weighing_scale_format') this.weighingScaleFormat = val;
+                if (key === 'clr_lacto_format') this.clrLactoFormat = val;
+                if (key === 'fat_format') this.fatFormat = val;
+                if (key === 'snf_format') this.snfFormat = val;
+                if (key === 'computer_login') this.computerLogin = val;
+                if (key === 'center_logo') this.centerLogo = val;
+
+                this.modal = null;
             } catch (err) {
                 console.error(err);
-                alert('Error saving setting');
+                alert('Error saving setting: ' + err.message);
             }
         },
 
@@ -2654,176 +2693,131 @@ function centerInformationApp() {
             if (shift === 'morning') {
                 val = `${this.morningStartHour}:${this.morningStartMin} ${this.morningStartAmPm} - ${this.morningEndHour}:${this.morningEndMin} ${this.morningEndAmPm}`;
                 key = 'morning_shift_time';
-                this.morningShiftTime = val;
             } else {
                 val = `${this.eveningStartHour}:${this.eveningStartMin} ${this.eveningStartAmPm} - ${this.eveningEndHour}:${this.eveningEndMin} ${this.eveningEndAmPm}`;
                 key = 'evening_shift_time';
-                this.eveningShiftTime = val;
             }
-            await this.saveSetting(key, val, null);
-            this.modal = null;
+            try {
+                await this.postData({ setting_key: key, setting_value: val });
+                if (shift === 'morning') this.morningShiftTime = val;
+                else this.eveningShiftTime = val;
+                this.modal = null;
+            } catch (err) {
+                console.error(err);
+                alert('Error saving shift time: ' + err.message);
+            }
         },
 
         async savePrintSettings() {
             try {
-                const response = await fetch('{{ route("settings.center-information.save") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({
-                        setting_key: 'collection_print_settings',
-                        ...this.printSettings
-                    })
+                await this.postData({
+                    setting_key: 'collection_print_settings',
+                    ...this.printSettings
                 });
-                const res = await response.json();
-                if (res.success) {
-                    this.printFormat = this.printSettings.format;
-                    this.modal = null;
-                }
+                this.printFormat = this.printSettings.format;
+                this.modal = null;
             } catch (err) {
                 console.error(err);
-                alert('Error saving print settings');
+                alert('Error saving print settings: ' + err.message);
             }
         },
 
         async saveBonusPenalty() {
             try {
-                const response = await fetch('{{ route("settings.center-information.save") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({
-                        setting_key: 'bonus_penalty_settings',
-                        ...this.bonusPenaltyData
-                    })
+                await this.postData({
+                    setting_key: 'bonus_penalty_settings',
+                    ...this.bonusPenaltyData
                 });
-                const res = await response.json();
-                if (res.success) {
-                    this.modal = null;
-                }
+                this.modal = null;
             } catch (err) {
                 console.error(err);
-                alert('Error saving bonus/penalty');
+                alert('Error saving bonus/penalty: ' + err.message);
             }
         },
 
         async saveSmsType() {
             const val = this.selectedSmsTypes.join(' , ');
-            await this.saveSetting('sms_type', val, null);
-            this.smsType = val;
-            this.modal = null;
+            try {
+                await this.postData({ setting_key: 'sms_type', setting_value: val });
+                this.smsType = val;
+                this.modal = null;
+            } catch (err) {
+                console.error(err);
+                alert('Error saving SMS type: ' + err.message);
+            }
         },
 
         async saveSendSmsFor() {
             const val = this.selectedSendSmsFor.join(' , ');
-            await this.saveSetting('send_sms_for', val, null);
-            this.sendSmsFor = val;
-            this.modal = null;
+            try {
+                await this.postData({ setting_key: 'send_sms_for', setting_value: val });
+                this.sendSmsFor = val;
+                this.modal = null;
+            } catch (err) {
+                console.error(err);
+                alert('Error saving Send SMS For: ' + err.message);
+            }
         },
 
         async savePaymentRegisterSetting() {
             try {
-                const response = await fetch('{{ route("settings.center-information.save") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({
-                        setting_key: 'payment_register_print_settings',
-                        ...this.paymentRegisterData
-                    })
+                await this.postData({
+                    setting_key: 'payment_register_print_settings',
+                    ...this.paymentRegisterData
                 });
-                const res = await response.json();
-                if (res.success) {
-                    this.paymentRegisterFormat = this.paymentRegisterData.format;
-                    this.modal = null;
-                }
+                this.paymentRegisterFormat = this.paymentRegisterData.format;
+                this.modal = null;
             } catch (err) {
                 console.error(err);
-                alert('Error saving payment register settings');
+                alert('Error saving payment register settings: ' + err.message);
             }
         },
 
         async saveInvoicePrintSetting() {
             try {
-                const response = await fetch('{{ route("settings.center-information.save") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({
-                        setting_key: 'invoice_print_settings',
-                        ...this.invoicePrintData
-                    })
+                await this.postData({
+                    setting_key: 'invoice_print_settings',
+                    ...this.invoicePrintData
                 });
-                const res = await response.json();
-                if (res.success) {
-                    this.invoicePrintFormat = (this.invoicePrintData.printer || 'Laser') + ' ' + (this.invoicePrintData.format || 'Format-1');
-                    this.modal = null;
-                }
+                this.invoicePrintFormat = (this.invoicePrintData.printer || 'Laser') + ' ' + (this.invoicePrintData.format || 'Format-1');
+                this.modal = null;
             } catch (err) {
                 console.error(err);
-                alert('Error saving invoice print settings');
+                alert('Error saving invoice print settings: ' + err.message);
             }
         },
 
         async saveShiftWiseRate() {
             try {
-                const response = await fetch('{{ route("settings.center-information.save") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({
-                        shift_wise_morning: this.selectedShiftWiseMorning,
-                        shift_wise_evening: this.selectedShiftWiseEvening,
-                        shift_wise_evening_condition: this.shiftWiseEveningCondition ? '1' : '0'
-                    })
+                await this.postData({
+                    shift_wise_morning: this.selectedShiftWiseMorning,
+                    shift_wise_evening: this.selectedShiftWiseEvening,
+                    shift_wise_evening_condition: this.shiftWiseEveningCondition ? '1' : '0'
                 });
-                const res = await response.json();
-                if (res.success) {
-                    this.shiftWiseMorning = this.selectedShiftWiseMorning;
-                    this.shiftWiseEvening = this.selectedShiftWiseEvening;
-                    this.modal = null;
-                }
+                this.shiftWiseMorning = this.selectedShiftWiseMorning;
+                this.shiftWiseEvening = this.selectedShiftWiseEvening;
+                this.modal = null;
             } catch (err) {
                 console.error(err);
-                alert('Error saving shift wise rate');
+                alert('Error saving shift wise rate: ' + err.message);
             }
         },
 
         async saveMilkSalePrintSetting() {
             try {
-                const response = await fetch('{{ route("settings.center-information.save") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({
-                        milk_sale_print_language: this.milkSalePrintData.language,
-                        milk_sale_print_number_in_lang: this.milkSalePrintData.number_in_language,
-                        milk_sale_print_printer: this.milkSalePrintData.printer,
-                        milk_sale_print_format_type: this.milkSalePrintData.format,
-                        milk_sale_print_note: this.milkSalePrintData.note,
-                        milk_sale_print_format: (this.milkSalePrintData.printer || 'Laser') + ' ' + (this.milkSalePrintData.format || 'Format-1')
-                    })
+                await this.postData({
+                    milk_sale_print_language: this.milkSalePrintData.language,
+                    milk_sale_print_number_in_lang: this.milkSalePrintData.number_in_language,
+                    milk_sale_print_printer: this.milkSalePrintData.printer,
+                    milk_sale_print_format_type: this.milkSalePrintData.format,
+                    milk_sale_print_note: this.milkSalePrintData.note,
+                    milk_sale_print_format: (this.milkSalePrintData.printer || 'Laser') + ' ' + (this.milkSalePrintData.format || 'Format-1')
                 });
-                const res = await response.json();
-                if (res.success) {
-                    this.milkSalePrintFormat = (this.milkSalePrintData.printer || 'Laser') + ' ' + (this.milkSalePrintData.format || 'Format-1');
-                    this.modal = null;
-                }
+                this.milkSalePrintFormat = (this.milkSalePrintData.printer || 'Laser') + ' ' + (this.milkSalePrintData.format || 'Format-1');
+                this.modal = null;
             } catch (err) {
                 console.error(err);
-                alert('Error saving milk sale print settings');
+                alert('Error saving milk sale print settings: ' + err.message);
             }
         },
 
@@ -2834,58 +2828,38 @@ function centerInformationApp() {
             }
             try {
                 const summary = this.contactDetailsData.name + ': ' + this.contactDetailsData.phone;
-                const response = await fetch('{{ route("settings.center-information.save") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({
-                        contact_details_name: this.contactDetailsData.name,
-                        contact_details_phone: this.contactDetailsData.phone,
-                        contact_details_summary: summary
-                    })
+                await this.postData({
+                    contact_details_name: this.contactDetailsData.name,
+                    contact_details_phone: this.contactDetailsData.phone,
+                    contact_details_summary: summary
                 });
-                const res = await response.json();
-                if (res.success) {
-                    this.contactDetailsSummary = summary;
-                    this.modal = null;
-                }
+                this.contactDetailsSummary = summary;
+                this.modal = null;
             } catch (err) {
                 console.error(err);
-                alert('Error saving contact details');
+                alert('Error saving contact details: ' + err.message);
             }
         },
 
         async saveAnnualBonusSetting() {
             try {
-                const response = await fetch('{{ route("settings.center-information.save") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({
-                        annual_bonus_language: this.annualBonusData.language,
-                        annual_bonus_per_paper: this.annualBonusData.per_paper,
-                        annual_bonus_adv_details: this.annualBonusData.advance_details,
-                        annual_bonus_prev_date: this.annualBonusData.previous_date,
-                        annual_bonus_prev_upcoming: this.annualBonusData.previous_upcoming_balance,
-                        annual_bonus_amt_col: this.annualBonusData.amount_column,
-                        annual_bonus_return_det: this.annualBonusData.return_details,
-                        annual_bonus_order_by: this.annualBonusData.order_by,
-                        annual_bonus_note: this.annualBonusData.bill_note,
-                        annual_bonus_print_status: 'Configured'
-                    })
+                await this.postData({
+                    annual_bonus_language: this.annualBonusData.language,
+                    annual_bonus_per_paper: this.annualBonusData.per_paper,
+                    annual_bonus_adv_details: this.annualBonusData.advance_details,
+                    annual_bonus_prev_date: this.annualBonusData.previous_date,
+                    annual_bonus_prev_upcoming: this.annualBonusData.previous_upcoming_balance,
+                    annual_bonus_amt_col: this.annualBonusData.amount_column,
+                    annual_bonus_return_det: this.annualBonusData.return_details,
+                    annual_bonus_order_by: this.annualBonusData.order_by,
+                    annual_bonus_note: this.annualBonusData.bill_note,
+                    annual_bonus_print_status: 'Configured'
                 });
-                const res = await response.json();
-                if (res.success) {
-                    this.annualBonusPrintStatus = 'Configured';
-                    this.modal = null;
-                }
+                this.annualBonusPrintStatus = 'Configured';
+                this.modal = null;
             } catch (err) {
                 console.error(err);
-                alert('Error saving annual bonus print settings');
+                alert('Error saving annual bonus print settings: ' + err.message);
             }
         }
     }

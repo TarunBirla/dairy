@@ -94,37 +94,45 @@ class SettingController extends Controller
 
     public function saveCenterSetting(Request $request)
     {
-        $data = $request->except(['_token', 'setting_key']);
-        $settingKey = $request->input('setting_key');
+        try {
+            $data = $request->except(['_token', 'setting_key']);
+            $settingKey = $request->input('setting_key');
 
-        if ($settingKey) {
-            // Save as json or single string based on request
-            if ($request->has('setting_value')) {
-                SystemSetting::set($settingKey, $request->input('setting_value'), 'collection_setting');
-            } else {
-                SystemSetting::set($settingKey, json_encode($data), 'collection_setting');
-            }
-        } else {
-            // Bulk key-value save
-            foreach ($request->except('_token') as $key => $val) {
-                if (is_array($val)) {
-                    SystemSetting::set($key, json_encode($val), 'collection_setting');
+            if ($settingKey) {
+                // Save as json or single string based on request
+                if ($request->has('setting_value')) {
+                    SystemSetting::set($settingKey, $request->input('setting_value'), 'collection_setting');
                 } else {
-                    SystemSetting::set($key, $val, 'collection_setting');
+                    SystemSetting::set($settingKey, json_encode($data), 'collection_setting');
+                }
+            } else {
+                // Bulk key-value save
+                foreach ($request->except('_token') as $key => $val) {
+                    if (is_array($val)) {
+                        SystemSetting::set($key, json_encode($val), 'collection_setting');
+                    } else {
+                        SystemSetting::set($key, $val, 'collection_setting');
+                    }
                 }
             }
-        }
 
-        AuditLog::log('Updated Center Settings', 'SystemSetting');
+            try {
+                AuditLog::log('Updated Center Settings', 'SystemSetting');
+            } catch (\Throwable $e) {
+                \Log::warning('AuditLog warning: ' . $e->getMessage());
+            }
 
-        if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Setting updated successfully!'
             ]);
+        } catch (\Throwable $e) {
+            \Log::error('Error saving center setting: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
         }
-
-        return back()->with('success', 'Setting updated successfully!');
     }
 
     public function addCenterUser(Request $request)
