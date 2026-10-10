@@ -133,6 +133,14 @@
             background-color: #ffffff !important;
             z-index: 999999 !important;
         }
+        .select2-results {
+            max-height: 250px !important;
+            overflow-y: auto !important;
+        }
+        .select2-results__options {
+            max-height: 250px !important;
+            overflow-y: auto !important;
+        }
         .select2-container--open {
             z-index: 999999 !important;
         }

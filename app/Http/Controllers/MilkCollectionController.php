@@ -68,15 +68,7 @@ class MilkCollectionController extends Controller
         if ($centers->isEmpty()) {
             $centers = CollectionCenter::all();
         }
-        $farmers = Farmer::where(function($q) {
-            $q->where('status', 'active')
-              ->orWhere('status', 'ACTIVE')
-              ->orWhereNull('status');
-        })->orderBy('farmer_code')->get();
-
-        if ($farmers->isEmpty()) {
-            $farmers = Farmer::orderBy('farmer_code')->get();
-        }
+        $farmers = Farmer::orderBy('farmer_code')->get();
         $rateCharts = RateChart::where('status', 'active')->get();
         $currentShift = (date('H') >= 14) ? 'evening' : 'morning';
         $today = Carbon::today()->format('Y-m-d');

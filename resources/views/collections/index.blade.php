@@ -48,7 +48,7 @@
     <!-- 1-ROW ULTRA COMPACT MILK INTAKE FORM (NO POPUP, ZERO GAP)      -->
     <!-- ============================================================== -->
     <div id="collection-entry-section" 
-         class="bg-white rounded-xl border shadow-xs overflow-hidden transition-all duration-200 w-full max-w-full"
+         class="bg-white rounded-xl border shadow-xs overflow-visible transition-all duration-200 w-full max-w-full"
          :class="isEditMode ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-slate-200/80'">
 
         <!-- Line 1: Quick Context Bar (Date, Shift, Milk Type, Center, Notes Toggle) -->
