@@ -151,7 +151,7 @@
         }
     </style>
 </head>
-<body class="bg-[#F8FAFC] text-slate-800 antialiased min-h-screen flex" style="font-family: 'Plus Jakarta Sans', sans-serif;" x-data="{ sidebarOpen: true, mobileMenuOpen: false }">
+<body class="bg-[#F8FAFC] text-slate-800 antialiased min-h-screen flex overflow-x-hidden w-full max-w-full" style="font-family: 'Plus Jakarta Sans', sans-serif;" x-data="{ sidebarOpen: true, mobileMenuOpen: false }">
 
     <!-- Sidebar -->
     <aside 
@@ -553,7 +553,7 @@
     </aside>
 
     <!-- Main Content Area -->
-    <div class="flex-1 lg:pl-64 flex flex-col min-w-0 min-h-screen">
+    <div class="flex-1 lg:pl-64 flex flex-col min-w-0 max-w-full min-h-screen overflow-x-hidden">
         
         <!-- Top Navigation Bar -->
         <header class="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200 px-4 sm:px-6 py-2.5 flex items-center justify-between">
@@ -623,7 +623,7 @@
         </header>
 
         <!-- Flash Messages -->
-        <main class="flex-1 p-4 sm:p-6 lg:p-8">
+        <main class="flex-1 p-3 sm:p-5 lg:p-6 min-w-0 max-w-full overflow-x-hidden">
             @if(session('success'))
                 <div class="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium px-4 py-3 rounded-xl flex items-center justify-between shadow-sm">
                     <div class="flex items-center space-x-2">
