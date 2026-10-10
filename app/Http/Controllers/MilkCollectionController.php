@@ -254,6 +254,17 @@ class MilkCollectionController extends Controller
             'net' => $net,
         ]);
 
+        if ($request->ajax() || $request->wantsJson()) {
+            $collection->load(['farmer', 'collectionCenter']);
+            return response()->json([
+                'success' => true,
+                'message' => "Collection {$receiptNumber} saved successfully! Amount: ₹{$net}",
+                'collection' => $collection,
+                'next_receipt' => 'COL-' . (MilkCollection::max('id') + 1001),
+                'slip_url' => route('collections.slip', $collection),
+            ]);
+        }
+
         if ($request->has('print_slip') && $request->print_slip) {
             return redirect()->route('collections.slip', $collection)->with('success', "Collection {$receiptNumber} saved! Net Amount: ₹{$net}");
         }
@@ -363,6 +374,16 @@ class MilkCollectionController extends Controller
 
         AuditLog::log('Updated Milk Collection', 'MilkCollection', $collection->id);
 
+        if ($request->ajax() || $request->wantsJson()) {
+            $collection->load(['farmer', 'collectionCenter']);
+            return response()->json([
+                'success' => true,
+                'message' => "Collection {$collection->receipt_number} updated successfully! Amount: ₹{$newNet}",
+                'collection' => $collection,
+                'slip_url' => route('collections.slip', $collection),
+            ]);
+        }
+
         if ($request->has('print_slip') && $request->print_slip) {
             return redirect()->route('collections.slip', $collection)->with('success', "Collection {$collection->receipt_number} updated! Amount: ₹{$newNet}");
         }
@@ -390,6 +411,13 @@ class MilkCollectionController extends Controller
         $collection->delete();
 
         AuditLog::log('Deleted Milk Collection', 'MilkCollection', $collection->id);
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Milk collection {$receipt} deleted successfully.",
+            ]);
+        }
 
         return redirect()->route('collections.index')->with('success', "Milk collection {$receipt} deleted successfully.");
     }

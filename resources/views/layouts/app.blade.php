@@ -701,6 +701,7 @@
                         allowClear: !$this.prop('required') && hasEmptyOption,
                     }, options || {});
 
+                    var modalParent = $this.closest('.fixed, .modal');
                     if (modalParent.length) {
                         config.dropdownParent = modalParent;
                     }
