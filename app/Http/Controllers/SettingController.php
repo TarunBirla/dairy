@@ -72,9 +72,12 @@ class SettingController extends Controller
         // Active tab, defaults to 'collection'
         $activeTab = $request->query('tab', 'collection');
 
-        // Parse print setting if stored as JSON
+        // Parse settings stored as JSON
         $printSetting = json_decode($settings['collection_print_settings'] ?? '{}', true);
         $bonusPenalty = json_decode($settings['bonus_penalty_settings'] ?? '{}', true);
+        $smsSettings = json_decode($settings['sms_settings'] ?? '{}', true);
+        $invoicePrintSetting = json_decode($settings['invoice_print_settings'] ?? '{}', true);
+        $paymentRegisterSetting = json_decode($settings['payment_register_print_settings'] ?? '{}', true);
 
         return view('settings.center_information', compact(
             'settings',
@@ -82,7 +85,10 @@ class SettingController extends Controller
             'centerUsers',
             'activeTab',
             'printSetting',
-            'bonusPenalty'
+            'bonusPenalty',
+            'smsSettings',
+            'invoicePrintSetting',
+            'paymentRegisterSetting'
         ));
     }
 

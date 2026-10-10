@@ -222,12 +222,130 @@
 
         </div>
 
-        <!-- Placeholder for Other Tabs (Will detail out in next steps) -->
-        <div x-show="activeTab !== 'collection'" class="p-8 text-center text-slate-500 text-xs">
+        <!-- Tab 2: SMS Settings Panel (Parity with Mobile Dairy) -->
+        <div x-show="activeTab === 'sms'" class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+                
+                <!-- 1. SMS Type -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">SMS Type</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="smsType"></span>
+                        <button type="button" @click="openModal('smsType')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Send SMS For -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Send SMS For</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900 truncate max-w-xs" x-text="sendSmsFor"></span>
+                        <button type="button" @click="openModal('sendSmsFor')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. Farmer App Link in SMS -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Farmer App Link in SMS</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="farmerAppLinkInSms"></span>
+                        <button type="button" @click="openModal('farmerAppLinkInSms')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4. Total in Collection SMS -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Total in Collection SMS</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="totalInCollectionSms"></span>
+                        <button type="button" @click="openModal('totalInCollectionSms')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 5. Center Name in SMS -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Center Name in SMS</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="centerNameInSms"></span>
+                        <button type="button" @click="openModal('centerNameInSms')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Tab 3: Invoice Settings Panel (Parity with Mobile Dairy) -->
+        <div x-show="activeTab === 'invoice'" class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+                
+                <!-- 1. Payment Period -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Payment Period</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="paymentPeriod"></span>
+                        <button type="button" @click="openModal('paymentPeriod')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Payment Register Print Setting -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Payment Register Print Setting</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="paymentRegisterFormat"></span>
+                        <button type="button" @click="openModal('paymentRegisterPrintSetting')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. Invoice Print Setting -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Invoice Print Setting</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="invoicePrintFormat"></span>
+                        <button type="button" @click="openModal('invoicePrintSetting')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Placeholder for Remaining Tabs -->
+        <div x-show="!['collection', 'sms', 'invoice'].includes(activeTab)" class="p-8 text-center text-slate-500 text-xs">
             <div class="max-w-md mx-auto py-8">
                 <i data-lucide="sliders" class="w-8 h-8 text-slate-300 mx-auto mb-2"></i>
                 <p class="font-bold text-slate-700 text-sm mb-1" x-text="getTabName(activeTab) + ' Tab'"></p>
-                <p class="text-slate-400">Settings for this section are ready to be configured as per your reference.</p>
+                <p class="text-slate-400">Settings for this section will be configured in the next step.</p>
             </div>
         </div>
 
@@ -794,6 +912,521 @@
         </div>
     </div>
 
+    <!-- ==================== SMS SETTINGS MODALS ==================== -->
+
+    <!-- Modal: SMS Type (Matching Screenshot 1) -->
+    <div x-show="modal === 'smsType'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>SMS Type</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="checkbox" value="Farmer App" x-model="selectedSmsTypes" class="rounded text-[#005c53]">
+                    <span>Farmer App</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="checkbox" value="SIM Card" x-model="selectedSmsTypes" class="rounded text-[#005c53]">
+                    <span>SIM Card</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="checkbox" value="Server SMS Pack" x-model="selectedSmsTypes" class="rounded text-[#005c53]">
+                    <span>Server SMS Pack</span>
+                </label>
+
+                <div class="pt-2 text-[11px] text-rose-500 font-semibold space-y-1">
+                    <p>• If farmer app is installed on farmer mobile, free push message will be sent.</p>
+                    <p>• If not installed then sms will be sent from Mobile SIM card.</p>
+                    <p>• If mobile SIM card 100 SMS limit is exceeded, SMS will be sent from V4D Server SMS Pack.</p>
+                </div>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSmsType()" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Send SMS For (Matching Screenshot 4) -->
+    <div x-show="modal === 'sendSmsFor'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Send SMS For</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-2.5 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="checkbox" value="Collection" x-model="selectedSendSmsFor" class="rounded text-[#005c53]">
+                    <span>Collection</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="checkbox" value="Feed" x-model="selectedSendSmsFor" class="rounded text-[#005c53]">
+                    <span>Feed</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="checkbox" value="Invoice Payment" x-model="selectedSendSmsFor" class="rounded text-[#005c53]">
+                    <span>Invoice Payment</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="checkbox" value="Loan" x-model="selectedSendSmsFor" class="rounded text-[#005c53]">
+                    <span>Loan</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="checkbox" value="Loan Installment" x-model="selectedSendSmsFor" class="rounded text-[#005c53]">
+                    <span>Loan Installment</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="checkbox" value="Milk Sale" x-model="selectedSendSmsFor" class="rounded text-[#005c53]">
+                    <span>Milk Sale</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="checkbox" value="Milk Receive" x-model="selectedSendSmsFor" class="rounded text-[#005c53]">
+                    <span>Milk Receive</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="checkbox" value="Milk Dispatch" x-model="selectedSendSmsFor" class="rounded text-[#005c53]">
+                    <span>Milk Dispatch</span>
+                </label>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSendSmsFor()" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Farmer App Link in SMS (Matching Screenshot 2) -->
+    <div x-show="modal === 'farmerAppLinkInSms'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Farmer App Link In SMS</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="app_link_radio" value="On" x-model="selectedFarmerAppLinkInSms" class="text-[#005c53]">
+                    <span>On</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="app_link_radio" value="Off" x-model="selectedFarmerAppLinkInSms" class="text-[#005c53]">
+                    <span>Off</span>
+                </label>
+                <p class="text-[11px] text-rose-500 font-semibold pt-1">
+                    If 'On' Farmer application install link will be included in all SMS.
+                </p>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('farmer_app_link_in_sms', selectedFarmerAppLinkInSms, 'farmerAppLinkInSms')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Total in Collection SMS (Matching Screenshot 5) -->
+    <div x-show="modal === 'totalInCollectionSms'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Total In Collection SMS</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="total_sms_radio" value="On" x-model="selectedTotalInCollectionSms" class="text-[#005c53]">
+                    <span>On</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="total_sms_radio" value="Off" x-model="selectedTotalInCollectionSms" class="text-[#005c53]">
+                    <span>Off</span>
+                </label>
+                <p class="text-[11px] text-rose-500 font-semibold pt-1">
+                    If 'On' Milk collection SMS will included the total Liter and total Amount for invoice period.
+                </p>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('total_in_collection_sms', selectedTotalInCollectionSms, 'totalInCollectionSms')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Center Name in SMS (Matching Screenshot 3) -->
+    <div x-show="modal === 'centerNameInSms'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Center Name In SMS</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <div>
+                    <label class="block text-slate-700 font-semibold mb-1">Name <span class="text-rose-500">*</span></label>
+                    <input type="text" x-model="customCenterNameInSms" class="w-full px-3 py-1.5 border border-slate-200 rounded text-xs font-bold" placeholder="e.g. SHREE GOPAL DAIRY">
+                </div>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('center_name_in_sms', customCenterNameInSms, 'centerNameInSms')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==================== INVOICE SETTINGS MODALS ==================== -->
+
+    <!-- Modal: Payment Period (Matching Screenshot 6) -->
+    <div x-show="modal === 'paymentPeriod'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Payment Period</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-2.5 text-xs max-h-72 overflow-y-auto">
+                <template x-for="p in paymentPeriodOptions" :key="p">
+                    <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                        <input type="radio" name="pay_period_radio" :value="p" x-model="selectedPaymentPeriod" class="text-[#005c53]">
+                        <span x-text="p"></span>
+                    </label>
+                </template>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('payment_period', selectedPaymentPeriod, 'paymentPeriod')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Payment Register Print Setting (Matching Screenshot 8) -->
+    <div x-show="modal === 'paymentRegisterPrintSetting'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Payment Register Print Setting</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-6 space-y-4 text-xs">
+                
+                <div class="flex items-center justify-between">
+                    <span class="font-semibold text-slate-700">Signature Column</span>
+                    <select x-model="paymentRegisterData.signature_column" class="w-32 px-2.5 py-1 border border-slate-200 rounded text-xs">
+                        <option value="On">On</option>
+                        <option value="Off">Off</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <span class="font-semibold text-slate-700">Zero Amount Column</span>
+                    <select x-model="paymentRegisterData.zero_amount_column" class="w-32 px-2.5 py-1 border border-slate-200 rounded text-xs">
+                        <option value="Off">Off</option>
+                        <option value="On">On</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <span class="font-semibold text-slate-700">Farmer Name (English)</span>
+                    <select x-model="paymentRegisterData.farmer_name_english" class="w-32 px-2.5 py-1 border border-slate-200 rounded text-xs">
+                        <option value="Off">Off</option>
+                        <option value="On">On</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center justify-between pt-1">
+                    <span class="font-semibold text-slate-700">Print Format</span>
+                    <div class="flex items-center gap-4">
+                        <label class="flex items-center gap-1.5 cursor-pointer">
+                            <input type="radio" value="Format-1" x-model="paymentRegisterData.format" class="text-[#005c53]">
+                            <span>Format-1</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer">
+                            <input type="radio" value="Format-2" x-model="paymentRegisterData.format" class="text-[#005c53]">
+                            <span>Format-2</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Preview Link -->
+                <div class="text-right pt-2">
+                    <button type="button" @click="showPaymentRegisterPreview = true" class="text-blue-600 hover:underline font-semibold text-xs">
+                        Click here to view Print Image
+                    </button>
+                </div>
+
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="savePaymentRegisterSetting()" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Invoice Print Setting (Matching Screenshot 7) -->
+    <div x-show="modal === 'invoicePrintSetting'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-2xl w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Invoice Print Setting</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-6 space-y-3.5 text-xs max-h-[80vh] overflow-y-auto">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Left Column -->
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Print Language</span>
+                            <select x-model="invoicePrintData.language" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs">
+                                <option value="English">English</option>
+                                <option value="Hindi">Hindi</option>
+                                <option value="Marathi">Marathi</option>
+                                <option value="Gujarati">Gujarati</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Per Paper</span>
+                            <select x-model="invoicePrintData.per_paper" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs">
+                                <option value="One Bill">One Bill</option>
+                                <option value="Two Bill">Two Bill</option>
+                                <option value="Four Bill">Four Bill</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">FAT SNF CLR Columns</span>
+                            <div class="flex items-center gap-3">
+                                <label class="flex items-center gap-1 cursor-pointer">
+                                    <input type="checkbox" x-model="invoicePrintData.fat" class="rounded text-[#005c53]">
+                                    <span>FAT</span>
+                                </label>
+                                <label class="flex items-center gap-1 cursor-pointer">
+                                    <input type="checkbox" x-model="invoicePrintData.snf" class="rounded text-[#005c53]">
+                                    <span>SNF</span>
+                                </label>
+                                <label class="flex items-center gap-1 cursor-pointer">
+                                    <input type="checkbox" x-model="invoicePrintData.clr" class="rounded text-[#005c53]">
+                                    <span>CLR</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Food Details</span>
+                            <select x-model="invoicePrintData.food_details" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs">
+                                <option value="On">On</option>
+                                <option value="Off">Off</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Advance Details</span>
+                            <select x-model="invoicePrintData.advance_details" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs">
+                                <option value="On">On</option>
+                                <option value="Off">Off</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Average in invoice</span>
+                            <select x-model="invoicePrintData.average_in_invoice" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs">
+                                <option value="On">On</option>
+                                <option value="Off">Off</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Plant Name</span>
+                            <input type="text" x-model="invoicePrintData.plant_name" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs" placeholder="e.g. Gopal Dairy">
+                        </div>
+                    </div>
+
+                    <!-- Right Column -->
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Separate Cow/Buffalo</span>
+                            <select x-model="invoicePrintData.separate_cow_buff" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs">
+                                <option value="On">On</option>
+                                <option value="Off">Off</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Number in language</span>
+                            <select x-model="invoicePrintData.number_in_language" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs">
+                                <option value="On">On</option>
+                                <option value="Off">Off</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Rate Column</span>
+                            <select x-model="invoicePrintData.rate_column" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs">
+                                <option value="On">On</option>
+                                <option value="Off">Off</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Note</span>
+                            <input type="text" x-model="invoicePrintData.note" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs" placeholder="e.g. priye dudh utpadak bandu namaste">
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Printer</span>
+                            <select x-model="invoicePrintData.printer" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs">
+                                <option value="Laser">Laser</option>
+                                <option value="Thermal">Thermal</option>
+                                <option value="Dot Matrix">Dot Matrix</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Print Format</span>
+                            <div class="flex items-center gap-3">
+                                <label class="flex items-center gap-1 cursor-pointer">
+                                    <input type="radio" value="Format-1" x-model="invoicePrintData.format" class="text-[#005c53]">
+                                    <span>Format-1</span>
+                                </label>
+                                <label class="flex items-center gap-1 cursor-pointer">
+                                    <input type="radio" value="Format-2" x-model="invoicePrintData.format" class="text-[#005c53]">
+                                    <span>Format-2</span>
+                                </label>
+                                <label class="flex items-center gap-1 cursor-pointer">
+                                    <input type="radio" value="Format-3" x-model="invoicePrintData.format" class="text-[#005c53]">
+                                    <span>Format-3</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveInvoicePrintSetting()" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Payment Register Print Preview (Matching Screenshot 9) -->
+    <div x-show="showPaymentRegisterPreview" x-cloak class="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4" style="z-index: 99999;">
+        <div @click.away="showPaymentRegisterPreview = false" class="bg-white rounded-lg shadow-2xl border border-slate-200 max-w-3xl w-full overflow-hidden">
+            <div class="px-5 py-3 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Payment Register Print Preview</h4>
+                <button type="button" @click="showPaymentRegisterPreview = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-6 bg-slate-100 flex justify-center max-h-[75vh] overflow-y-auto">
+                
+                <!-- Mock Payment Register Sheet -->
+                <div class="bg-white border border-slate-300 p-6 rounded shadow-sm w-full font-sans text-xs text-slate-800">
+                    <div class="text-center pb-3 border-b border-slate-200">
+                        <h3 class="text-sm font-black text-slate-900 tracking-wide uppercase">Mobile Dairy Dudh Sankalan Kendra</h3>
+                        <p class="text-[11px] text-slate-600">Sangamner, Ahmadnagar</p>
+                    </div>
+
+                    <div class="py-2.5 flex justify-between items-center text-[11px] font-bold text-slate-700">
+                        <span>Date: 16 Feb 2022 To 20 Feb 2022</span>
+                        <span class="text-slate-500 font-normal">Format-1</span>
+                    </div>
+
+                    <!-- Register Table -->
+                    <table class="w-full border-collapse border border-slate-300 text-[10px] text-center">
+                        <thead class="bg-slate-50 font-bold">
+                            <tr>
+                                <th class="border border-slate-300 px-1.5 py-1">Code</th>
+                                <th class="border border-slate-300 px-2 py-1 text-left">Name</th>
+                                <th class="border border-slate-300 px-1.5 py-1">Liter</th>
+                                <th class="border border-slate-300 px-1.5 py-1">Rate</th>
+                                <th class="border border-slate-300 px-1.5 py-1">Amount</th>
+                                <th class="border border-slate-300 px-1.5 py-1">Transport</th>
+                                <th class="border border-slate-300 px-1.5 py-1">Other Payment</th>
+                                <th class="border border-slate-300 px-1.5 py-1">Advance</th>
+                                <th class="border border-slate-300 px-1.5 py-1">Grant</th>
+                                <th class="border border-slate-300 px-1.5 py-1">Feed</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="border border-slate-300 px-1 py-1">156</td>
+                                <td class="border border-slate-300 px-2 py-1 text-left font-medium">विपिन</td>
+                                <td class="border border-slate-300 px-1 py-1">477.10</td>
+                                <td class="border border-slate-300 px-1 py-1">28.79</td>
+                                <td class="border border-slate-300 px-1 py-1 font-bold">13735.16</td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1">8026.50</td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1">5160.00</td>
+                            </tr>
+                            <tr>
+                                <td class="border border-slate-300 px-1 py-1">157</td>
+                                <td class="border border-slate-300 px-2 py-1 text-left font-medium">अनिता त्रिपुटी</td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                            </tr>
+                            <tr>
+                                <td class="border border-slate-300 px-1 py-1">158</td>
+                                <td class="border border-slate-300 px-2 py-1 text-left font-medium">सर्वेश्र्वर</td>
+                                <td class="border border-slate-300 px-1 py-1">742.10</td>
+                                <td class="border border-slate-300 px-1 py-1">27.79</td>
+                                <td class="border border-slate-300 px-1 py-1 font-bold">20622.27</td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1">18268.88</td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1">1580.00</td>
+                            </tr>
+                            <tr>
+                                <td class="border border-slate-300 px-1 py-1">159</td>
+                                <td class="border border-slate-300 px-2 py-1 text-left font-medium">मांगीलाल प्रभाकर</td>
+                                <td class="border border-slate-300 px-1 py-1">239.10</td>
+                                <td class="border border-slate-300 px-1 py-1">29.08</td>
+                                <td class="border border-slate-300 px-1 py-1 font-bold">6954.16</td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1">6679.22</td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                            </tr>
+                            <tr>
+                                <td class="border border-slate-300 px-1 py-1">161</td>
+                                <td class="border border-slate-300 px-2 py-1 text-left font-medium">बलिराम साहेबराव</td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                            </tr>
+                        </tbody>
+                        <tfoot class="bg-slate-100 font-bold">
+                            <tr>
+                                <td class="border border-slate-300 px-1 py-1">125</td>
+                                <td class="border border-slate-300 px-2 py-1 text-right">Total</td>
+                                <td class="border border-slate-300 px-1 py-1 font-black">22217.80</td>
+                                <td class="border border-slate-300 px-1 py-1">28.57</td>
+                                <td class="border border-slate-300 px-1 py-1 font-black">634709.76</td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1 font-black">231868.48</td>
+                                <td class="border border-slate-300 px-1 py-1"></td>
+                                <td class="border border-slate-300 px-1 py-1 font-black">164502.49</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+            </div>
+            <div class="px-5 py-2.5 bg-slate-100 border-t border-slate-200 flex justify-end">
+                <button type="button" @click="showPaymentRegisterPreview = false" class="px-4 py-1.5 rounded bg-slate-300 hover:bg-slate-400 text-slate-800 text-xs font-bold">Close Preview</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal 12: Add Center User -->
     <div x-show="showAddUserModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
         <div @click.away="showAddUserModal = false" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
@@ -854,6 +1487,65 @@ function centerInformationApp() {
         eveningShiftTime: {!! json_encode($settings["evening_shift_time"] ?? "Not Available") !!},
         printFormat: {!! json_encode($printSetting["format"] ?? "Format-2") !!},
         bonusPenaltyStatus: {!! json_encode($settings["bonus_penalty_status"] ?? "") !!},
+
+        // SMS Settings Values
+        smsType: {!! json_encode($settings["sms_type"] ?? "Farmer App , SIM Card , Server SMS Pack") !!},
+        sendSmsFor: {!! json_encode($settings["send_sms_for"] ?? "Collection , Feed , Invoice Payment , Loan , Loan Installment , Milk Sale , Milk Receive , Milk Dispatch") !!},
+        farmerAppLinkInSms: {!! json_encode($settings["farmer_app_link_in_sms"] ?? "On") !!},
+        totalInCollectionSms: {!! json_encode($settings["total_in_collection_sms"] ?? "On") !!},
+        centerNameInSms: {!! json_encode($settings["center_name_in_sms"] ?? "SHRE GOPAL DAIR") !!},
+        customCenterNameInSms: {!! json_encode($settings["center_name_in_sms"] ?? "SHRE GOPAL DAIR") !!},
+
+        selectedSmsTypes: ({!! json_encode($settings["sms_type"] ?? "Farmer App , SIM Card , Server SMS Pack") !!}).split(',').map(s => s.trim()),
+        selectedSendSmsFor: ({!! json_encode($settings["send_sms_for"] ?? "Collection , Feed , Invoice Payment , Loan , Loan Installment , Milk Sale , Milk Receive , Milk Dispatch") !!}).split(',').map(s => s.trim()),
+        selectedFarmerAppLinkInSms: {!! json_encode($settings["farmer_app_link_in_sms"] ?? "On") !!},
+        selectedTotalInCollectionSms: {!! json_encode($settings["total_in_collection_sms"] ?? "On") !!},
+
+        // Invoice Settings Values
+        paymentPeriod: {!! json_encode($settings["payment_period"] ?? "01-10, 11-20, 21-ME") !!},
+        selectedPaymentPeriod: {!! json_encode($settings["payment_period"] ?? "01-10, 11-20, 21-ME") !!},
+        paymentPeriodOptions: [
+            '01-10, 11-20, 21-ME',
+            '01-15, 16-ME',
+            '01-ME',
+            '01-05, 06-10, 11-15, 16-20, 21-25, 26-ME',
+            '05-15, 16-25, 26-05',
+            'Monday',
+            'Tuesday',
+            'Wednesday',
+            'Thursday',
+            'Friday',
+            'Saturday',
+            'Sunday'
+        ],
+
+        paymentRegisterFormat: {!! json_encode($paymentRegisterSetting["format"] ?? "Format-1") !!},
+        showPaymentRegisterPreview: false,
+        paymentRegisterData: {
+            signature_column: '{{ $paymentRegisterSetting["signature_column"] ?? "On" }}',
+            zero_amount_column: '{{ $paymentRegisterSetting["zero_amount_column"] ?? "Off" }}',
+            farmer_name_english: '{{ $paymentRegisterSetting["farmer_name_english"] ?? "Off" }}',
+            format: '{{ $paymentRegisterSetting["format"] ?? "Format-1" }}'
+        },
+
+        invoicePrintFormat: {!! json_encode($invoicePrintSetting["printer"] ?? "Laser") !!} + ' ' + {!! json_encode($invoicePrintSetting["format"] ?? "Format-1") !!},
+        invoicePrintData: {
+            language: '{{ $invoicePrintSetting["language"] ?? "English" }}',
+            per_paper: '{{ $invoicePrintSetting["per_paper"] ?? "One Bill" }}',
+            fat: {{ isset($invoicePrintSetting['fat']) ? ($invoicePrintSetting['fat'] ? 'true' : 'false') : 'true' }},
+            snf: {{ isset($invoicePrintSetting['snf']) ? ($invoicePrintSetting['snf'] ? 'true' : 'false') : 'true' }},
+            clr: {{ isset($invoicePrintSetting['clr']) ? ($invoicePrintSetting['clr'] ? 'true' : 'false') : 'true' }},
+            food_details: '{{ $invoicePrintSetting["food_details"] ?? "On" }}',
+            advance_details: '{{ $invoicePrintSetting["advance_details"] ?? "On" }}',
+            average_in_invoice: '{{ $invoicePrintSetting["average_in_invoice"] ?? "On" }}',
+            plant_name: '{{ $invoicePrintSetting["plant_name"] ?? "Gopal Dairy" }}',
+            separate_cow_buff: '{{ $invoicePrintSetting["separate_cow_buff"] ?? "On" }}',
+            number_in_language: '{{ $invoicePrintSetting["number_in_language"] ?? "On" }}',
+            rate_column: '{{ $invoicePrintSetting["rate_column"] ?? "On" }}',
+            note: '{{ $invoicePrintSetting["note"] ?? "priye dudh utpadak bandu namaste" }}',
+            printer: '{{ $invoicePrintSetting["printer"] ?? "Laser" }}',
+            format: '{{ $invoicePrintSetting["format"] ?? "Format-1" }}'
+        },
 
         // Radio & Form states
         collectionTypeOptions: [
@@ -1021,6 +1713,68 @@ function centerInformationApp() {
             } catch (err) {
                 console.error(err);
                 alert('Error saving bonus/penalty');
+            }
+        },
+
+        async saveSmsType() {
+            const val = this.selectedSmsTypes.join(' , ');
+            await this.saveSetting('sms_type', val, null);
+            this.smsType = val;
+            this.modal = null;
+        },
+
+        async saveSendSmsFor() {
+            const val = this.selectedSendSmsFor.join(' , ');
+            await this.saveSetting('send_sms_for', val, null);
+            this.sendSmsFor = val;
+            this.modal = null;
+        },
+
+        async savePaymentRegisterSetting() {
+            try {
+                const response = await fetch('{{ route("settings.center-information.save") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        setting_key: 'payment_register_print_settings',
+                        ...this.paymentRegisterData
+                    })
+                });
+                const res = await response.json();
+                if (res.success) {
+                    this.paymentRegisterFormat = this.paymentRegisterData.format;
+                    this.modal = null;
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error saving payment register settings');
+            }
+        },
+
+        async saveInvoicePrintSetting() {
+            try {
+                const response = await fetch('{{ route("settings.center-information.save") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        setting_key: 'invoice_print_settings',
+                        ...this.invoicePrintData
+                    })
+                });
+                const res = await response.json();
+                if (res.success) {
+                    this.invoicePrintFormat = (this.invoicePrintData.printer || 'Laser') + ' ' + (this.invoicePrintData.format || 'Format-1');
+                    this.modal = null;
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error saving invoice print settings');
             }
         }
     }
