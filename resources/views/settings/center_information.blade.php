@@ -340,8 +340,126 @@
             </div>
         </div>
 
+        <!-- Tab 4: Rate Chart Settings Panel (Parity with Mobile Dairy) -->
+        <div x-show="activeTab === 'rate_chart'" class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+                
+                <!-- 1. Rate Chart -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Rate Chart</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="rateChartStatus"></span>
+                        <button type="button" @click="openModal('rateChartModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Shift Wise Rate -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Shift Wise Rate</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="'Morning ' + shiftWiseMorning + ' | Evening ' + shiftWiseEvening"></span>
+                        <button type="button" @click="openModal('shiftWiseRateModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. Farmer Wise Rate -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Farmer Wise Rate</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="farmerWiseRate"></span>
+                        <button type="button" @click="openModal('farmerWiseRateModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Tab 5: Farmer App Settings Panel (Parity with Mobile Dairy) -->
+        <div x-show="activeTab === 'farmer_app'" class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+                
+                <!-- 1. Show Advance/Loan Interest Rate in Farmer App -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Show Advance/Loan Interest Rate In Farmer App</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="showAdvanceInterestRate"></span>
+                        <button type="button" @click="openModal('showAdvanceInterestRateModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Show Rate Chart -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Show Rate Chart</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="showRateChart"></span>
+                        <button type="button" @click="openModal('showRateChartModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. Show Collection After Invoice Save -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Show Collection After Invoice Save</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="showCollectionAfterInvoiceSave"></span>
+                        <button type="button" @click="openModal('showCollectionAfterInvoiceSaveModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4. Show Collection After Shift Finish -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Show Collection After Shift Finish</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="showCollectionAfterShiftFinish"></span>
+                        <button type="button" @click="openModal('showCollectionAfterShiftFinishModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 5. Hide Collection Rate -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Hide Collection Rate</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="hideCollectionRate"></span>
+                        <button type="button" @click="openModal('hideCollectionRateModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
         <!-- Placeholder for Remaining Tabs -->
-        <div x-show="!['collection', 'sms', 'invoice'].includes(activeTab)" class="p-8 text-center text-slate-500 text-xs">
+        <div x-show="!['collection', 'sms', 'invoice', 'rate_chart', 'farmer_app'].includes(activeTab)" class="p-8 text-center text-slate-500 text-xs">
             <div class="max-w-md mx-auto py-8">
                 <i data-lucide="sliders" class="w-8 h-8 text-slate-300 mx-auto mb-2"></i>
                 <p class="font-bold text-slate-700 text-sm mb-1" x-text="getTabName(activeTab) + ' Tab'"></p>
@@ -1427,6 +1545,240 @@
         </div>
     </div>
 
+    <!-- ==================== RATE CHART SETTINGS MODALS ==================== -->
+
+    <!-- Modal: Rate Chart (Matching Screenshot 2) -->
+    <div x-show="modal === 'rateChartModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Rate Chart</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="rate_chart_status_radio" value="On" x-model="selectedRateChartStatus" class="text-[#005c53]">
+                    <span>On</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="rate_chart_status_radio" value="Off" x-model="selectedRateChartStatus" class="text-[#005c53]">
+                    <span>Off</span>
+                </label>
+                <p class="text-[11px] text-rose-500 font-semibold pt-1">
+                    Set 'Off' to stop rate chart temporarily.
+                </p>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('rate_chart_status', selectedRateChartStatus, 'rateChartModal')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Farmer Wise Rate (Matching Screenshot 3) -->
+    <div x-show="modal === 'farmerWiseRateModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Farmer Wise Rate</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="farmer_wise_radio" value="As per Rate Chart" x-model="selectedFarmerWiseRate" class="text-[#005c53]">
+                    <span>As per Rate Chart</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="farmer_wise_radio" value="Rate Wise" x-model="selectedFarmerWiseRate" class="text-[#005c53]">
+                    <span>Rate Wise</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="farmer_wise_radio" value="Fat Wise" x-model="selectedFarmerWiseRate" class="text-[#005c53]">
+                    <span>Fat Wise</span>
+                </label>
+                <p class="text-[11px] text-rose-500 font-semibold pt-1">
+                    Farmers milk rate can be set more or less by 'Rate Wise' or 'FAT Wise'.
+                </p>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('farmer_wise_rate', selectedFarmerWiseRate, 'farmerWiseRateModal')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Shift Wise Rate (Matching Screenshot 4) -->
+    <div x-show="modal === 'shiftWiseRateModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Shift Wise Rate</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3.5 text-xs">
+                <div class="flex items-center justify-between gap-4">
+                    <label class="font-semibold text-slate-700">Morning:</label>
+                    <input type="number" step="0.01" x-model="selectedShiftWiseMorning" class="w-32 px-3 py-1.5 border border-slate-200 rounded text-right font-bold" placeholder="0.0">
+                </div>
+
+                <div class="flex items-center justify-between gap-4">
+                    <label class="font-semibold text-slate-700">Evening:</label>
+                    <input type="number" step="0.01" x-model="selectedShiftWiseEvening" class="w-32 px-3 py-1.5 border border-slate-200 rounded text-right font-bold" placeholder="0.0">
+                </div>
+
+                <div class="pt-2">
+                    <label class="flex items-start gap-2 cursor-pointer text-slate-700 text-[11px]">
+                        <input type="checkbox" x-model="shiftWiseEveningCondition" class="rounded text-[#005c53] mt-0.5">
+                        <span>I want to apply evening bonus only when there is a morning collection for the farmer on same date</span>
+                    </label>
+                </div>
+
+                <p class="text-[11px] text-rose-500 font-semibold">
+                    The amount will be added or subtracted according to the selected shift
+                </p>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveShiftWiseRate()" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==================== FARMER APP SETTINGS MODALS ==================== -->
+
+    <!-- Modal: Show Advance/Loan Interest Rate in Farmer App (Matching Screenshot 5) -->
+    <div x-show="modal === 'showAdvanceInterestRateModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Show Advance/Loan Interest Rate In Farmer App</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="adv_interest_radio" value="On" x-model="selectedShowAdvanceInterestRate" class="text-[#005c53]">
+                    <span>On</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="adv_interest_radio" value="Off" x-model="selectedShowAdvanceInterestRate" class="text-[#005c53]">
+                    <span>Off</span>
+                </label>
+                <p class="text-[11px] text-rose-500 font-semibold pt-1">
+                    Set 'On' to display Advance/Loan interest rate in farmer application.
+                </p>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('show_advance_interest_rate_farmer_app', selectedShowAdvanceInterestRate, 'showAdvanceInterestRateModal')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Show Rate Chart in Farmer App -->
+    <div x-show="modal === 'showRateChartModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Show Rate Chart In Farmer App</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="show_rc_radio" value="On" x-model="selectedShowRateChart" class="text-[#005c53]">
+                    <span>On</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="show_rc_radio" value="Off" x-model="selectedShowRateChart" class="text-[#005c53]">
+                    <span>Off</span>
+                </label>
+                <p class="text-[11px] text-rose-500 font-semibold pt-1">
+                    Set 'On' to show rate chart in farmer application.
+                </p>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('show_rate_chart_farmer_app', selectedShowRateChart, 'showRateChartModal')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Show Collection After Invoice Save (Matching Screenshot 6) -->
+    <div x-show="modal === 'showCollectionAfterInvoiceSaveModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Show Collection After Invoice Save</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="show_after_inv_radio" value="On" x-model="selectedShowCollectionAfterInvoiceSave" class="text-[#005c53]">
+                    <span>On</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="show_after_inv_radio" value="Off" x-model="selectedShowCollectionAfterInvoiceSave" class="text-[#005c53]">
+                    <span>Off</span>
+                </label>
+                <p class="text-[11px] text-rose-500 font-semibold pt-1">
+                    Set 'On' to show the collection to farmer after saving the bill.
+                </p>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('show_collection_after_invoice_save', selectedShowCollectionAfterInvoiceSave, 'showCollectionAfterInvoiceSaveModal')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Show Collection After Shift Finish -->
+    <div x-show="modal === 'showCollectionAfterShiftFinishModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Show Collection After Shift Finish</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="show_after_shift_radio" value="On" x-model="selectedShowCollectionAfterShiftFinish" class="text-[#005c53]">
+                    <span>On</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="show_after_shift_radio" value="Off" x-model="selectedShowCollectionAfterShiftFinish" class="text-[#005c53]">
+                    <span>Off</span>
+                </label>
+                <p class="text-[11px] text-rose-500 font-semibold pt-1">
+                    Set 'On' to show collection in farmer application only after the shift collection is finished.
+                </p>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('show_collection_after_shift_finish', selectedShowCollectionAfterShiftFinish, 'showCollectionAfterShiftFinishModal')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Hide Collection Rate (Matching Screenshot 7) -->
+    <div x-show="modal === 'hideCollectionRateModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Hide Collection Rate</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="hide_rate_radio" value="On" x-model="selectedHideCollectionRate" class="text-[#005c53]">
+                    <span>On</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="hide_rate_radio" value="Off" x-model="selectedHideCollectionRate" class="text-[#005c53]">
+                    <span>Off</span>
+                </label>
+                <p class="text-[11px] text-rose-500 font-semibold pt-1">
+                    Set 'On' to hide collection rate in farmer application.
+                </p>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('hide_collection_rate_farmer_app', selectedHideCollectionRate, 'hideCollectionRateModal')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal 12: Add Center User -->
     <div x-show="showAddUserModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
         <div @click.away="showAddUserModal = false" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
@@ -1541,11 +1893,32 @@ function centerInformationApp() {
             plant_name: '{{ $invoicePrintSetting["plant_name"] ?? "Gopal Dairy" }}',
             separate_cow_buff: '{{ $invoicePrintSetting["separate_cow_buff"] ?? "On" }}',
             number_in_language: '{{ $invoicePrintSetting["number_in_language"] ?? "On" }}',
-            rate_column: '{{ $invoicePrintSetting["rate_column"] ?? "On" }}',
-            note: '{{ $invoicePrintSetting["note"] ?? "priye dudh utpadak bandu namaste" }}',
             printer: '{{ $invoicePrintSetting["printer"] ?? "Laser" }}',
             format: '{{ $invoicePrintSetting["format"] ?? "Format-1" }}'
         },
+
+        // Rate Chart Settings Values
+        rateChartStatus: {!! json_encode($settings["rate_chart_status"] ?? "On") !!},
+        selectedRateChartStatus: {!! json_encode($settings["rate_chart_status"] ?? "On") !!},
+        shiftWiseMorning: {!! json_encode($settings["shift_wise_morning"] ?? "0.00") !!},
+        shiftWiseEvening: {!! json_encode($settings["shift_wise_evening"] ?? "0.00") !!},
+        selectedShiftWiseMorning: {!! json_encode($settings["shift_wise_morning"] ?? "0.00") !!},
+        selectedShiftWiseEvening: {!! json_encode($settings["shift_wise_evening"] ?? "0.00") !!},
+        shiftWiseEveningCondition: {{ isset($settings['shift_wise_evening_condition']) && $settings['shift_wise_evening_condition'] == '1' ? 'true' : 'true' }},
+        farmerWiseRate: {!! json_encode($settings["farmer_wise_rate"] ?? "As per Rate Chart") !!},
+        selectedFarmerWiseRate: {!! json_encode($settings["farmer_wise_rate"] ?? "As per Rate Chart") !!},
+
+        // Farmer App Settings Values
+        showAdvanceInterestRate: {!! json_encode($settings["show_advance_interest_rate_farmer_app"] ?? "Off") !!},
+        selectedShowAdvanceInterestRate: {!! json_encode($settings["show_advance_interest_rate_farmer_app"] ?? "Off") !!},
+        showRateChart: {!! json_encode($settings["show_rate_chart_farmer_app"] ?? "Off") !!},
+        selectedShowRateChart: {!! json_encode($settings["show_rate_chart_farmer_app"] ?? "Off") !!},
+        showCollectionAfterInvoiceSave: {!! json_encode($settings["show_collection_after_invoice_save"] ?? "Off") !!},
+        selectedShowCollectionAfterInvoiceSave: {!! json_encode($settings["show_collection_after_invoice_save"] ?? "Off") !!},
+        showCollectionAfterShiftFinish: {!! json_encode($settings["show_collection_after_shift_finish"] ?? "Off") !!},
+        selectedShowCollectionAfterShiftFinish: {!! json_encode($settings["show_collection_after_shift_finish"] ?? "Off") !!},
+        hideCollectionRate: {!! json_encode($settings["hide_collection_rate_farmer_app"] ?? "On") !!},
+        selectedHideCollectionRate: {!! json_encode($settings["hide_collection_rate_farmer_app"] ?? "On") !!},
 
         // Radio & Form states
         collectionTypeOptions: [
@@ -1775,6 +2148,32 @@ function centerInformationApp() {
             } catch (err) {
                 console.error(err);
                 alert('Error saving invoice print settings');
+            }
+        },
+
+        async saveShiftWiseRate() {
+            try {
+                const response = await fetch('{{ route("settings.center-information.save") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        shift_wise_morning: this.selectedShiftWiseMorning,
+                        shift_wise_evening: this.selectedShiftWiseEvening,
+                        shift_wise_evening_condition: this.shiftWiseEveningCondition ? '1' : '0'
+                    })
+                });
+                const res = await response.json();
+                if (res.success) {
+                    this.shiftWiseMorning = this.selectedShiftWiseMorning;
+                    this.shiftWiseEvening = this.selectedShiftWiseEvening;
+                    this.modal = null;
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error saving shift wise rate');
             }
         }
     }
