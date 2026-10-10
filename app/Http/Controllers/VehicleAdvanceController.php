@@ -54,6 +54,12 @@ class VehicleAdvanceController extends Controller
                     $table->timestamps();
                 });
             }
+
+            if (Schema::hasTable('vehicles') && !Schema::hasColumn('vehicles', 'driver_id')) {
+                Schema::table('vehicles', function (Blueprint $table) {
+                    $table->unsignedBigInteger('driver_id')->nullable()->after('vehicle_type');
+                });
+            }
         } catch (\Throwable $e) {}
     }
 
@@ -65,7 +71,13 @@ class VehicleAdvanceController extends Controller
         $vehicleId = $request->get('vehicle_id');
         $search = $request->get('search');
 
-        $query = VehicleAdvance::with(['vehicle.driver', 'driver', 'repayments']);
+        $relations = ['driver', 'repayments'];
+        if (Schema::hasTable('vehicles') && Schema::hasColumn('vehicles', 'driver_id')) {
+            $relations[] = 'vehicle.driver';
+        } else {
+            $relations[] = 'vehicle';
+        }
+        $query = VehicleAdvance::with($relations);
 
         if (!empty($vehicleId) && $vehicleId !== 'all') {
             $query->where('vehicle_id', $vehicleId);
@@ -95,7 +107,11 @@ class VehicleAdvanceController extends Controller
         $totalPaid = (float) $summaryQuery->sum('paid_amount');
         $totalBalance = (float) $summaryQuery->sum('balance_amount');
 
-        $vehicles = Vehicle::with('driver')->orderBy('vehicle_number')->get();
+        $vehicleQuery = Vehicle::query()->orderBy('vehicle_number');
+        if (Schema::hasTable('vehicles') && Schema::hasColumn('vehicles', 'driver_id')) {
+            $vehicleQuery->with('driver');
+        }
+        $vehicles = $vehicleQuery->get();
         $drivers = Driver::where('status', 'active')->orderBy('name')->get();
 
         // Suggested Voucher No
@@ -332,7 +348,13 @@ class VehicleAdvanceController extends Controller
     public function print(Request $request)
     {
         $vehicleId = $request->get('vehicle_id');
-        $query = VehicleAdvance::with(['vehicle.driver', 'driver']);
+        $relations = ['driver'];
+        if (Schema::hasTable('vehicles') && Schema::hasColumn('vehicles', 'driver_id')) {
+            $relations[] = 'vehicle.driver';
+        } else {
+            $relations[] = 'vehicle';
+        }
+        $query = VehicleAdvance::with($relations);
 
         if (!empty($vehicleId) && $vehicleId !== 'all') {
             $query->where('vehicle_id', $vehicleId);

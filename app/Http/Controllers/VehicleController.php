@@ -25,6 +25,7 @@ class VehicleController extends Controller
                     $table->id();
                     $table->string('vehicle_number')->unique();
                     $table->string('vehicle_type')->default('van');
+                    $table->unsignedBigInteger('driver_id')->nullable();
                     $table->string('driver_name')->nullable();
                     $table->string('driver_phone')->nullable();
                     $table->decimal('capacity', 10, 2)->default(0.00);
@@ -36,6 +37,12 @@ class VehicleController extends Controller
                     $table->text('notes')->nullable();
                     $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
                     $table->timestamps();
+                });
+            }
+
+            if (Schema::hasTable('vehicles') && !Schema::hasColumn('vehicles', 'driver_id')) {
+                Schema::table('vehicles', function (Blueprint $table) {
+                    $table->unsignedBigInteger('driver_id')->nullable()->after('vehicle_type');
                 });
             }
         } catch (\Throwable $e) {}

@@ -285,7 +285,106 @@ Route::get('/migrate-load-unload', function () {
     }
 });
 
+// Dedicated 1-Click Route to Ensure Drivers & Vehicle Columns on Live Server
+Route::get('/migrate-drivers', function () {
+    $results = [];
+    try {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('drivers')) {
+            \Illuminate\Support\Facades\Schema::create('drivers', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->id();
+                $table->string('driver_code')->unique();
+                $table->string('name');
+                $table->string('phone')->nullable();
+                $table->string('license_number')->nullable();
+                $table->string('aadhaar_card_no')->nullable();
+                $table->string('pan_card_no')->nullable();
+                $table->string('account_holder')->nullable();
+                $table->string('account_number')->nullable();
+                $table->string('bank_name')->nullable();
+                $table->string('ifsc_code')->nullable();
+                $table->string('bank_branch')->nullable();
+                $table->string('status')->default('active');
+                $table->text('address')->nullable();
+                $table->unsignedBigInteger('created_by')->nullable();
+                $table->timestamps();
+            });
+            $results[] = "✅ Created table: `drivers`";
+        } else {
+            $results[] = "ℹ️ Table `drivers` already exists.";
+        }
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('vehicles')) {
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('vehicles', 'driver_id')) {
+                \Illuminate\Support\Facades\DB::statement("ALTER TABLE `vehicles` ADD COLUMN `driver_id` BIGINT UNSIGNED NULL AFTER `vehicle_type`");
+                $results[] = "✅ Added column `driver_id` to `vehicles` table.";
+            } else {
+                $results[] = "ℹ️ Column `driver_id` already exists in `vehicles`.";
+            }
+        }
+
+        if (!\Illuminate\Support\Facades\Schema::hasTable('vehicle_advances')) {
+            \Illuminate\Support\Facades\Schema::create('vehicle_advances', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->id();
+                $table->string('voucher_no')->unique();
+                $table->unsignedBigInteger('vehicle_id');
+                $table->unsignedBigInteger('driver_id')->nullable();
+                $table->date('advance_date');
+                $table->decimal('amount', 10, 2);
+                $table->decimal('interest_rate', 5, 2)->default(0.00);
+                $table->decimal('paid_amount', 10, 2)->default(0.00);
+                $table->decimal('balance_amount', 10, 2)->default(0.00);
+                $table->text('remarks')->nullable();
+                $table->string('status')->default('active');
+                $table->unsignedBigInteger('created_by')->nullable();
+                $table->timestamps();
+            });
+            $results[] = "✅ Created table: `vehicle_advances`";
+        } else {
+            $results[] = "ℹ️ Table `vehicle_advances` already exists.";
+        }
+
+        if (!\Illuminate\Support\Facades\Schema::hasTable('vehicle_advance_repayments')) {
+            \Illuminate\Support\Facades\Schema::create('vehicle_advance_repayments', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->id();
+                $table->string('receipt_no')->unique();
+                $table->unsignedBigInteger('vehicle_advance_id');
+                $table->date('repayment_date');
+                $table->decimal('amount', 10, 2);
+                $table->string('payment_mode')->default('Cash');
+                $table->text('remarks')->nullable();
+                $table->unsignedBigInteger('created_by')->nullable();
+                $table->timestamps();
+            });
+            $results[] = "✅ Created table: `vehicle_advance_repayments`";
+        } else {
+            $results[] = "ℹ️ Table `vehicle_advance_repayments` already exists.";
+        }
+
+        \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+        $results[] = "🧹 Cache cleared successfully.";
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Driver & Vehicle Advance tables and columns configured successfully!',
+            'actions_performed' => $results,
+            'driver_count' => \App\Models\Driver::count(),
+            'vehicle_has_driver_id' => \Illuminate\Support\Facades\Schema::hasColumn('vehicles', 'driver_id'),
+        ], 200, [], JSON_PRETTY_PRINT);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'partial_actions' => $results
+        ], 500, [], JSON_PRETTY_PRINT);
+    }
+});
+
 Route::get('/clear-cache', function () {
+    try {
+        if (\Illuminate\Support\Facades\Schema::hasTable('vehicles') && !\Illuminate\Support\Facades\Schema::hasColumn('vehicles', 'driver_id')) {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `vehicles` ADD COLUMN `driver_id` BIGINT UNSIGNED NULL AFTER `vehicle_type`");
+        }
+    } catch (\Throwable $e) {}
     try {
         \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
     } catch (\Throwable $e) {}

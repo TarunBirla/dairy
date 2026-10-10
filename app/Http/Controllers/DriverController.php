@@ -39,6 +39,12 @@ class DriverController extends Controller
                     $table->timestamps();
                 });
             }
+
+            if (Schema::hasTable('vehicles') && !Schema::hasColumn('vehicles', 'driver_id')) {
+                Schema::table('vehicles', function (Blueprint $table) {
+                    $table->unsignedBigInteger('driver_id')->nullable()->after('vehicle_type');
+                });
+            }
         } catch (\Throwable $e) {}
     }
 
@@ -50,7 +56,10 @@ class DriverController extends Controller
         $search = $request->get('search');
         $status = $request->get('status');
 
-        $query = Driver::with('vehicles');
+        $query = Driver::query();
+        if (Schema::hasTable('vehicles') && Schema::hasColumn('vehicles', 'driver_id')) {
+            $query->with('vehicles');
+        }
 
         if (!empty($search)) {
             $query->where(function ($q) use ($search) {
