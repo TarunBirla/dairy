@@ -6,7 +6,7 @@
 
 @section('header_action')
     <button type="button" 
-            onclick="document.getElementById('collection-entry-section').scrollIntoView({behavior: 'smooth'}); setTimeout(function() { $('#collection_farmer_select').select2('open'); }, 200);" 
+            onclick="document.getElementById('collection-entry-section').scrollIntoView({behavior: 'smooth'}); setTimeout(function() { const qIn = document.getElementById('quick_farmer_code_input'); if (qIn) { qIn.focus(); qIn.select(); } else { $('#collection_farmer_select').select2('open'); } }, 200);" 
             class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition">
         <i data-lucide="plus" class="w-3.5 h-3.5"></i>
         <span>Quick Intake</span>
@@ -136,25 +136,52 @@
         <form @submit.prevent="submitCollection(false)" class="p-2.5 sm:p-3 space-y-1.5">
             <div class="grid grid-cols-12 gap-2 items-start">
                 
-                <!-- Customer / Farmer Code (Select2) (3.5 cols on desktop) -->
+                <!-- Customer / Farmer Code (Fast Code Input + Select2 Search) -->
                 <div class="col-span-12 sm:col-span-6 lg:col-span-3 relative" id="farmer_select_col">
-                    <label class="block text-[10px] font-bold text-slate-700 mb-0.5 uppercase tracking-wider">Customer Code *</label>
-                    <select id="collection_farmer_select" class="w-full text-xs font-semibold">
-                        <option value="">-- Select Farmer or Code --</option>
-                        @foreach($farmers as $f)
-                            <option value="{{ $f->id }}" 
-                                    data-code="{{ $f->farmer_code ?: $f->id }}" 
-                                    data-name="{{ $f->name }}" 
-                                    data-phone="{{ $f->phone }}" 
-                                    data-village="{{ $f->village }}" 
-                                    data-animal="{{ $f->animal_type }}">
-                                {{ $f->farmer_code ?: 'FMR-' . $f->id }} - {{ $f->name }} ({{ $f->phone ?? 'No phone' }})
-                            </option>
-                        @endforeach
-                    </select>
-                    <!-- Farmer name underneath (matching user's reference) -->
-                    <div class="text-[11px] font-bold text-emerald-700 truncate mt-0.5" x-show="selectedFarmer.name" x-cloak>
-                        <span x-text="selectedFarmer.name + (selectedFarmer.phone ? ' (' + selectedFarmer.phone + ')' : '')"></span>
+                    <div class="flex items-center justify-between mb-0.5">
+                        <label class="block text-[10px] font-bold text-slate-700 uppercase tracking-wider">Farmer Code / Search *</label>
+                        <span class="text-[9px] text-emerald-600 font-semibold" title="Type number and hit Enter">⚡ Fast Code</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <!-- Quick Code Input (e.g. 101 or 1) -->
+                        <div class="w-16 shrink-0">
+                            <input type="text" 
+                                   id="quick_farmer_code_input" 
+                                   placeholder="Code#" 
+                                   x-model="quickFarmerCode" 
+                                   @keydown.enter.prevent="lookupFarmerByCode()" 
+                                   @blur="lookupFarmerByCode()" 
+                                   title="Enter numeric code (e.g. 101 or 1) and press Enter"
+                                   class="w-full px-1.5 py-1.5 text-xs font-black text-emerald-800 bg-emerald-50/70 border border-emerald-300 rounded-lg text-center placeholder-emerald-400 focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
+                        </div>
+                        <!-- Select2 Search Dropdown -->
+                        <div class="flex-1 min-w-0" id="farmer_select_dropdown_wrap">
+                            <select id="collection_farmer_select" class="w-full text-xs font-semibold" data-placeholder="-- Search Farmer, Code, Phone --">
+                                <option value="">-- Search Farmer, Code, Phone --</option>
+                                @foreach($farmers as $f)
+                                    @php
+                                        $numCode = preg_replace('/\D/', '', $f->farmer_code) ?: $f->id;
+                                    @endphp
+                                    <option value="{{ $f->id }}" 
+                                            data-code="{{ $f->farmer_code ?: 'FAR-' . $f->id }}" 
+                                            data-numcode="{{ $numCode }}"
+                                            data-name="{{ $f->name }}" 
+                                            data-phone="{{ $f->phone }}" 
+                                            data-village="{{ $f->village }}" 
+                                            data-animal="{{ $f->animal_type }}">
+                                        {{ $numCode }} - {{ $f->farmer_code ?: 'FAR-' . $f->id }} - {{ $f->name }} {{ $f->phone ? '(' . $f->phone . ')' : '' }} {{ $f->village ? '• ' . $f->village : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Farmer details badge underneath -->
+                    <div class="text-[11px] font-bold text-emerald-700 truncate mt-0.5 flex items-center justify-between" x-show="selectedFarmer.name" x-cloak>
+                        <span class="truncate">
+                            <span class="font-extrabold" x-text="selectedFarmer.code || ('#' + quickFarmerCode)"></span>
+                            <span x-text="' ' + selectedFarmer.name + (selectedFarmer.phone ? ' (' + selectedFarmer.phone + ')' : '')"></span>
+                        </span>
+                        <span class="text-[9px] uppercase px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold shrink-0 ml-1" x-text="selectedFarmer.animal || 'Cow'"></span>
                     </div>
                 </div>
 
@@ -525,6 +552,8 @@ function milkCollectionManager() {
             avgSnf: '{{ number_format($avgSnf, 1) }}'
         },
 
+        quickFarmerCode: '',
+
         selectedFarmer: {
             id: '',
             code: '',
@@ -572,7 +601,7 @@ function milkCollectionManager() {
             }
 
             $fSelect.select2({
-                placeholder: '-- Select Farmer or Code --',
+                placeholder: '-- Search Farmer, Code, Phone --',
                 allowClear: true,
                 width: '100%',
                 dropdownParent: $('#farmer_select_col'),
@@ -580,36 +609,17 @@ function milkCollectionManager() {
                     if ($.trim(params.term) === '') {
                         return data;
                     }
-                    if (!data || !data.text) {
-                        return null;
-                    }
-
-                    var term = params.term.toLowerCase().trim();
-                    var text = data.text.toLowerCase();
-
-                    // Direct match in option text
-                    if (text.indexOf(term) > -1) {
-                        return data;
-                    }
-
-                    // Check data attributes if element exists
-                    if (data.element) {
-                        var code = ($(data.element).attr('data-code') || $(data.element).data('code') || '').toString().toLowerCase();
-                        var numOnly = code.replace(/\D/g, '');
-                        var phone = ($(data.element).attr('data-phone') || $(data.element).data('phone') || '').toString().toLowerCase();
-                        var village = ($(data.element).attr('data-village') || $(data.element).data('village') || '').toString().toLowerCase();
-                        var name = ($(data.element).attr('data-name') || $(data.element).data('name') || '').toString().toLowerCase();
-
-                        if (code.indexOf(term) > -1 || 
-                            (numOnly && numOnly.indexOf(term) > -1) || 
-                            phone.indexOf(term) > -1 || 
-                            village.indexOf(term) > -1 || 
-                            name.indexOf(term) > -1) {
-                            return data;
+                    if (data.children && data.children.length > 0) {
+                        var match = $.extend(true, {}, data);
+                        for (var c = data.children.length - 1; c >= 0; c--) {
+                            var child = data.children[c];
+                            if (self.matchFarmerItem(params.term, child) == null) {
+                                match.children.splice(c, 1);
+                            }
                         }
+                        return match.children.length > 0 ? match : null;
                     }
-
-                    return null;
+                    return self.matchFarmerItem(params.term, data);
                 }
             }).on('change', function() {
                 var val = $(this).val();
@@ -622,12 +632,91 @@ function milkCollectionManager() {
                 $cSelect.select2('destroy');
             }
             $cSelect.select2({
-                placeholder: 'Select Center',
                 width: '100%',
                 dropdownParent: $('#center_select_col')
             }).on('change', function() {
                 self.form.collection_center_id = $(this).val();
             });
+        },
+
+        matchFarmerItem(term, data) {
+            if (!data) return null;
+            if (!data.id || data.id === '') return null;
+
+            var q = term.toLowerCase().trim();
+            var text = (data.text || '').toLowerCase();
+
+            // 1. Direct match in text (contains numCode, farmer_code, name, phone, village)
+            if (text.indexOf(q) > -1) {
+                return data;
+            }
+
+            // 2. Data attributes match
+            if (data.element) {
+                var $el = $(data.element);
+                var code = ($el.attr('data-code') || $el.data('code') || '').toString().toLowerCase();
+                var numCode = ($el.attr('data-numcode') || $el.data('numcode') || '').toString().toLowerCase();
+                var name = ($el.attr('data-name') || $el.data('name') || '').toString().toLowerCase();
+                var phone = ($el.attr('data-phone') || $el.data('phone') || '').toString().toLowerCase();
+                var village = ($el.attr('data-village') || $el.data('village') || '').toString().toLowerCase();
+
+                if (code.indexOf(q) > -1 || 
+                    numCode.indexOf(q) > -1 || 
+                    name.indexOf(q) > -1 || 
+                    phone.indexOf(q) > -1 || 
+                    village.indexOf(q) > -1) {
+                    return data;
+                }
+            }
+
+            return null;
+        },
+
+        lookupFarmerByCode() {
+            var rawInput = (this.quickFarmerCode || '').toString().trim();
+            if (!rawInput) return;
+
+            var numOnly = rawInput.replace(/\D/g, '');
+            var foundId = null;
+
+            $('#collection_farmer_select option').each(function() {
+                var $opt = $(this);
+                var val = $opt.val();
+                if (!val) return;
+
+                var code = ($opt.attr('data-code') || $opt.data('code') || '').toString().trim();
+                var num = ($opt.attr('data-numcode') || $opt.data('numcode') || '').toString().trim();
+                var optNumOnly = code.replace(/\D/g, '');
+
+                if (num === rawInput || 
+                    code.toLowerCase() === rawInput.toLowerCase() || 
+                    (numOnly && optNumOnly === numOnly) ||
+                    val === rawInput) {
+                    foundId = val;
+                    return false;
+                }
+            });
+
+            // Fallback match: if user types '1', match '101' or 'FAR-101'
+            if (!foundId && numOnly) {
+                $('#collection_farmer_select option').each(function() {
+                    var $opt = $(this);
+                    var val = $opt.val();
+                    if (!val) return;
+                    var code = ($opt.attr('data-code') || $opt.data('code') || '').toString().trim();
+                    var num = ($opt.attr('data-numcode') || $opt.data('numcode') || '').toString().trim();
+                    if (num.indexOf(numOnly) > -1 || code.toLowerCase().indexOf(rawInput.toLowerCase()) > -1) {
+                        foundId = val;
+                        return false;
+                    }
+                });
+            }
+
+            if (foundId) {
+                $('#collection_farmer_select').val(foundId).trigger('change');
+            } else {
+                this.showToast('Farmer code "' + rawInput + '" not found.', 'error');
+            }
         },
 
         get netAmountFormatted() {
@@ -656,6 +745,7 @@ function milkCollectionManager() {
         onFarmerSelect(farmerId) {
             if (!farmerId) {
                 this.form.farmer_id = '';
+                this.quickFarmerCode = '';
                 this.selectedFarmer = { id: '', code: '', name: '', phone: '', village: '', animal: 'cow' };
                 this.triggerRateCalculation();
                 return;
@@ -664,13 +754,17 @@ function milkCollectionManager() {
             const opt = $(`#collection_farmer_select option[value="${farmerId}"]`);
             if (opt.length) {
                 this.form.farmer_id = farmerId;
+                const numCode = opt.attr('data-numcode') || opt.data('numcode') || '';
+                const code = opt.attr('data-code') || opt.data('code') || '';
+                this.quickFarmerCode = numCode || code;
+
                 this.selectedFarmer = {
                     id: farmerId,
-                    code: opt.data('code') || '',
-                    name: opt.data('name') || '',
-                    phone: opt.data('phone') || '',
-                    village: opt.data('village') || '',
-                    animal: opt.data('animal') || 'cow'
+                    code: code,
+                    name: opt.attr('data-name') || opt.data('name') || '',
+                    phone: opt.attr('data-phone') || opt.data('phone') || '',
+                    village: opt.attr('data-village') || opt.data('village') || '',
+                    animal: opt.attr('data-animal') || opt.data('animal') || 'cow'
                 };
                 if (opt.data('animal') && (opt.data('animal') === 'cow' || opt.data('animal') === 'buffalo')) {
                     this.form.milk_type = opt.data('animal');
@@ -762,6 +856,7 @@ function milkCollectionManager() {
                 notes: item.notes || ''
             };
 
+            this.quickFarmerCode = (item.farmer_code || '').replace(/\D/g, '') || item.farmer_code || '';
             this.selectedFarmer = {
                 id: item.farmer_id,
                 code: item.farmer_code,
@@ -810,6 +905,7 @@ function milkCollectionManager() {
                 applied_rate: 42.50,
                 notes: ''
             };
+            this.quickFarmerCode = '';
             this.selectedFarmer = { id: '', code: '', name: '', phone: '', village: '', animal: 'cow' };
             $('#collection_farmer_select').val('').trigger('change.select2');
             this.calculateSnfFromClr();
@@ -823,17 +919,28 @@ function milkCollectionManager() {
             this.form.notes = '';
             this.form.bonus = 0;
             this.form.deduction = 0;
+            this.quickFarmerCode = '';
             this.selectedFarmer = { id: '', code: '', name: '', phone: '', village: '', animal: 'cow' };
             $('#collection_farmer_select').val('').trigger('change.select2');
             this.$nextTick(() => {
-                $('#collection_farmer_select').select2('open');
+                const codeIn = document.getElementById('quick_farmer_code_input');
+                if (codeIn) {
+                    codeIn.focus();
+                } else {
+                    $('#collection_farmer_select').select2('open');
+                }
             });
         },
 
         submitCollection(printSlip = false) {
             if (!this.form.farmer_id) {
-                this.showToast('Please select a Customer / Farmer Code first.', 'error');
-                $('#collection_farmer_select').select2('open');
+                this.showToast('Please select or enter a Customer / Farmer Code first.', 'error');
+                const codeIn = document.getElementById('quick_farmer_code_input');
+                if (codeIn) {
+                    codeIn.focus();
+                } else {
+                    $('#collection_farmer_select').select2('open');
+                }
                 return;
             }
             if (!this.form.quantity_liters || parseFloat(this.form.quantity_liters) <= 0) {
