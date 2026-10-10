@@ -123,9 +123,13 @@
                             <!-- Category Name -->
                             <td class="py-4 px-4">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-sm flex-shrink-0">
-                                        <i data-lucide="folder" class="w-4 h-4"></i>
-                                    </div>
+                                    @if(!empty($category->image))
+                                        <img src="{{ asset($category->image) }}" alt="{{ $category->name }}" class="w-10 h-10 rounded-xl object-cover border border-slate-200/80 shadow-2xs flex-shrink-0">
+                                    @else
+                                        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-sm flex-shrink-0 border border-emerald-100">
+                                            <i data-lucide="folder" class="w-4 h-4"></i>
+                                        </div>
+                                    @endif
                                     <div>
                                         <p class="font-bold text-slate-900 text-sm leading-tight">{{ $category->name }}</p>
                                     </div>
@@ -232,11 +236,29 @@
                 </button>
             </div>
 
-            <form action="{{ route('products.categories.store') }}" method="POST" class="mt-4 space-y-4">
+            <form action="{{ route('products.categories.store') }}" method="POST" enctype="multipart/form-data" class="mt-4 space-y-4">
                 @csrf
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1.5">Category Name *</label>
                     <input type="text" name="name" required placeholder="e.g. Milk, Sweets, Cattle Feed" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Category Image <span class="text-slate-400 font-normal">(Optional)</span></label>
+                    <div class="flex items-center gap-3">
+                        <div class="w-14 h-14 rounded-xl border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                            <template x-if="createImagePreview">
+                                <img :src="createImagePreview" class="w-full h-full object-cover">
+                            </template>
+                            <template x-if="!createImagePreview">
+                                <i data-lucide="image" class="w-6 h-6 text-slate-300"></i>
+                            </template>
+                        </div>
+                        <div class="flex-1">
+                            <input type="file" name="image" accept="image/*" @change="previewCreateImage($event)" class="text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer w-full">
+                            <p class="text-[11px] text-slate-400 mt-1">PNG, JPG, WEBP up to 3MB</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div>
@@ -269,19 +291,45 @@
             <div class="flex items-start justify-between pb-3 border-b border-slate-100">
                 <div>
                     <h3 class="text-base font-bold text-slate-900" id="edit-category-title">Edit Product Category</h3>
-                    <p class="text-xs text-slate-500 mt-0.5">Modify category name and description.</p>
+                    <p class="text-xs text-slate-500 mt-0.5">Modify category name, image, and description.</p>
                 </div>
                 <button type="button" @click="editCategoryModalOpen = false" class="text-slate-400 hover:text-slate-600 p-1">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
-            <form :action="'{{ url('products/categories') }}/' + (editingCategory ? editingCategory.id : '')" method="POST" class="mt-4 space-y-4">
+            <form :action="'{{ url('products/categories') }}/' + (editingCategory ? editingCategory.id : '')" method="POST" enctype="multipart/form-data" class="mt-4 space-y-4">
                 @csrf
                 @method('PUT')
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1.5">Category Name *</label>
                     <input type="text" name="name" x-model="editingCategoryName" required class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Category Image <span class="text-slate-400 font-normal">(Optional)</span></label>
+                    <div class="flex items-center gap-3">
+                        <div class="w-14 h-14 rounded-xl border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                            <template x-if="editImagePreview">
+                                <img :src="editImagePreview" class="w-full h-full object-cover">
+                            </template>
+                            <template x-if="!editImagePreview && editingCategoryImage">
+                                <img :src="'/' + editingCategoryImage.replace(/^\//, '')" class="w-full h-full object-cover">
+                            </template>
+                            <template x-if="!editImagePreview && !editingCategoryImage">
+                                <i data-lucide="image" class="w-6 h-6 text-slate-300"></i>
+                            </template>
+                        </div>
+                        <div class="flex-1 space-y-1.5">
+                            <input type="file" name="image" accept="image/*" @change="previewEditImage($event)" class="text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer w-full">
+                            <template x-if="editingCategoryImage">
+                                <label class="inline-flex items-center gap-1.5 text-[11px] text-rose-600 cursor-pointer font-medium">
+                                    <input type="checkbox" name="remove_image" value="1" class="rounded text-rose-600 focus:ring-rose-500">
+                                    <span>Remove current image</span>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
                 </div>
 
                 <div>
@@ -308,8 +356,30 @@
             editingCategory: null,
             editingCategoryName: '',
             editingCategoryDescription: '',
+            editingCategoryImage: null,
+            createImagePreview: null,
+            editImagePreview: null,
+
+            previewCreateImage(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    this.createImagePreview = URL.createObjectURL(file);
+                } else {
+                    this.createImagePreview = null;
+                }
+            },
+
+            previewEditImage(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    this.editImagePreview = URL.createObjectURL(file);
+                } else {
+                    this.editImagePreview = null;
+                }
+            },
 
             openCreateCategoryModal() {
+                this.createImagePreview = null;
                 this.createCategoryModalOpen = true;
                 this.$nextTick(() => {
                     if (window.lucide) window.lucide.createIcons();
@@ -320,6 +390,8 @@
                 this.editingCategory = cat;
                 this.editingCategoryName = cat.name;
                 this.editingCategoryDescription = cat.description || '';
+                this.editingCategoryImage = cat.image || null;
+                this.editImagePreview = null;
                 this.editCategoryModalOpen = true;
                 this.$nextTick(() => {
                     if (window.lucide) window.lucide.createIcons();

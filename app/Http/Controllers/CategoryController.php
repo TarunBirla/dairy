@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\AuditLog;
@@ -12,6 +14,14 @@ class CategoryController extends Controller
 {
     private function ensureDefaultCategories(): void
     {
+        try {
+            if (Schema::hasTable('categories') && !Schema::hasColumn('categories', 'image')) {
+                Schema::table('categories', function (Blueprint $table) {
+                    $table->string('image')->nullable()->after('description');
+                });
+            }
+        } catch (\Throwable $e) {}
+
         if (Category::count() === 0) {
             Category::firstOrCreate(['name' => 'Fresh Dairy'], ['slug' => 'fresh-dairy', 'description' => 'Daily farm-fresh cow and buffalo milk products']);
             Category::firstOrCreate(['name' => 'Traditional Sweets & Mawa'], ['slug' => 'sweets-mawa', 'description' => 'Pure khoya, mawa and dairy sweets']);
@@ -46,12 +56,25 @@ class CategoryController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:categories,name',
             'description' => 'nullable|string|max:500',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:3072',
         ]);
+
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $destPath = public_path('uploads/categories');
+            if (!file_exists($destPath)) {
+                @mkdir($destPath, 0755, true);
+            }
+            $filename = 'cat_' . time() . '_' . uniqid() . '.' . $request->file('image')->getClientOriginalExtension();
+            $request->file('image')->move($destPath, $filename);
+            $imagePath = 'uploads/categories/' . $filename;
+        }
 
         $category = Category::create([
             'name' => trim($validated['name']),
             'slug' => Str::slug($validated['name']),
             'description' => $validated['description'] ?? null,
+            'image' => $imagePath,
         ]);
 
         AuditLog::log('Created Product Category', 'Category', $category->id);
@@ -64,13 +87,28 @@ class CategoryController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:categories,name,' . $category->id,
             'description' => 'nullable|string|max:500',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:3072',
         ]);
 
-        $category->update([
+        $data = [
             'name' => trim($validated['name']),
             'slug' => Str::slug($validated['name']),
             'description' => $validated['description'] ?? null,
-        ]);
+        ];
+
+        if ($request->hasFile('image')) {
+            $destPath = public_path('uploads/categories');
+            if (!file_exists($destPath)) {
+                @mkdir($destPath, 0755, true);
+            }
+            $filename = 'cat_' . time() . '_' . uniqid() . '.' . $request->file('image')->getClientOriginalExtension();
+            $request->file('image')->move($destPath, $filename);
+            $data['image'] = 'uploads/categories/' . $filename;
+        } elseif ($request->boolean('remove_image')) {
+            $data['image'] = null;
+        }
+
+        $category->update($data);
 
         AuditLog::log('Updated Product Category', 'Category', $category->id);
 
@@ -85,6 +123,9 @@ class CategoryController extends Controller
         }
 
         $name = $category->name;
+        if ($category->image && file_exists(public_path($category->image))) {
+            @unlink(public_path($category->image));
+        }
         $category->delete();
         AuditLog::log('Deleted Product Category', 'Category', $category->id);
 

@@ -25,7 +25,7 @@
             </div>
         @endif
 
-        <form action="{{ route('products.update', $product) }}" method="POST" class="space-y-5">
+        <form action="{{ route('products.update', $product) }}" method="POST" enctype="multipart/form-data" class="space-y-5">
             @csrf
             @method('PUT')
 
@@ -137,6 +137,33 @@
             </div>
 
             <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Product Image <span class="text-slate-400 font-normal">(Optional)</span></label>
+                <div class="flex items-center gap-3">
+                    <div class="w-16 h-16 rounded-xl border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        <template x-if="productImagePreview">
+                            <img :src="productImagePreview" class="w-full h-full object-cover">
+                        </template>
+                        <template x-if="!productImagePreview && currentProductImage">
+                            <img :src="'/' + currentProductImage.replace(/^\//, '')" class="w-full h-full object-cover">
+                        </template>
+                        <template x-if="!productImagePreview && !currentProductImage">
+                            <i data-lucide="image" class="w-7 h-7 text-slate-300"></i>
+                        </template>
+                    </div>
+                    <div class="flex-1 space-y-1.5">
+                        <input type="file" name="image" accept="image/*" @change="previewProductImage($event)" class="text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer w-full">
+                        @if($product->image)
+                            <label class="inline-flex items-center gap-1.5 text-[11px] text-rose-600 cursor-pointer font-medium">
+                                <input type="checkbox" name="remove_image" value="1" class="rounded text-rose-600 focus:ring-rose-500">
+                                <span>Remove current image</span>
+                            </label>
+                        @endif
+                        <p class="text-[11px] text-slate-400">PNG, JPG, WEBP up to 3MB</p>
+                    </div>
+                </div>
+            </div>
+
+            <div>
                 <label class="block text-xs font-semibold text-slate-700 mb-1.5">Description / Notes</label>
                 <textarea name="description" rows="2" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition">{{ old('description', $product->description) }}</textarea>
             </div>
@@ -229,6 +256,14 @@ function productEditForm() {
 
         newUnitLabel: '',
         unitError: '',
+
+        currentProductImage: '{{ $product->image ? addslashes($product->image) : '' }}',
+        productImagePreview: null,
+
+        previewProductImage(e) {
+            const file = e.target.files[0];
+            this.productImagePreview = file ? URL.createObjectURL(file) : null;
+        },
 
         init() {
             this.$nextTick(() => {

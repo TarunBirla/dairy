@@ -379,10 +379,69 @@ Route::get('/migrate-drivers', function () {
     }
 });
 
+// Dedicated 1-Click Route to Ensure Category and Product Image Columns on Live Server
+Route::get('/migrate-images', function () {
+    $results = [];
+    try {
+        if (\Illuminate\Support\Facades\Schema::hasTable('categories')) {
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('categories', 'image')) {
+                \Illuminate\Support\Facades\DB::statement("ALTER TABLE `categories` ADD COLUMN `image` varchar(255) NULL AFTER `description`");
+                $results[] = "✅ Added column `image` to `categories` table.";
+            } else {
+                $results[] = "ℹ️ Column `image` already exists in `categories`.";
+            }
+        }
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('products')) {
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('products', 'image')) {
+                \Illuminate\Support\Facades\DB::statement("ALTER TABLE `products` ADD COLUMN `image` varchar(255) NULL AFTER `in_stock`");
+                $results[] = "✅ Added column `image` to `products` table.";
+            } else {
+                $results[] = "ℹ️ Column `image` already exists in `products`.";
+            }
+        }
+
+        // Create upload folders if missing
+        $catUploads = public_path('uploads/categories');
+        if (!file_exists($catUploads)) {
+            @mkdir($catUploads, 0755, true);
+            $results[] = "📁 Created directory: public/uploads/categories";
+        }
+        $prodUploads = public_path('uploads/products');
+        if (!file_exists($prodUploads)) {
+            @mkdir($prodUploads, 0755, true);
+            $results[] = "📁 Created directory: public/uploads/products";
+        }
+
+        \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+        $results[] = "🧹 Cache cleared successfully.";
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Category and Product image columns and directories configured successfully!',
+            'actions_performed' => $results,
+            'category_has_image' => \Illuminate\Support\Facades\Schema::hasColumn('categories', 'image'),
+            'product_has_image' => \Illuminate\Support\Facades\Schema::hasColumn('products', 'image'),
+        ], 200, [], JSON_PRETTY_PRINT);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'partial_actions' => $results
+        ], 500, [], JSON_PRETTY_PRINT);
+    }
+});
+
 Route::get('/clear-cache', function () {
     try {
         if (\Illuminate\Support\Facades\Schema::hasTable('vehicles') && !\Illuminate\Support\Facades\Schema::hasColumn('vehicles', 'driver_id')) {
             \Illuminate\Support\Facades\DB::statement("ALTER TABLE `vehicles` ADD COLUMN `driver_id` BIGINT UNSIGNED NULL AFTER `vehicle_type`");
+        }
+        if (\Illuminate\Support\Facades\Schema::hasTable('categories') && !\Illuminate\Support\Facades\Schema::hasColumn('categories', 'image')) {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `categories` ADD COLUMN `image` varchar(255) NULL AFTER `description`");
+        }
+        if (\Illuminate\Support\Facades\Schema::hasTable('products') && !\Illuminate\Support\Facades\Schema::hasColumn('products', 'image')) {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `products` ADD COLUMN `image` varchar(255) NULL AFTER `in_stock`");
         }
     } catch (\Throwable $e) {}
     try {

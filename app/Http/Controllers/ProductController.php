@@ -22,6 +22,12 @@ class ProductController extends Controller
             });
         }
 
+        if (Schema::hasTable('products') && !Schema::hasColumn('products', 'image')) {
+            Schema::table('products', function (Blueprint $table) {
+                $table->string('image')->nullable()->after('in_stock');
+            });
+        }
+
         $query = Product::with('category');
 
         if ($request->filled('search')) {
@@ -99,6 +105,7 @@ class ProductController extends Controller
             'cost_price' => 'nullable|numeric|min:0',
             'current_stock' => 'nullable|numeric|min:0',
             'min_stock_alert' => 'nullable|numeric|min:0',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:3072',
             'description' => 'nullable|string',
         ]);
 
@@ -108,6 +115,16 @@ class ProductController extends Controller
 
         if (empty($validated['product_type'])) {
             $validated['product_type'] = 'milk';
+        }
+
+        if ($request->hasFile('image')) {
+            $destPath = public_path('uploads/products');
+            if (!file_exists($destPath)) {
+                @mkdir($destPath, 0755, true);
+            }
+            $filename = 'prod_' . time() . '_' . uniqid() . '.' . $request->file('image')->getClientOriginalExtension();
+            $request->file('image')->move($destPath, $filename);
+            $validated['image'] = 'uploads/products/' . $filename;
         }
 
         $validated['in_stock'] = ($validated['current_stock'] ?? 0) > 0;
@@ -150,6 +167,7 @@ class ProductController extends Controller
             'subscription_price' => 'nullable|numeric|min:0',
             'cost_price' => 'nullable|numeric|min:0',
             'min_stock_alert' => 'nullable|numeric|min:0',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:3072',
             'description' => 'nullable|string',
         ]);
 
@@ -159,6 +177,21 @@ class ProductController extends Controller
 
         if (empty($validated['product_type'])) {
             $validated['product_type'] = $product->product_type ?: 'milk';
+        }
+
+        if ($request->hasFile('image')) {
+            $destPath = public_path('uploads/products');
+            if (!file_exists($destPath)) {
+                @mkdir($destPath, 0755, true);
+            }
+            $filename = 'prod_' . time() . '_' . uniqid() . '.' . $request->file('image')->getClientOriginalExtension();
+            $request->file('image')->move($destPath, $filename);
+            $validated['image'] = 'uploads/products/' . $filename;
+        } elseif ($request->boolean('remove_image')) {
+            if ($product->image && file_exists(public_path($product->image))) {
+                @unlink(public_path($product->image));
+            }
+            $validated['image'] = null;
         }
 
         $product->update($validated);

@@ -27,23 +27,27 @@
                 <div>
                     <!-- Product Placeholder / Badge -->
                     <div class="w-full h-40 rounded-2xl bg-gradient-to-tr from-slate-50 to-blue-50/50 flex flex-col items-center justify-center mb-4 relative overflow-hidden group-hover:scale-[1.02] transition">
-                        <span class="text-4xl">
-                            @if(str_contains(strtolower($prod->name), 'ghee') || str_contains($prod->name, 'घी'))
-                                🧈
-                            @elseif(str_contains(strtolower($prod->name), 'paneer') || str_contains($prod->name, 'पनीर'))
-                                🧀
-                            @elseif(str_contains(strtolower($prod->name), 'feed') || str_contains($prod->name, 'khalli'))
-                                🌾
-                            @elseif(str_contains(strtolower($prod->name), 'bottle'))
-                                🍶
-                            @else
-                                🥛
-                            @endif
-                        </span>
-                        @if(!$prod->in_stock)
-                            <span class="absolute top-3 right-3 px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded-md">Out of Stock</span>
+                        @if(!empty($prod->image))
+                            <img src="{{ asset($prod->image) }}" alt="{{ $prod->name }}" class="w-full h-full object-cover">
                         @else
-                            <span class="absolute top-3 right-3 px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md">In Stock</span>
+                            <span class="text-4xl">
+                                @if(str_contains(strtolower($prod->name), 'ghee') || str_contains($prod->name, 'घी'))
+                                    🧈
+                                @elseif(str_contains(strtolower($prod->name), 'paneer') || str_contains($prod->name, 'पनीर'))
+                                    🧀
+                                @elseif(str_contains(strtolower($prod->name), 'feed') || str_contains($prod->name, 'khalli'))
+                                    🌾
+                                @elseif(str_contains(strtolower($prod->name), 'bottle'))
+                                    🍶
+                                @else
+                                    🥛
+                                @endif
+                            </span>
+                        @endif
+                        @if(!$prod->in_stock)
+                            <span class="absolute top-3 right-3 px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded-md z-10">Out of Stock</span>
+                        @else
+                            <span class="absolute top-3 right-3 px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md z-10">In Stock</span>
                         @endif
                     </div>
 
