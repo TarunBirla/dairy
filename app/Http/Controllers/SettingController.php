@@ -77,6 +77,8 @@ class SettingController extends Controller
         $bonusPenalty = json_decode($settings['bonus_penalty_settings'] ?? '{}', true);
         $smsSettings = json_decode($settings['sms_settings'] ?? '{}', true);
         $invoicePrintSetting = json_decode($settings['invoice_print_settings'] ?? '{}', true);
+        $paymentRegisterSetting = json_decode($settings['payment_register_print_settings'] ?? '{}', true);
+
         // Center Details (Mobile Dairy Parity)
         $centerDetails = json_decode($settings['center_details'] ?? '{}', true);
         if (empty($centerDetails)) {
