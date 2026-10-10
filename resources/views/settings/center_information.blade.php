@@ -458,12 +458,160 @@
             </div>
         </div>
 
-        <!-- Placeholder for Remaining Tabs -->
-        <div x-show="!['collection', 'sms', 'invoice', 'rate_chart', 'farmer_app'].includes(activeTab)" class="p-8 text-center text-slate-500 text-xs">
-            <div class="max-w-md mx-auto py-8">
-                <i data-lucide="sliders" class="w-8 h-8 text-slate-300 mx-auto mb-2"></i>
-                <p class="font-bold text-slate-700 text-sm mb-1" x-text="getTabName(activeTab) + ' Tab'"></p>
-                <p class="text-slate-400">Settings for this section will be configured in the next step.</p>
+        <!-- Tab 6: Milk Sale Settings Panel (Parity with Mobile Dairy) -->
+        <div x-show="activeTab === 'milk_sale'" class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+                
+                <!-- 1. Billing Period -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Billing Period</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="milkSaleBillingPeriod"></span>
+                        <button type="button" @click="openModal('milkSaleBillingPeriodModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Milk Sale Bill Print Setting -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Milk Sale Bill Print Setting</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="milkSalePrintFormat"></span>
+                        <button type="button" @click="openModal('milkSalePrintModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Tab 7: Other Settings Panel (Parity with Mobile Dairy) -->
+        <div x-show="activeTab === 'other'" class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+                
+                <!-- 1. Bank Details -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Bank Details</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="otherBankDetails"></span>
+                        <button type="button" @click="openModal('otherBankDetailsModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Weighing Scale Format -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Weighing Scale Format</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="weighingScaleFormat"></span>
+                        <button type="button" @click="openModal('weighingScaleModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. CLR/Lacto Format -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">CLR/Lacto Format</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="clrLactoFormat"></span>
+                        <button type="button" @click="openModal('clrLactoModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4. Contact Details -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Contact Details</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900 truncate max-w-[180px]" x-text="contactDetailsSummary"></span>
+                        <button type="button" @click="openModal('contactDetailsModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 5. FAT Format -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">FAT Format</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="fatFormat"></span>
+                        <button type="button" @click="openModal('fatFormatModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 6. SNF Format -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">SNF Format</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="snfFormat"></span>
+                        <button type="button" @click="openModal('snfFormatModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 7. Computer Login -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Computer Login</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="computerLogin"></span>
+                        <button type="button" @click="openModal('computerLoginModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 8. Center Logo -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Center Logo</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="centerLogoStatus"></span>
+                        <button type="button" @click="openModal('centerLogoModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 9. Annual Bonus Print Setting -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Annual Bonus Print Setting</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="annualBonusPrintStatus"></span>
+                        <button type="button" @click="openModal('annualBonusPrintModal')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -1779,6 +1927,422 @@
         </div>
     </div>
 
+    <!-- ==================== MILK SALE SETTINGS MODALS ==================== -->
+
+    <!-- Modal: Billing Period (Milk Sale) -->
+    <div x-show="modal === 'milkSaleBillingPeriodModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Billing Period</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-2.5 text-xs max-h-72 overflow-y-auto">
+                <template x-for="p in milkSaleBillingPeriodOptions" :key="p">
+                    <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                        <input type="radio" name="milk_sale_period_radio" :value="p" x-model="selectedMilkSaleBillingPeriod" class="text-[#005c53]">
+                        <span x-text="p"></span>
+                    </label>
+                </template>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('milk_sale_billing_period', selectedMilkSaleBillingPeriod, 'milkSaleBillingPeriodModal')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Milk Sale Bill Print Setting -->
+    <div x-show="modal === 'milkSalePrintModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Milk Sale Bill Print Setting</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3.5 text-xs">
+                <div class="flex items-center justify-between">
+                    <span class="font-semibold text-slate-700">Print Language</span>
+                    <select x-model="milkSalePrintData.language" class="w-40 px-2.5 py-1 border border-slate-200 rounded text-xs">
+                        <option value="English">English</option>
+                        <option value="Hindi">Hindi</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <span class="font-semibold text-slate-700">Number in language</span>
+                    <select x-model="milkSalePrintData.number_in_language" class="w-40 px-2.5 py-1 border border-slate-200 rounded text-xs">
+                        <option value="On">On</option>
+                        <option value="Off">Off</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <span class="font-semibold text-slate-700">Printer</span>
+                    <select x-model="milkSalePrintData.printer" class="w-40 px-2.5 py-1 border border-slate-200 rounded text-xs">
+                        <option value="Laser">Laser</option>
+                        <option value="Thermal">Thermal</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <span class="font-semibold text-slate-700">Print Format</span>
+                    <div class="flex items-center gap-4">
+                        <label class="flex items-center gap-1.5 cursor-pointer">
+                            <input type="radio" value="Format-1" x-model="milkSalePrintData.format" class="text-[#005c53]">
+                            <span>Format-1</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer">
+                            <input type="radio" value="Format-2" x-model="milkSalePrintData.format" class="text-[#005c53]">
+                            <span>Format-2</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Note</label>
+                    <input type="text" x-model="milkSalePrintData.note" placeholder="Enter Note" class="w-full px-3 py-1.5 border border-slate-200 rounded text-xs">
+                </div>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveMilkSalePrintSetting()" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==================== OTHER SETTINGS MODALS ==================== -->
+
+    <!-- Modal: Bank Details (Other Settings) -->
+    <div x-show="modal === 'otherBankDetailsModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Bank Details</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="bank_det_radio" value="On" x-model="selectedOtherBankDetails" class="text-[#005c53]">
+                    <span>On</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="bank_det_radio" value="Off" x-model="selectedOtherBankDetails" class="text-[#005c53]">
+                    <span>Off</span>
+                </label>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('other_bank_details', selectedOtherBankDetails, 'otherBankDetailsModal')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Weighing Scale Format (Other Settings) -->
+    <div x-show="modal === 'weighingScaleModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Weighing Scale Format</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="ws_format_radio" value="As per Weighing Scale" x-model="selectedWeighingScaleFormat" class="text-[#005c53]">
+                    <span>As per Weighing Scale</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="ws_format_radio" value="Zero digit (00)" x-model="selectedWeighingScaleFormat" class="text-[#005c53]">
+                    <span>Zero digit (00)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="ws_format_radio" value="One digit (00.0)" x-model="selectedWeighingScaleFormat" class="text-[#005c53]">
+                    <span>One digit (00.0)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="ws_format_radio" value="Two digit (00.00)" x-model="selectedWeighingScaleFormat" class="text-[#005c53]">
+                    <span>Two digit (00.00)</span>
+                </label>
+                <p class="text-[11px] text-rose-500 font-semibold pt-1">
+                    This option is applicable only if Auto/Online input from weighing scale is in use
+                </p>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('weighing_scale_format', selectedWeighingScaleFormat, 'weighingScaleModal')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: CLR/Lacto Format (Other Settings) -->
+    <div x-show="modal === 'clrLactoModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>CLR/Lacto Format</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="clr_lacto_radio" value="As per analyser" x-model="selectedClrLactoFormat" class="text-[#005c53]">
+                    <span>As per analyser</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="clr_lacto_radio" value="One digit(00)" x-model="selectedClrLactoFormat" class="text-[#005c53]">
+                    <span>One digit(00)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="clr_lacto_radio" value="Step (00.5)" x-model="selectedClrLactoFormat" class="text-[#005c53]">
+                    <span>Step (00.5)</span>
+                </label>
+                <p class="text-[11px] text-rose-500 font-semibold pt-1">
+                    This option is applicable only if Auto/Online input from Milk Analyzer is in use
+                </p>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('clr_lacto_format', selectedClrLactoFormat, 'clrLactoModal')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Contact Details (Other Settings) -->
+    <div x-show="modal === 'contactDetailsModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Contact Details</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3.5 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Name <span class="text-rose-500">*</span></label>
+                    <input type="text" x-model="contactDetailsData.name" class="w-full px-3 py-1.5 border border-slate-200 rounded text-xs" placeholder="Owner Name">
+                    <p class="text-[10px] text-rose-500 mt-0.5">this field should not be empty.</p>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Phone Number <span class="text-rose-500">*</span></label>
+                    <input type="text" x-model="contactDetailsData.phone" class="w-full px-3 py-1.5 border border-slate-200 rounded text-xs" placeholder="Mobile Number">
+                    <p class="text-[10px] text-rose-500 mt-0.5">this field should not be empty.</p>
+                </div>
+
+                <p class="text-[11px] text-rose-500 leading-tight">
+                    Contact information to be printed on invoice print. If left blank, center owner name and mobile number will be printed.
+                </p>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveContactDetails()" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: FAT Format (Other Settings) -->
+    <div x-show="modal === 'fatFormatModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>FAT Format</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="fat_format_radio" value="Round Down" x-model="selectedFatFormat" class="text-[#005c53]">
+                    <span>Round Down</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="fat_format_radio" value="Round Up" x-model="selectedFatFormat" class="text-[#005c53]">
+                    <span>Round Up</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="fat_format_radio" value="Round" x-model="selectedFatFormat" class="text-[#005c53]">
+                    <span>Round</span>
+                </label>
+                <p class="text-[11px] text-rose-500 font-semibold pt-1">
+                    This option is applicable only if Auto/Online input from Milk Analyzer is in use
+                </p>
+                <div class="text-[10px] text-slate-500 leading-tight">
+                    <p>Examples:</p>
+                    <p>Round Up: 5.51 -> 5.6</p>
+                    <p>Round Down: 5.59 -> 5.5</p>
+                    <p>Round: 5.51 -> 5.5, 5.55 -> 5.6</p>
+                </div>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('fat_format', selectedFatFormat, 'fatFormatModal')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: SNF Format (Other Settings) -->
+    <div x-show="modal === 'snfFormatModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>SNF Format</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="snf_format_radio" value="Round Down" x-model="selectedSnfFormat" class="text-[#005c53]">
+                    <span>Round Down</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="snf_format_radio" value="Round Up" x-model="selectedSnfFormat" class="text-[#005c53]">
+                    <span>Round Up</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="snf_format_radio" value="Round" x-model="selectedSnfFormat" class="text-[#005c53]">
+                    <span>Round</span>
+                </label>
+                <p class="text-[11px] text-rose-500 font-semibold pt-1">
+                    This option is applicable only if Auto/Online input from Milk Analyzer is in use
+                </p>
+                <div class="text-[10px] text-slate-500 leading-tight">
+                    <p>Examples:</p>
+                    <p>Round Up: 5.51 -> 5.6</p>
+                    <p>Round Down: 5.59 -> 5.5</p>
+                    <p>Round: 5.51 -> 5.5, 5.55 -> 5.6</p>
+                </div>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('snf_format', selectedSnfFormat, 'snfFormatModal')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Computer Login (Other Settings) -->
+    <div x-show="modal === 'computerLoginModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Computer Login</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="comp_login_radio" value="On" x-model="selectedComputerLogin" class="text-[#005c53]">
+                    <span>On</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="comp_login_radio" value="Off" x-model="selectedComputerLogin" class="text-[#005c53]">
+                    <span>Off</span>
+                </label>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('computer_login', selectedComputerLogin, 'computerLoginModal')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Center Logo (Other Settings) -->
+    <div x-show="modal === 'centerLogoModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Center Logo</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-6 space-y-4 text-xs text-center">
+                <div class="w-28 h-28 mx-auto border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center bg-slate-50 text-slate-400 cursor-pointer hover:border-[#005c53]">
+                    <span class="text-3xl font-light text-slate-400">+</span>
+                </div>
+                <p class="text-[11px] text-rose-500 font-semibold">
+                    This logo will be printed on bill print
+                </p>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="modal = null" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Annual Bonus Print Setting (Other Settings) -->
+    <div x-show="modal === 'annualBonusPrintModal'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-2xl w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Annual Bonus Print Setting</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-6 space-y-3.5 text-xs max-h-[75vh] overflow-y-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Print Language</span>
+                            <select x-model="annualBonusData.language" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs">
+                                <option value="English">English</option>
+                                <option value="Hindi">Hindi</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Per Paper</span>
+                            <select x-model="annualBonusData.per_paper" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs">
+                                <option value="One Bill">One Bill</option>
+                                <option value="Two Bill">Two Bill</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Advance Details</span>
+                            <select x-model="annualBonusData.advance_details" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs">
+                                <option value="On">On</option>
+                                <option value="Off">Off</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Previous Date</span>
+                            <select x-model="annualBonusData.previous_date" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs">
+                                <option value="On">On</option>
+                                <option value="Off">Off</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Previous Upcoming Balance</span>
+                            <select x-model="annualBonusData.previous_upcoming_balance" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs">
+                                <option value="On">On</option>
+                                <option value="Off">Off</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Amount Column</span>
+                            <select x-model="annualBonusData.amount_column" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs">
+                                <option value="On">On</option>
+                                <option value="Off">Off</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Return Details</span>
+                            <select x-model="annualBonusData.return_details" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs">
+                                <option value="On">On</option>
+                                <option value="Off">Off</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Details Order By</span>
+                            <select x-model="annualBonusData.order_by" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs">
+                                <option value="Order By Date - Descending">Order By Date - Descending</option>
+                                <option value="Order By Date - Ascending">Order By Date - Ascending</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 items-center gap-2">
+                            <span class="font-semibold text-slate-700">Bill Note</span>
+                            <input type="text" x-model="annualBonusData.bill_note" class="w-full px-2.5 py-1 border border-slate-200 rounded text-xs" placeholder="Enter Greeting">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveAnnualBonusSetting()" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal 12: Add Center User -->
     <div x-show="showAddUserModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
         <div @click.away="showAddUserModal = false" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
@@ -1919,6 +2483,64 @@ function centerInformationApp() {
         selectedShowCollectionAfterShiftFinish: {!! json_encode($settings["show_collection_after_shift_finish"] ?? "Off") !!},
         hideCollectionRate: {!! json_encode($settings["hide_collection_rate_farmer_app"] ?? "On") !!},
         selectedHideCollectionRate: {!! json_encode($settings["hide_collection_rate_farmer_app"] ?? "On") !!},
+
+        // Milk Sale Settings Values
+        milkSaleBillingPeriod: {!! json_encode($settings["milk_sale_billing_period"] ?? "01-10, 11-20, 21-ME") !!},
+        selectedMilkSaleBillingPeriod: {!! json_encode($settings["milk_sale_billing_period"] ?? "01-10, 11-20, 21-ME") !!},
+        milkSaleBillingPeriodOptions: [
+            '01-10, 11-20, 21-ME',
+            '01-15, 16-ME',
+            '01-ME',
+            '01-05, 06-10, 11-15, 16-20, 21-25, 26-ME',
+            '05-15, 16-25, 26-05',
+            'Monday',
+            'Tuesday',
+            'Wednesday',
+            'Thursday',
+            'Friday',
+            'Saturday',
+            'Sunday'
+        ],
+        milkSalePrintFormat: {!! json_encode($settings["milk_sale_print_format"] ?? "Not Available") !!},
+        milkSalePrintData: {
+            language: '{{ $settings["milk_sale_print_language"] ?? "English" }}',
+            number_in_language: '{{ $settings["milk_sale_print_number_in_lang"] ?? "On" }}',
+            printer: '{{ $settings["milk_sale_print_printer"] ?? "Laser" }}',
+            format: '{{ $settings["milk_sale_print_format_type"] ?? "Format-1" }}',
+            note: '{{ $settings["milk_sale_print_note"] ?? "" }}'
+        },
+
+        // Other Settings Values
+        otherBankDetails: {!! json_encode($settings["other_bank_details"] ?? "On") !!},
+        selectedOtherBankDetails: {!! json_encode($settings["other_bank_details"] ?? "On") !!},
+        weighingScaleFormat: {!! json_encode($settings["weighing_scale_format"] ?? "One digit (00.0)") !!},
+        selectedWeighingScaleFormat: {!! json_encode($settings["weighing_scale_format"] ?? "One digit (00.0)") !!},
+        clrLactoFormat: {!! json_encode($settings["clr_lacto_format"] ?? "One digit(00)") !!},
+        selectedClrLactoFormat: {!! json_encode($settings["clr_lacto_format"] ?? "One digit(00)") !!},
+        contactDetailsSummary: {!! json_encode($settings["contact_details_summary"] ?? "Owner Name: Mobile") !!},
+        contactDetailsData: {
+            name: '{{ $settings["contact_details_name"] ?? ($center->operator->name ?? "Owner Name") }}',
+            phone: '{{ $settings["contact_details_phone"] ?? ($center->operator->phone ?? "9876543210") }}'
+        },
+        fatFormat: {!! json_encode($settings["fat_format"] ?? "Round Down") !!},
+        selectedFatFormat: {!! json_encode($settings["fat_format"] ?? "Round Down") !!},
+        snfFormat: {!! json_encode($settings["snf_format"] ?? "Round Down") !!},
+        selectedSnfFormat: {!! json_encode($settings["snf_format"] ?? "Round Down") !!},
+        computerLogin: {!! json_encode($settings["computer_login"] ?? "On") !!},
+        selectedComputerLogin: {!! json_encode($settings["computer_login"] ?? "On") !!},
+        centerLogoStatus: {!! json_encode($settings["center_logo_status"] ?? "Center Logo") !!},
+        annualBonusPrintStatus: {!! json_encode($settings["annual_bonus_print_status"] ?? "Not Available") !!},
+        annualBonusData: {
+            language: '{{ $settings["annual_bonus_language"] ?? "English" }}',
+            per_paper: '{{ $settings["annual_bonus_per_paper"] ?? "One Bill" }}',
+            advance_details: '{{ $settings["annual_bonus_adv_details"] ?? "On" }}',
+            previous_date: '{{ $settings["annual_bonus_prev_date"] ?? "On" }}',
+            previous_upcoming_balance: '{{ $settings["annual_bonus_prev_upcoming"] ?? "On" }}',
+            amount_column: '{{ $settings["annual_bonus_amt_col"] ?? "On" }}',
+            return_details: '{{ $settings["annual_bonus_return_det"] ?? "On" }}',
+            order_by: '{{ $settings["annual_bonus_order_by"] ?? "Order By Date - Descending" }}',
+            bill_note: '{{ $settings["annual_bonus_note"] ?? "" }}'
+        },
 
         // Radio & Form states
         collectionTypeOptions: [
@@ -2174,6 +2796,96 @@ function centerInformationApp() {
             } catch (err) {
                 console.error(err);
                 alert('Error saving shift wise rate');
+            }
+        },
+
+        async saveMilkSalePrintSetting() {
+            try {
+                const response = await fetch('{{ route("settings.center-information.save") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        milk_sale_print_language: this.milkSalePrintData.language,
+                        milk_sale_print_number_in_lang: this.milkSalePrintData.number_in_language,
+                        milk_sale_print_printer: this.milkSalePrintData.printer,
+                        milk_sale_print_format_type: this.milkSalePrintData.format,
+                        milk_sale_print_note: this.milkSalePrintData.note,
+                        milk_sale_print_format: (this.milkSalePrintData.printer || 'Laser') + ' ' + (this.milkSalePrintData.format || 'Format-1')
+                    })
+                });
+                const res = await response.json();
+                if (res.success) {
+                    this.milkSalePrintFormat = (this.milkSalePrintData.printer || 'Laser') + ' ' + (this.milkSalePrintData.format || 'Format-1');
+                    this.modal = null;
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error saving milk sale print settings');
+            }
+        },
+
+        async saveContactDetails() {
+            if (!this.contactDetailsData.name || !this.contactDetailsData.phone) {
+                alert('Name and Mobile Number cannot be empty');
+                return;
+            }
+            try {
+                const summary = this.contactDetailsData.name + ': ' + this.contactDetailsData.phone;
+                const response = await fetch('{{ route("settings.center-information.save") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        contact_details_name: this.contactDetailsData.name,
+                        contact_details_phone: this.contactDetailsData.phone,
+                        contact_details_summary: summary
+                    })
+                });
+                const res = await response.json();
+                if (res.success) {
+                    this.contactDetailsSummary = summary;
+                    this.modal = null;
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error saving contact details');
+            }
+        },
+
+        async saveAnnualBonusSetting() {
+            try {
+                const response = await fetch('{{ route("settings.center-information.save") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        annual_bonus_language: this.annualBonusData.language,
+                        annual_bonus_per_paper: this.annualBonusData.per_paper,
+                        annual_bonus_adv_details: this.annualBonusData.advance_details,
+                        annual_bonus_prev_date: this.annualBonusData.previous_date,
+                        annual_bonus_prev_upcoming: this.annualBonusData.previous_upcoming_balance,
+                        annual_bonus_amt_col: this.annualBonusData.amount_column,
+                        annual_bonus_return_det: this.annualBonusData.return_details,
+                        annual_bonus_order_by: this.annualBonusData.order_by,
+                        annual_bonus_note: this.annualBonusData.bill_note,
+                        annual_bonus_print_status: 'Configured'
+                    })
+                });
+                const res = await response.json();
+                if (res.success) {
+                    this.annualBonusPrintStatus = 'Configured';
+                    this.modal = null;
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error saving annual bonus print settings');
             }
         }
     }
