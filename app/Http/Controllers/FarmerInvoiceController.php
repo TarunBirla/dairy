@@ -23,6 +23,7 @@ class FarmerInvoiceController extends Controller
 
     /**
      * Resiliently ensure farmer_invoices table exists on the database
+     * and clean up any duplicate constructor-seeded sample advances.
      */
     private function ensureTableExists(): void
     {
@@ -52,9 +53,135 @@ class FarmerInvoiceController extends Controller
                     $table->timestamps();
                 });
             }
+
+            if (Schema::hasTable('farmer_advances')) {
+                $seededPurposes = [
+                    '-PAID BY DR',
+                    'Emergency Advance',
+                    'Cattle Feed loan',
+                    'Seasonal Festival Advance',
+                    'Full Cleared Loan',
+                ];
+                \DB::table('farmer_advances')
+                    ->whereIn('voucher_no', ['001', '002', '003', '004', '005'])
+                    ->whereIn('purpose', $seededPurposes)
+                    ->delete();
+            }
         } catch (\Throwable $e) {
             // Ignore in constructor
         }
+    }
+
+    /**
+     * Calculate accurate period billing figures for a farmer.
+     * Ensures:
+     *   Total Deduction (A) = Stationary + Feed + In Hand Advance
+     *   Total Amount (B+C)  = Total Credit (B) + Milk Amount (C)
+     *   Balance             = max(0, A - (B + C))  (remaining unpaid deduction balance)
+     *   Payment (B+C-A)     = max(0, (B + C) - A)  (net payable amount to farmer)
+     */
+    private function calculateInvoiceMetrics(int $farmerId, string $startDate, string $endDate): array
+    {
+        $collections = MilkCollection::where('farmer_id', $farmerId)
+            ->whereBetween('collection_date', [$startDate, $endDate])
+            ->get();
+
+        $totalQuantity = round((float) $collections->sum('quantity_liters'), 2);
+        $milkAmount = round((float) $collections->sum(function ($c) {
+            $net = (float) $c->net_amount;
+            if ($net > 0) {
+                return $net;
+            }
+            $rate = (float) ($c->applied_rate ?: $c->calculated_rate ?: 0);
+            return round((float) $c->quantity_liters * $rate, 2);
+        }), 2);
+
+        $feedDeduction = 0.00;
+        $stationaryDeduction = 0.00;
+        $advanceFromDeductions = 0.00;
+        $totalCredit = 0.00;
+
+        if (Schema::hasTable('farmer_deductions')) {
+            $deductions = FarmerDeduction::where('farmer_id', $farmerId)
+                ->whereBetween('entry_date', [$startDate, $endDate])
+                ->get();
+
+            $given = $deductions->where('transaction_type', 'given');
+            $feedDeduction = round((float) $given->where('deduction_type', 'cattle_feed')->sum('amount'), 2);
+            $advanceFromDeductions = round((float) $given->where('deduction_type', 'advance_recovery')->sum('amount'), 2);
+            $stationaryDeduction = round((float) $given->whereNotIn('deduction_type', ['cattle_feed', 'advance_recovery'])->sum('amount'), 2);
+            $totalCredit = round((float) $deductions->where('transaction_type', 'received')->sum('amount'), 2);
+        }
+
+        $advanceFromLoans = 0.00;
+        if (Schema::hasTable('farmer_advances')) {
+            $advances = FarmerAdvance::where('farmer_id', $farmerId)
+                ->whereBetween('advance_date', [$startDate, $endDate])
+                ->where('status', '!=', 'recovered')
+                ->get();
+
+            $advanceFromLoans = round((float) $advances->sum(function ($adv) {
+                return (float) $adv->principal_balance;
+            }), 2);
+        }
+
+        $advanceDeduction = round($advanceFromLoans + $advanceFromDeductions, 2);
+        $otherDeduction = 0.00;
+
+        // A = Stationary + Feed + In Hand Advance
+        $totalDeduction = round($stationaryDeduction + $feedDeduction + $advanceDeduction, 2);
+
+        // B + C = Total Credit (B) + Milk Amount (C)
+        $totalAmount = round($totalCredit + $milkAmount, 2);
+
+        // Balance = Remaining unpaid deduction if A > (B + C), else 0.00
+        $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);
+
+        // Payment (B+C-A) = Net payable amount if (B + C) >= A, else 0.00
+        $netPayment = round(max(0, $totalAmount - $totalDeduction), 2);
+
+        return [
+            'total_quantity' => $totalQuantity,
+            'milk_amount' => $milkAmount,
+            'stationary_deduction' => $stationaryDeduction,
+            'feed_deduction' => $feedDeduction,
+            'advance_deduction' => $advanceDeduction,
+            'other_deduction' => $otherDeduction,
+            'total_deduction' => $totalDeduction,
+            'total_credit' => $totalCredit,
+            'total_amount' => $totalAmount,
+            'previous_balance' => $previousBalance,
+            'net_payment' => $netPayment,
+        ];
+    }
+
+    /**
+     * Synchronize a FarmerInvoice record with live collections, deductions, and advances.
+     */
+    private function syncInvoice(FarmerInvoice $invoice): FarmerInvoice
+    {
+        $start = $invoice->period_start instanceof Carbon
+            ? $invoice->period_start->format('Y-m-d')
+            : Carbon::parse($invoice->period_start)->format('Y-m-d');
+        $end = $invoice->period_end instanceof Carbon
+            ? $invoice->period_end->format('Y-m-d')
+            : Carbon::parse($invoice->period_end)->format('Y-m-d');
+
+        $metrics = $this->calculateInvoiceMetrics((int) $invoice->farmer_id, $start, $end);
+
+        $needsUpdate = false;
+        foreach ($metrics as $key => $val) {
+            if (round((float) $invoice->{$key}, 2) !== round((float) $val, 2)) {
+                $needsUpdate = true;
+                break;
+            }
+        }
+
+        if ($needsUpdate) {
+            $invoice->update($metrics);
+        }
+
+        return $invoice;
     }
 
     /**
@@ -85,6 +212,19 @@ class FarmerInvoiceController extends Controller
 
         if (!empty($invoiceSearch)) {
             $query->where('invoice_number', 'like', "%{$invoiceSearch}%");
+        }
+
+        // Deduplicate overlapping 'generated' invoices for the same farmer & period_start (keep latest)
+        $matchingInvoices = (clone $query)->orderBy('id', 'desc')->get();
+        $seenFarmerPeriod = [];
+        foreach ($matchingInvoices as $inv) {
+            $key = $inv->farmer_id . '_' . ($inv->period_start instanceof Carbon ? $inv->period_start->format('Y-m-d') : $inv->period_start);
+            if ($inv->status === 'generated' && isset($seenFarmerPeriod[$key])) {
+                $inv->delete();
+                continue;
+            }
+            $seenFarmerPeriod[$key] = true;
+            $this->syncInvoice($inv);
         }
 
         $invoices = $query->latest('id')->paginate($perPage)->withQueryString();
@@ -149,73 +289,42 @@ class FarmerInvoiceController extends Controller
         $generatedCount = 0;
 
         foreach ($farmers as $farmer) {
-            // Find milk collections for this period
-            $collections = MilkCollection::where('farmer_id', $farmer->id)
-                ->whereBetween('collection_date', [$startDate, $endDate])
-                ->get();
-
-            $totalQuantity = (float) $collections->sum('quantity_liters');
-            $milkAmount = (float) $collections->sum('net_amount');
-
-            // Find deductions for this period
-            $feedDeduction = 0.00;
-            $stationaryDeduction = 0.00;
-            $otherDeduction = 0.00;
-            $totalCredit = 0.00;
-
-            if (Schema::hasTable('farmer_deductions')) {
-                $deductions = FarmerDeduction::where('farmer_id', $farmer->id)
-                    ->whereBetween('entry_date', [$startDate, $endDate])
-                    ->get();
-
-                $feedDeduction = (float) $deductions->where('deduction_type', 'cattle_feed')->where('transaction_type', 'given')->sum('amount');
-                $stationaryDeduction = (float) $deductions->where('deduction_type', 'stationary')->where('transaction_type', 'given')->sum('amount');
-                $otherDeduction = (float) $deductions->whereNotIn('deduction_type', ['cattle_feed', 'stationary'])->where('transaction_type', 'given')->sum('amount');
-                $totalCredit = (float) $deductions->where('transaction_type', 'received')->sum('amount');
-            }
-
-            // Find in-hand advances issued
-            $advanceDeduction = (float) FarmerAdvance::where('farmer_id', $farmer->id)
-                ->whereBetween('advance_date', [$startDate, $endDate])
-                ->sum('amount');
-
-            $totalDeduction = $stationaryDeduction + $feedDeduction + $advanceDeduction + $otherDeduction;
-            $totalAmount = $milkAmount + $totalCredit;
-            $previousBalance = (float) $farmer->current_balance;
-            $netPayment = max(0, $totalAmount - $totalDeduction);
+            $metrics = $this->calculateInvoiceMetrics((int) $farmer->id, $startDate, $endDate);
 
             // Skip farmers with no activity at all
-            if ($totalQuantity == 0 && $milkAmount == 0 && $totalDeduction == 0) {
+            if ($metrics['total_quantity'] == 0 && $metrics['milk_amount'] == 0 && $metrics['total_deduction'] == 0 && $metrics['total_credit'] == 0) {
                 continue;
             }
 
-            // Generate unique sequential invoice number
-            $invNum = 'BILL-' . str_pad((FarmerInvoice::max('id') + 101), 4, '0', STR_PAD_LEFT);
+            // Find existing generated invoice for same farmer & period_start to avoid duplicate overlapping bills
+            $existing = FarmerInvoice::where('farmer_id', $farmer->id)
+                ->whereDate('period_start', $startDate)
+                ->orderBy('id', 'desc')
+                ->first();
 
-            // Update or Create
-            FarmerInvoice::updateOrCreate(
-                [
+            if ($existing) {
+                $existing->update(array_merge($metrics, [
+                    'period_end' => $endDate,
+                    'status' => 'generated',
+                    'created_by' => Auth::id(),
+                ]));
+                // Remove any older duplicate bills for same farmer & period_start
+                FarmerInvoice::where('farmer_id', $farmer->id)
+                    ->whereDate('period_start', $startDate)
+                    ->where('id', '!=', $existing->id)
+                    ->where('status', 'generated')
+                    ->delete();
+            } else {
+                $invNum = 'BILL-' . str_pad((FarmerInvoice::max('id') + 101), 4, '0', STR_PAD_LEFT);
+                FarmerInvoice::create(array_merge($metrics, [
                     'farmer_id' => $farmer->id,
                     'period_start' => $startDate,
                     'period_end' => $endDate,
-                ],
-                [
                     'invoice_number' => $invNum,
-                    'total_quantity' => $totalQuantity,
-                    'milk_amount' => $milkAmount,
-                    'stationary_deduction' => $stationaryDeduction,
-                    'feed_deduction' => $feedDeduction,
-                    'advance_deduction' => $advanceDeduction,
-                    'other_deduction' => $otherDeduction,
-                    'total_deduction' => $totalDeduction,
-                    'total_credit' => $totalCredit,
-                    'total_amount' => $totalAmount,
-                    'previous_balance' => $previousBalance,
-                    'net_payment' => $netPayment,
                     'status' => 'generated',
                     'created_by' => Auth::id(),
-                ]
-            );
+                ]));
+            }
 
             $generatedCount++;
         }
@@ -236,6 +345,7 @@ class FarmerInvoiceController extends Controller
      */
     public function show(FarmerInvoice $invoice)
     {
+        $this->syncInvoice($invoice);
         $invoice->load(['farmer', 'creator']);
         $farmer = $invoice->farmer;
 
@@ -257,6 +367,7 @@ class FarmerInvoiceController extends Controller
      */
     public function previewData(FarmerInvoice $invoice)
     {
+        $this->syncInvoice($invoice);
         $invoice->load('farmer');
         $farmer = $invoice->farmer;
 
@@ -296,6 +407,7 @@ class FarmerInvoiceController extends Controller
      */
     public function print(FarmerInvoice $invoice)
     {
+        $this->syncInvoice($invoice);
         $invoice->load('farmer');
         $farmer = $invoice->farmer;
         $collections = $invoice->milk_collections;
@@ -321,7 +433,9 @@ class FarmerInvoiceController extends Controller
             $query->whereIn('id', $ids);
         }
 
-        $invoices = $query->get();
+        $invoices = $query->get()->map(function ($inv) {
+            return $this->syncInvoice($inv);
+        });
         $totalPayment = $invoices->sum('net_payment');
 
         return view('farmers.invoices.bank_payment_print', compact('invoices', 'startDate', 'endDate', 'totalPayment'));
@@ -338,7 +452,10 @@ class FarmerInvoiceController extends Controller
         $invoices = FarmerInvoice::with('farmer')
             ->whereDate('period_start', '>=', $startDate)
             ->whereDate('period_end', '<=', $endDate)
-            ->get();
+            ->get()
+            ->map(function ($inv) {
+                return $this->syncInvoice($inv);
+            });
 
         $headers = [
             'Content-Type' => 'text/csv; charset=UTF-8',

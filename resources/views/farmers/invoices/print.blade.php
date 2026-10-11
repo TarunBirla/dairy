@@ -105,9 +105,9 @@
                             <td class="py-1.5 px-2.5 border-r border-slate-100 capitalize">{{ $c->shift }}</td>
                             <td class="py-1.5 px-2.5 border-r border-slate-100 capitalize">{{ $c->milk_type }}</td>
                             <td class="py-1.5 px-2.5 border-r border-slate-100 text-right font-mono font-bold text-slate-900">{{ number_format($c->quantity_liters, 2) }}</td>
-                            <td class="py-1.5 px-2.5 border-r border-slate-100 text-right font-mono">{{ number_format($c->fat_percentage, 1) }}</td>
-                            <td class="py-1.5 px-2.5 border-r border-slate-100 text-right font-mono">{{ $c->clr_reading ? number_format($c->clr_reading, 1) : ($c->snf_percentage ? number_format($c->snf_percentage, 1) : '-') }}</td>
-                            <td class="py-1.5 px-2.5 border-r border-slate-100 text-right font-mono">{{ number_format($c->rate_per_liter, 2) }}</td>
+                            <td class="py-1.5 px-2.5 border-r border-slate-100 text-right font-mono">{{ number_format($c->fat ?? $c->fat_percentage ?? 0, 1) }}</td>
+                            <td class="py-1.5 px-2.5 border-r border-slate-100 text-right font-mono">{{ ($c->clr ?? $c->clr_reading) ? number_format($c->clr ?? $c->clr_reading, 1) : '-' }} / {{ ($c->snf ?? $c->snf_percentage) ? number_format($c->snf ?? $c->snf_percentage, 1) : '-' }}</td>
+                            <td class="py-1.5 px-2.5 border-r border-slate-100 text-right font-mono">{{ number_format($c->applied_rate ?? $c->calculated_rate ?? $c->rate_per_liter ?? 0, 2) }}</td>
                             <td class="py-1.5 px-2.5 text-right font-mono font-bold text-slate-900">{{ number_format($c->net_amount, 2) }}</td>
                         </tr>
                     @empty
@@ -144,7 +144,7 @@
                         <tr>
                             <td class="py-1.5 px-2.5 border-r border-slate-100 font-mono">{{ \Carbon\Carbon::parse($d->entry_date)->format('d/m/Y') }}</td>
                             <td class="py-1.5 px-2.5 border-r border-slate-100 capitalize font-medium">{{ str_replace('_', ' ', $d->deduction_type) }}</td>
-                            <td class="py-1.5 px-2.5 border-r border-slate-100 text-slate-500">{{ $d->remarks ?? '-' }}</td>
+                            <td class="py-1.5 px-2.5 border-r border-slate-100 text-slate-500">{{ $d->comments ?? $d->remarks ?? '-' }}</td>
                             <td class="py-1.5 px-2.5 text-right font-mono font-bold {{ $d->transaction_type === 'received' ? 'text-amber-700' : 'text-rose-700' }}">
                                 {{ $d->transaction_type === 'received' ? '+ ₹' : '- ₹' }}{{ number_format($d->amount, 2) }}
                             </td>

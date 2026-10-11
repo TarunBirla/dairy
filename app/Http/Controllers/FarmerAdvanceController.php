@@ -51,6 +51,19 @@ class FarmerAdvanceController extends Controller
                 if (Schema::hasColumn('farmer_advances', 'deleted_at')) {
                     \DB::table('farmer_advances')->whereNotNull('deleted_at')->update(['deleted_at' => null]);
                 }
+
+                // Clean up duplicate constructor-seeded sample advances (001-005)
+                $seededPurposes = [
+                    '-PAID BY DR',
+                    'Emergency Advance',
+                    'Cattle Feed loan',
+                    'Seasonal Festival Advance',
+                    'Full Cleared Loan',
+                ];
+                \DB::table('farmer_advances')
+                    ->whereIn('voucher_no', ['001', '002', '003', '004', '005'])
+                    ->whereIn('purpose', $seededPurposes)
+                    ->delete();
             }
 
             if (!Schema::hasTable('farmer_advance_repayments')) {

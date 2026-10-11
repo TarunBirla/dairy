@@ -70,17 +70,50 @@ class FarmerInvoice extends Model
     }
 
     /**
-     * Get deductions within invoice billing period
+     * Get deductions (including in-hand advances) within invoice billing period
      */
     public function getDeductionsListAttribute()
     {
+        $items = collect();
+
         if (\Illuminate\Support\Facades\Schema::hasTable('farmer_deductions')) {
-            return FarmerDeduction::where('farmer_id', $this->farmer_id)
+            $deductions = FarmerDeduction::where('farmer_id', $this->farmer_id)
                 ->whereBetween('entry_date', [$this->period_start, $this->period_end])
                 ->latest('entry_date')
-                ->get();
+                ->get()
+                ->map(function ($d) {
+                    if (empty($d->remarks) && !empty($d->comments)) {
+                        $d->remarks = $d->comments;
+                    }
+                    return $d;
+                });
+            $items = $items->concat($deductions);
         }
-        return collect();
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('farmer_advances')) {
+            $advances = FarmerAdvance::where('farmer_id', $this->farmer_id)
+                ->whereBetween('advance_date', [$this->period_start, $this->period_end])
+                ->where('status', '!=', 'recovered')
+                ->latest('advance_date')
+                ->get();
+
+            foreach ($advances as $adv) {
+                $bal = (float) $adv->principal_balance;
+                if ($bal > 0) {
+                    $items->push((object) [
+                        'id' => 'adv-' . $adv->id,
+                        'entry_date' => $adv->advance_date ? $adv->advance_date->format('Y-m-d') : null,
+                        'deduction_type' => 'in_hand_advance',
+                        'transaction_type' => 'given',
+                        'amount' => $bal,
+                        'comments' => ($adv->voucher_no ? "Voucher #{$adv->voucher_no} - " : '') . ($adv->purpose ?: ($adv->notes ?: 'In Hand Advance')),
+                        'remarks' => ($adv->voucher_no ? "Voucher #{$adv->voucher_no} - " : '') . ($adv->purpose ?: ($adv->notes ?: 'In Hand Advance')),
+                    ]);
+                }
+            }
+        }
+
+        return $items;
     }
 
     /**

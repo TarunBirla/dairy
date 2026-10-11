@@ -100,9 +100,9 @@
                                     </td>
                                     <td class="py-2 px-3 capitalize font-medium">{{ $c->milk_type }}</td>
                                     <td class="py-2 px-3 text-right font-mono font-bold text-sky-900">{{ number_format($c->quantity_liters, 2) }}</td>
-                                    <td class="py-2 px-3 text-right font-mono">{{ number_format($c->fat_percentage, 1) }}%</td>
-                                    <td class="py-2 px-3 text-right font-mono text-slate-500">{{ $c->clr_reading ? number_format($c->clr_reading, 1) : ($c->snf_percentage ? number_format($c->snf_percentage, 1) : '-') }}</td>
-                                    <td class="py-2 px-3 text-right font-mono">₹{{ number_format($c->rate_per_liter, 2) }}</td>
+                                    <td class="py-2 px-3 text-right font-mono">{{ number_format($c->fat ?? $c->fat_percentage ?? 0, 1) }}%</td>
+                                    <td class="py-2 px-3 text-right font-mono text-slate-500">{{ ($c->clr ?? $c->clr_reading) ? number_format($c->clr ?? $c->clr_reading, 1) : '-' }} / {{ ($c->snf ?? $c->snf_percentage) ? number_format($c->snf ?? $c->snf_percentage, 1) : '-' }}</td>
+                                    <td class="py-2 px-3 text-right font-mono">₹{{ number_format($c->applied_rate ?? $c->calculated_rate ?? $c->rate_per_liter ?? 0, 2) }}</td>
                                     <td class="py-2 px-3 text-right font-mono font-bold text-slate-900">₹{{ number_format($c->net_amount, 2) }}</td>
                                 </tr>
                             @empty
@@ -155,7 +155,7 @@
                                 <tr class="hover:bg-slate-50/70">
                                     <td class="py-2 px-3 font-medium">{{ \Carbon\Carbon::parse($d->entry_date)->format('d M Y') }}</td>
                                     <td class="py-2 px-3 capitalize font-semibold text-slate-800">{{ str_replace('_', ' ', $d->deduction_type) }}</td>
-                                    <td class="py-2 px-3 text-slate-500">{{ $d->remarks ?? '-' }}</td>
+                                    <td class="py-2 px-3 text-slate-500">{{ $d->comments ?? $d->remarks ?? '-' }}</td>
                                     <td class="py-2 px-3 text-right font-mono font-bold {{ $d->transaction_type === 'received' ? 'text-amber-700' : 'text-rose-700' }}">
                                         {{ $d->transaction_type === 'received' ? '+ ₹' : '- ₹' }}{{ number_format($d->amount, 2) }}
                                     </td>
@@ -197,7 +197,7 @@
                                 @foreach($cattleFeeds as $cf)
                                     <tr>
                                         <td class="py-2 px-3 font-medium">{{ \Carbon\Carbon::parse($cf->entry_date)->format('d M Y') }}</td>
-                                        <td class="py-2 px-3 text-slate-600">{{ $cf->remarks ?? 'Cattle Feed' }}</td>
+                                        <td class="py-2 px-3 text-slate-600">{{ $cf->comments ?? $cf->remarks ?? 'Cattle Feed' }}</td>
                                         <td class="py-2 px-3 text-right font-mono font-bold text-rose-700">-₹{{ number_format($cf->amount, 2) }}</td>
                                     </tr>
                                 @endforeach

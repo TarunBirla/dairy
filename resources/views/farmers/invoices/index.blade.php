@@ -538,16 +538,21 @@
                 let collectionsRows = '';
                 if (data.collections && data.collections.length > 0) {
                     data.collections.forEach(c => {
+                        const fatVal = c.fat !== undefined && c.fat !== null ? c.fat : (c.fat_percentage || 0);
+                        const clrVal = c.clr !== undefined && c.clr !== null ? c.clr : c.clr_reading;
+                        const snfVal = c.snf !== undefined && c.snf !== null ? c.snf : c.snf_percentage;
+                        const rateVal = c.applied_rate !== undefined && c.applied_rate !== null ? c.applied_rate : (c.calculated_rate || c.rate_per_liter || 0);
+                        const dateStr = (c.collection_date || '-').toString().substring(0, 10);
                         collectionsRows += `
                             <tr class="border-b border-slate-100 text-slate-700">
-                                <td class="py-1.5 px-2">${c.collection_date || '-'}</td>
+                                <td class="py-1.5 px-2 font-mono">${dateStr}</td>
                                 <td class="py-1.5 px-2 capitalize">${c.shift || '-'}</td>
                                 <td class="py-1.5 px-2 capitalize">${c.milk_type || '-'}</td>
-                                <td class="py-1.5 px-2 text-right font-mono font-semibold">${parseFloat(c.quantity_liters).toFixed(2)}</td>
-                                <td class="py-1.5 px-2 text-right font-mono">${parseFloat(c.fat_percentage).toFixed(1)}</td>
-                                <td class="py-1.5 px-2 text-right font-mono">${c.clr_reading ? parseFloat(c.clr_reading).toFixed(1) : (c.snf_percentage ? parseFloat(c.snf_percentage).toFixed(1) : '-')}</td>
-                                <td class="py-1.5 px-2 text-right font-mono">₹${parseFloat(c.rate_per_liter).toFixed(2)}</td>
-                                <td class="py-1.5 px-2 text-right font-mono font-bold text-slate-900">₹${parseFloat(c.net_amount).toFixed(2)}</td>
+                                <td class="py-1.5 px-2 text-right font-mono font-semibold">${parseFloat(c.quantity_liters || 0).toFixed(2)}</td>
+                                <td class="py-1.5 px-2 text-right font-mono">${parseFloat(fatVal).toFixed(1)}</td>
+                                <td class="py-1.5 px-2 text-right font-mono">${clrVal ? parseFloat(clrVal).toFixed(1) : '-'} / ${snfVal ? parseFloat(snfVal).toFixed(1) : '-'}</td>
+                                <td class="py-1.5 px-2 text-right font-mono">₹${parseFloat(rateVal).toFixed(2)}</td>
+                                <td class="py-1.5 px-2 text-right font-mono font-bold text-slate-900">₹${parseFloat(c.net_amount || 0).toFixed(2)}</td>
                             </tr>
                         `;
                     });
@@ -559,13 +564,15 @@
                 let deductionsRows = '';
                 if (data.deductions && data.deductions.length > 0) {
                     data.deductions.forEach(d => {
+                        const dDate = (d.entry_date || '-').toString().substring(0, 10);
+                        const dRemark = d.comments || d.remarks || '-';
                         deductionsRows += `
                             <tr class="border-b border-slate-100 text-slate-700">
-                                <td class="py-1.5 px-2">${d.entry_date || '-'}</td>
-                                <td class="py-1.5 px-2 font-medium capitalize">${(d.deduction_type || 'Deduction').replace('_', ' ')}</td>
-                                <td class="py-1.5 px-2 text-slate-500">${d.remarks || '-'}</td>
+                                <td class="py-1.5 px-2 font-mono">${dDate}</td>
+                                <td class="py-1.5 px-2 font-medium capitalize">${(d.deduction_type || 'Deduction').replace(/_/g, ' ')}</td>
+                                <td class="py-1.5 px-2 text-slate-500">${dRemark}</td>
                                 <td class="py-1.5 px-2 text-right font-mono font-bold ${d.transaction_type === 'received' ? 'text-amber-700' : 'text-rose-700'}">
-                                    ${d.transaction_type === 'received' ? '+ ₹' : '- ₹'}${parseFloat(d.amount).toFixed(2)}
+                                    ${d.transaction_type === 'received' ? '+ ₹' : '- ₹'}${parseFloat(d.amount || 0).toFixed(2)}
                                 </td>
                             </tr>
                         `;
