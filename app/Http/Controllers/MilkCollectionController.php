@@ -175,9 +175,10 @@ class MilkCollectionController extends Controller
             $chart = null;
 
             if ($config['rate_chart_status'] !== 'Off') {
+                // Always prefer exact milk_type match first so Cow never picks a Buffalo chart
                 if ($farmer && $farmer->rate_chart_id) {
                     $chart = RateChart::where('id', $farmer->rate_chart_id)
-                        ->whereIn('milk_type', [$milkType, 'mixed', 'both'])
+                        ->where('milk_type', $milkType)
                         ->where('status', 'active')
                         ->first();
                 }
@@ -187,7 +188,7 @@ class MilkCollectionController extends Controller
                     $center = CollectionCenter::find($cid);
                     if ($center && $center->rate_chart_id) {
                         $chart = RateChart::where('id', $center->rate_chart_id)
-                            ->whereIn('milk_type', [$milkType, 'mixed', 'both'])
+                            ->where('milk_type', $milkType)
                             ->where('status', 'active')
                             ->first();
                     }
@@ -228,6 +229,40 @@ class MilkCollectionController extends Controller
                 $rate = $chart->calculateRate($fat, $snf, $clr, $collectionType);
                 $chartName = $chart->name;
                 $chartId = $chart->id;
+                $effectiveDate = $chart->effective_date ? $chart->effective_date->format('d/m/Y') : date('d/m/Y');
+
+                $formatLabel = match ($chart->format) {
+                    'fat_only' => 'FAT Only',
+                    'fat_clr' => 'FAT + CLR',
+                    'fixed_rate' => 'Fixed Rate',
+                    default => 'FAT + SNF',
+                };
+                $typeLabel = match ($chart->type) {
+                    'rate_per_kg' => 'Rate Per Kg',
+                    'increase_per_point' => 'Increase / 0.1 Pt',
+                    'matrix_slab' => 'Matrix Slab',
+                    'flat' => 'Flat Rate',
+                    default => ($chart->calculation_type === 'flat' ? 'Flat Rate' : 'Formula (FAT×' . ($chart->fat_factor ?: 6.5) . ' + SNF×' . ($chart->snf_factor ?: 4.2) . ')'),
+                };
+                $rateStructure = ($collectionType === 'Liter Only')
+                    ? "Liter Only • Fixed ₹" . number_format($rate, 2) . "/Ltr"
+                    : "{$formatLabel} • {$typeLabel}";
+
+                $chartDetails = [
+                    'id' => $chart->id,
+                    'name' => $chart->name,
+                    'milk_type' => ucfirst($chart->milk_type),
+                    'format' => $formatLabel,
+                    'type' => $typeLabel,
+                    'effective_date' => $effectiveDate,
+                    'base_rate' => (float) ($chart->fixed_rate > 0 ? $chart->fixed_rate : ($chart->starting_amount > 0 ? $chart->starting_amount : $chart->base_rate)),
+                    'fat_factor' => (float) ($chart->fat_factor ?: 6.5),
+                    'snf_factor' => (float) ($chart->snf_factor ?: 4.2),
+                    'fat_steps' => is_array($chart->fat_steps) ? $chart->fat_steps : (json_decode($chart->fat_steps ?? '[]', true) ?: []),
+                    'snf_steps' => is_array($chart->snf_steps) ? $chart->snf_steps : (json_decode($chart->snf_steps ?? '[]', true) ?: []),
+                    'fat_rules' => is_array($chart->fat_rules) ? $chart->fat_rules : (json_decode($chart->fat_rules ?? '[]', true) ?: []),
+                    'snf_rules' => is_array($chart->snf_rules) ? $chart->snf_rules : (json_decode($chart->snf_rules ?? '[]', true) ?: []),
+                ];
             } else {
                 // 3. Fallback formula according to collection_type and milk_type
                 if ($collectionType === 'Liter Only') {
@@ -243,9 +278,18 @@ class MilkCollectionController extends Controller
                         : (($fat * 6.8) + ($effectiveSnf * 4.1));
                     $rate = round($rate, 2);
                 }
-                $chartName = ucfirst($milkType) . ' (' . $collectionType . ')';
+                $chartName = ucfirst($milkType) . ' Collection Rate';
                 $chartId = null;
+                $effectiveDate = date('d/m/Y');
+                $rateStructure = $collectionType . ' • Standard Rate';
+                $chartDetails = null;
             }
+        }
+
+        if (!isset($effectiveDate)) {
+            $effectiveDate = date('d/m/Y');
+            $rateStructure = $collectionType . ' • Custom Farmer Override';
+            $chartDetails = null;
         }
 
         // 4. Apply Shift-wise Rate Bonus from Rate Chart Settings
@@ -263,9 +307,128 @@ class MilkCollectionController extends Controller
             'clr' => $clr,
             'chart_id' => $chartId ?? null,
             'chart_name' => $chartName,
+            'effective_date' => $effectiveDate,
+            'rate_structure' => $rateStructure,
+            'chart_details' => $chartDetails,
             'collection_type' => $collectionType,
             'per_liter_addition' => $config['per_liter_addition'],
             'per_liter_deduction' => $config['per_liter_deduction'],
+        ];
+    }
+
+    /**
+     * Compute Shift Summary (Cow, Buffalo, Total B+C) & Previous Collection (Yesterday + 5-Day Avg Fat)
+     */
+    protected function getShiftAndPreviousStats(string $date, string $shift, ?int $farmerId = null): array
+    {
+        try {
+            $targetDate = Carbon::parse($date);
+        } catch (\Throwable $e) {
+            $targetDate = Carbon::today();
+        }
+        $dateStr = $targetDate->format('Y-m-d');
+        $shift = in_array($shift, ['morning', 'evening']) ? $shift : 'morning';
+
+        // 1. Shift Summary for Date & Shift
+        $shiftBase = MilkCollection::whereDate('collection_date', $dateStr)->where('shift', $shift);
+
+        $cowQuery = (clone $shiftBase)->where('milk_type', 'cow');
+        $cowMembers = (clone $cowQuery)->distinct('farmer_id')->count('farmer_id');
+        $cowMilk = round((float) (clone $cowQuery)->sum('quantity_liters'), 2);
+        $cowFat = round((float) ((clone $cowQuery)->avg('fat') ?? 0), 1);
+        $cowSnf = round((float) ((clone $cowQuery)->avg('snf') ?? 0), 1);
+        $cowAmount = round((float) (clone $cowQuery)->sum('net_amount'), 2);
+
+        $bufQuery = (clone $shiftBase)->where('milk_type', 'buffalo');
+        $bufMembers = (clone $bufQuery)->distinct('farmer_id')->count('farmer_id');
+        $bufMilk = round((float) (clone $bufQuery)->sum('quantity_liters'), 2);
+        $bufFat = round((float) ((clone $bufQuery)->avg('fat') ?? 0), 1);
+        $bufSnf = round((float) ((clone $bufQuery)->avg('snf') ?? 0), 1);
+        $bufAmount = round((float) (clone $bufQuery)->sum('net_amount'), 2);
+
+        $totalMembers = (clone $shiftBase)->distinct('farmer_id')->count('farmer_id');
+        $totalMilk = round((float) (clone $shiftBase)->sum('quantity_liters'), 2);
+        $totalFat = round((float) ((clone $shiftBase)->avg('fat') ?? 0), 1);
+        $totalSnf = round((float) ((clone $shiftBase)->avg('snf') ?? 0), 1);
+        $totalAmount = round((float) (clone $shiftBase)->sum('net_amount'), 2);
+        $sampleNo = (clone $shiftBase)->count() + 1;
+
+        // 2. Previous Collection (Yesterday Morning, Yesterday Evening, 5-Day Avg Fat)
+        $yesterday = $targetDate->copy()->subDay();
+        $yesterdayStr = $yesterday->format('Y-m-d');
+        $fiveDaysStart = $targetDate->copy()->subDays(5)->format('Y-m-d');
+
+        if ($farmerId) {
+            $mCol = MilkCollection::where('farmer_id', $farmerId)
+                ->whereDate('collection_date', $yesterdayStr)
+                ->where('shift', 'morning')
+                ->latest('id')
+                ->first();
+            $eCol = MilkCollection::where('farmer_id', $farmerId)
+                ->whereDate('collection_date', $yesterdayStr)
+                ->where('shift', 'evening')
+                ->latest('id')
+                ->first();
+
+            $morningText = $mCol
+                ? number_format((float) $mCol->quantity_liters, 1) . ' L (' . number_format((float) $mCol->fat, 1) . '% F • ₹' . number_format((float) $mCol->net_amount, 2) . ')'
+                : 'No entry';
+            $eveningText = $eCol
+                ? number_format((float) $eCol->quantity_liters, 1) . ' L (' . number_format((float) $eCol->fat, 1) . '% F • ₹' . number_format((float) $eCol->net_amount, 2) . ')'
+                : 'No entry';
+
+            $avgFat5Days = round((float) (MilkCollection::where('farmer_id', $farmerId)
+                ->whereBetween('collection_date', [$fiveDaysStart, $dateStr])
+                ->where('fat', '>', 0)
+                ->avg('fat') ?? 0), 2);
+        } else {
+            $mQuery = MilkCollection::whereDate('collection_date', $yesterdayStr)->where('shift', 'morning');
+            $eQuery = MilkCollection::whereDate('collection_date', $yesterdayStr)->where('shift', 'evening');
+            $mLtr = (float) (clone $mQuery)->sum('quantity_liters');
+            $mAmt = (float) (clone $mQuery)->sum('net_amount');
+            $eLtr = (float) (clone $eQuery)->sum('quantity_liters');
+            $eAmt = (float) (clone $eQuery)->sum('net_amount');
+
+            $morningText = $mLtr > 0 ? number_format($mLtr, 1) . ' L (₹' . number_format($mAmt, 2) . ')' : 'No entry';
+            $eveningText = $eLtr > 0 ? number_format($eLtr, 1) . ' L (₹' . number_format($eAmt, 2) . ')' : 'No entry';
+
+            $avgFat5Days = round((float) (MilkCollection::whereBetween('collection_date', [$fiveDaysStart, $dateStr])
+                ->where('fat', '>', 0)
+                ->avg('fat') ?? 0), 2);
+        }
+
+        return [
+            'sample_no' => $sampleNo,
+            'shift_summary' => [
+                'date_label' => $dateStr . ' - ' . ucfirst($shift),
+                'cow' => [
+                    'members' => $cowMembers,
+                    'milk' => number_format($cowMilk, 2, '.', ''),
+                    'avg_fat' => number_format($cowFat, 1, '.', ''),
+                    'avg_snf' => number_format($cowSnf, 1, '.', ''),
+                    'amount' => number_format($cowAmount, 2, '.', ''),
+                ],
+                'buffalo' => [
+                    'members' => $bufMembers,
+                    'milk' => number_format($bufMilk, 2, '.', ''),
+                    'avg_fat' => number_format($bufFat, 1, '.', ''),
+                    'avg_snf' => number_format($bufSnf, 1, '.', ''),
+                    'amount' => number_format($bufAmount, 2, '.', ''),
+                ],
+                'total' => [
+                    'members' => $totalMembers,
+                    'milk' => number_format($totalMilk, 2, '.', ''),
+                    'avg_fat' => number_format($totalFat, 1, '.', ''),
+                    'avg_snf' => number_format($totalSnf, 1, '.', ''),
+                    'amount' => number_format($totalAmount, 2, '.', ''),
+                ],
+            ],
+            'previous_collection' => [
+                'yesterday_date' => $yesterday->format('d/m/Y'),
+                'morning' => $morningText,
+                'evening' => $eveningText,
+                'avg_fat_5_days' => number_format($avgFat5Days, 2, '.', '') . '%',
+            ],
         ];
     }
 
@@ -276,8 +439,14 @@ class MilkCollectionController extends Controller
     {
         $query = MilkCollection::with(['farmer', 'collectionCenter', 'operator']);
 
-        // Date Filter
-        if ($request->filled('date')) {
+        // Date or Date Range Filter
+        if ($request->filled('from_date') && $request->filled('to_date')) {
+            $query->whereBetween('collection_date', [$request->from_date, $request->to_date]);
+        } elseif ($request->filled('from_date')) {
+            $query->whereDate('collection_date', '>=', $request->from_date);
+        } elseif ($request->filled('to_date')) {
+            $query->whereDate('collection_date', '<=', $request->to_date);
+        } elseif ($request->filled('date')) {
             $query->whereDate('collection_date', $request->date);
         } else {
             // Default to today
@@ -302,11 +471,46 @@ class MilkCollectionController extends Controller
         // Farmer Search Filter
         if ($request->filled('search')) {
             $search = trim($request->search);
-            $query->whereHas('farmer', function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('farmer_code', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
+            $query->where(function ($outer) use ($search) {
+                $outer->where('receipt_number', 'like', "%{$search}%")
+                      ->orWhereHas('farmer', function ($q) use ($search) {
+                          $q->where('name', 'like', "%{$search}%")
+                            ->orWhere('farmer_code', 'like', "%{$search}%")
+                            ->orWhere('phone', 'like', "%{$search}%");
+                      });
             });
+        }
+
+        // CSV Export Support
+        if ($request->get('export') === 'csv') {
+            $rows = (clone $query)->latest()->get();
+            $filename = 'milk_collections_' . date('Y_m_d_His') . '.csv';
+            $headers = [
+                'Content-Type' => 'text/csv',
+                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            ];
+            $callback = function () use ($rows) {
+                $out = fopen('php://output', 'w');
+                fputcsv($out, ['Sample/Receipt', 'Date', 'Shift', 'Farmer Code', 'Farmer Name', 'Milk Type', 'Ltr', 'FAT (%)', 'CLR', 'SNF (%)', 'Rate (Rs)', 'Amount (Rs)']);
+                foreach ($rows as $r) {
+                    fputcsv($out, [
+                        $r->receipt_number,
+                        $r->collection_date ? $r->collection_date->format('d-m-Y') : '',
+                        ucfirst($r->shift),
+                        $r->farmer->farmer_code ?? '',
+                        $r->farmer->name ?? '',
+                        ucfirst($r->milk_type),
+                        $r->quantity_liters,
+                        $r->fat,
+                        $r->clr ?? '',
+                        $r->snf,
+                        $r->applied_rate,
+                        $r->net_amount,
+                    ]);
+                }
+                fclose($out);
+            };
+            return response()->stream($callback, 200, $headers);
         }
 
         $collections = $query->latest()->paginate(20)->withQueryString();
@@ -317,7 +521,7 @@ class MilkCollectionController extends Controller
         $avgFat = (clone $query)->avg('fat') ?? 0;
         $avgSnf = (clone $query)->avg('snf') ?? 0;
 
-        // Master Data for Filters & In-Page Collection Popup Modal
+        // Master Data for Filters & In-Page Collection Dashboard
         $centers = CollectionCenter::where('status', 'active')->get();
         if ($centers->isEmpty()) {
             $centers = CollectionCenter::all();
@@ -328,6 +532,17 @@ class MilkCollectionController extends Controller
         $currentShift = $collectionConfig['default_shift'];
         $today = Carbon::today()->format('Y-m-d');
         $nextReceipt = 'COL-' . (MilkCollection::max('id') + 1001);
+
+        $liveStats = $this->getShiftAndPreviousStats($today, $currentShift, null);
+        $initialRateInfo = $this->resolveCollectionRate(
+            4.0,
+            8.5,
+            28.0,
+            $collectionConfig['default_milk_type'],
+            null,
+            $centers->first()->id ?? null,
+            $currentShift
+        );
 
         return view('collections.index', compact(
             'collections',
@@ -341,7 +556,9 @@ class MilkCollectionController extends Controller
             'currentShift',
             'today',
             'nextReceipt',
-            'collectionConfig'
+            'collectionConfig',
+            'liveStats',
+            'initialRateInfo'
         ));
     }
 
@@ -365,7 +582,7 @@ class MilkCollectionController extends Controller
     }
 
     /**
-     * Live Rate Calculation API
+     * Live Rate & Shift Summary Calculation API
      */
     public function calculateRate(Request $request)
     {
@@ -374,14 +591,16 @@ class MilkCollectionController extends Controller
         $clr = (float) $request->get('clr', 0);
         $milkType = $request->get('milk_type', 'cow');
         $shift = $request->get('shift', 'morning');
-        $farmerId = $request->get('farmer_id');
+        $collectionDate = $request->get('collection_date', Carbon::today()->format('Y-m-d'));
+        $farmerId = $request->get('farmer_id') ? (int) $request->get('farmer_id') : null;
         $centerId = $request->get('collection_center_id') ? (int) $request->get('collection_center_id') : null;
 
         $farmer = $farmerId ? Farmer::find($farmerId) : null;
 
         $resolved = $this->resolveCollectionRate($fat, $snf, $clr, $milkType, $farmer, $centerId, $shift);
+        $stats = $this->getShiftAndPreviousStats($collectionDate, $shift, $farmerId);
 
-        return response()->json($resolved);
+        return response()->json(array_merge($resolved, $stats));
     }
 
     /**
@@ -501,13 +720,14 @@ class MilkCollectionController extends Controller
 
         if ($request->ajax() || $request->wantsJson()) {
             $collection->load(['farmer', 'collectionCenter']);
-            return response()->json([
+            $stats = $this->getShiftAndPreviousStats($validated['collection_date'], $validated['shift'], null);
+            return response()->json(array_merge([
                 'success' => true,
                 'message' => "Collection {$receiptNumber} saved successfully! Amount: ₹{$net}",
                 'collection' => $collection,
                 'next_receipt' => 'COL-' . (MilkCollection::max('id') + 1001),
                 'slip_url' => route('collections.slip', $collection),
-            ]);
+            ], $stats));
         }
 
         if ($request->has('print_slip') && $request->print_slip) {
@@ -624,12 +844,13 @@ class MilkCollectionController extends Controller
 
         if ($request->ajax() || $request->wantsJson()) {
             $collection->load(['farmer', 'collectionCenter']);
-            return response()->json([
+            $stats = $this->getShiftAndPreviousStats($validated['collection_date'], $validated['shift'], null);
+            return response()->json(array_merge([
                 'success' => true,
                 'message' => "Collection {$collection->receipt_number} updated successfully! Amount: ₹{$newNet}",
                 'collection' => $collection,
                 'slip_url' => route('collections.slip', $collection),
-            ]);
+            ], $stats));
         }
 
         if ($request->has('print_slip') && $request->print_slip) {
@@ -646,6 +867,8 @@ class MilkCollectionController extends Controller
     {
         $farmer = $collection->farmer;
         $net = (float) $collection->net_amount;
+        $colDate = $collection->collection_date ? $collection->collection_date->format('Y-m-d') : date('Y-m-d');
+        $colShift = $collection->shift ?: 'morning';
 
         if ($farmer) {
             $farmer->decrement('current_balance', $net);
@@ -661,10 +884,11 @@ class MilkCollectionController extends Controller
         AuditLog::log('Deleted Milk Collection', 'MilkCollection', $collection->id);
 
         if (request()->ajax() || request()->wantsJson()) {
-            return response()->json([
+            $stats = $this->getShiftAndPreviousStats($colDate, $colShift, null);
+            return response()->json(array_merge([
                 'success' => true,
                 'message' => "Milk collection {$receipt} deleted successfully.",
-            ]);
+            ], $stats));
         }
 
         return redirect()->route('collections.index')->with('success', "Milk collection {$receipt} deleted successfully.");

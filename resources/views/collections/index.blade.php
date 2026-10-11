@@ -14,175 +14,176 @@
 @endsection
 
 @section('content')
-<div class="space-y-2.5 w-full max-w-full" x-data="milkCollectionManager()" x-init="init()">
+<div class="space-y-3 w-full max-w-full" x-data="milkCollectionManager()" x-init="init()">
 
-    <!-- Ultra-Slim KPI Metrics Bar (~32px) -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-            <span class="text-[10px] uppercase font-bold text-slate-400">Procured</span>
+    <!-- Ultra-Slim KPI Metrics Bar -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div class="bg-white px-3.5 py-2 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Procured</span>
             <span class="text-sm font-black text-slate-900 leading-none">
                 <span x-text="metrics.totalLiters">{{ number_format($todayTotalLiters, 1) }}</span> <span class="text-[10px] text-slate-400 font-semibold">L</span>
             </span>
         </div>
-        <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-            <span class="text-[10px] uppercase font-bold text-slate-400">Net Payout</span>
+        <div class="bg-white px-3.5 py-2 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Net Payout</span>
             <span class="text-sm font-black text-emerald-600 leading-none">
                 ₹ <span x-text="metrics.totalAmount">{{ number_format($todayTotalAmount, 2) }}</span>
             </span>
         </div>
-        <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-            <span class="text-[10px] uppercase font-bold text-slate-400">Avg FAT</span>
+        <div class="bg-white px-3.5 py-2 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Avg FAT</span>
             <span class="text-sm font-black text-slate-800 leading-none">
                 <span x-text="metrics.avgFat">{{ number_format($avgFat, 1) }}</span>%
             </span>
         </div>
-        <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-            <span class="text-[10px] uppercase font-bold text-slate-400">Avg SNF</span>
+        <div class="bg-white px-3.5 py-2 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Avg SNF</span>
             <span class="text-sm font-black text-slate-800 leading-none">
                 <span x-text="metrics.avgSnf">{{ number_format($avgSnf, 1) }}</span>%
             </span>
         </div>
     </div>
 
-    <!-- ============================================================== -->
-    <!-- 1-ROW ULTRA COMPACT MILK INTAKE FORM (NO POPUP, ZERO GAP)      -->
-    <!-- ============================================================== -->
-    <div id="collection-entry-section" 
-         class="bg-white rounded-xl border shadow-xs overflow-visible transition-all duration-200 w-full max-w-full"
-         :class="isEditMode ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-slate-200/80'">
+    <!-- ========================================================================= -->
+    <!-- MAIN 2-COLUMN WORKSPACE: LEFT INTAKE FORM + RIGHT SHIFT SUMMARY & CHART    -->
+    <!-- ========================================================================= -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
 
-        <!-- Line 1: Quick Context Bar (Date, Shift, Milk Type, Center, Notes Toggle) -->
-        <div class="px-3 py-1.5 bg-slate-50/80 border-b border-slate-200/70 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div class="flex flex-wrap items-center gap-2">
-                <!-- Receipt Badge -->
-                <span class="px-2 py-0.5 rounded font-mono text-[11px] font-bold shrink-0"
-                      :class="isEditMode ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'"
-                      x-text="form.receipt_number || '{{ $nextReceipt }}'"></span>
+        <!-- LEFT COLUMN (8 cols): MILK COLLECTION ENTRY CARD -->
+        <div id="collection-entry-section" 
+             class="lg:col-span-8 bg-white rounded-xl border shadow-xs overflow-visible transition-all duration-200 flex flex-col justify-between"
+             :class="isEditMode ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-slate-200/80'">
 
-                <!-- Date -->
-                <div class="flex items-center gap-1.5">
-                    <span class="text-[11px] font-semibold text-slate-500">Date:</span>
-                    <input type="date" 
-                           x-model="form.collection_date" 
-                           required
-                           class="text-xs font-semibold px-2 py-0.5 border border-slate-300 rounded-md bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none">
-                </div>
+            <div>
+                <!-- Sub-Header Bar: Mode Badge, Center & Notes Toggle -->
+                <div class="px-3.5 py-2 bg-slate-50/80 border-b border-slate-200/70 flex flex-wrap items-center justify-between gap-2 text-xs rounded-t-xl">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="px-2 py-0.5 rounded font-mono text-[11px] font-bold shrink-0"
+                              :class="isEditMode ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'"
+                              x-text="form.receipt_number || '{{ $nextReceipt }}'"></span>
 
-                <!-- Shift Pills (Reflects Collection Shift Setting) -->
-                <div class="flex items-center gap-1 border-l border-slate-200 pl-2">
-                    @if(in_array('morning', $collectionConfig['allowed_shifts']))
-                    <button type="button" 
-                            @click="form.shift = 'morning'; triggerRateCalculation();"
-                            :class="form.shift === 'morning' ? 'bg-amber-400 text-slate-900 font-bold shadow-2xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'"
-                            class="px-2 py-0.5 text-xs rounded-md transition flex items-center gap-1">
-                        <span>☀️ Morning</span>
-                    </button>
-                    @endif
-                    @if(in_array('evening', $collectionConfig['allowed_shifts']))
-                    <button type="button" 
-                            @click="form.shift = 'evening'; triggerRateCalculation();"
-                            :class="form.shift === 'evening' ? 'bg-indigo-600 text-white font-bold shadow-2xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'"
-                            class="px-2 py-0.5 text-xs rounded-md transition flex items-center gap-1">
-                        <span>🌙 Evening</span>
-                    </button>
-                    @endif
-                </div>
-
-                <!-- Milk Type Pills (Reflects Milk Type Setting) -->
-                <div class="flex items-center gap-1 border-l border-slate-200 pl-2">
-                    <span class="text-[11px] font-semibold text-slate-500 mr-0.5">Milk:</span>
-                    @if(in_array('cow', $collectionConfig['allowed_milk_types']))
-                    <button type="button" 
-                            @click="form.milk_type = 'cow'; triggerRateCalculation();"
-                            :class="form.milk_type === 'cow' ? 'bg-emerald-600 text-white font-bold shadow-2xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'"
-                            class="px-2 py-0.5 text-xs rounded-md transition flex items-center gap-1">
-                        <span>🐄 Cow</span>
-                    </button>
-                    @endif
-                    @if(in_array('buffalo', $collectionConfig['allowed_milk_types']))
-                    <button type="button" 
-                            @click="form.milk_type = 'buffalo'; triggerRateCalculation();"
-                            :class="form.milk_type === 'buffalo' ? 'bg-emerald-600 text-white font-bold shadow-2xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'"
-                            class="px-2 py-0.5 text-xs rounded-md transition flex items-center gap-1">
-                        <span>🐃 Buffalo</span>
-                    </button>
-                    @endif
-                </div>
-
-                <!-- Active Collection Mode Badge -->
-                <a href="{{ route('settings.center-information') }}"
-                   title="Click to change Collection Type in Center Information Settings"
-                   class="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80 text-[10px] font-bold hover:bg-blue-100 transition">
-                    <i data-lucide="settings-2" class="w-3 h-3"></i>
-                    <span>Mode: {{ $collectionConfig['collection_type'] }}</span>
-                </a>
-
-                <!-- Active Rate Chart Source Link -->
-                <a :href="activeChartId ? ('/rates/' + activeChartId + '/edit') : '{{ route('rates.index') }}'"
-                   title="Click to view or edit the Rate Chart where this rate comes from"
-                   class="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[10px] font-bold hover:bg-emerald-100 transition">
-                    <i data-lucide="table-2" class="w-3 h-3"></i>
-                    <span x-text="rateChartFeedback"></span>
-                </a>
-            </div>
-
-            <!-- Right Controls: Center + Notes toggle -->
-            <div class="flex items-center gap-2">
-                <div class="flex items-center gap-1.5 w-36 sm:w-44 relative" id="center_select_col">
-                    <span class="text-[11px] font-semibold text-slate-500 shrink-0">Center:</span>
-                    <select id="collection_center_select" x-model="form.collection_center_id" @change="triggerRateCalculation()" class="text-xs border border-slate-300 rounded-md bg-white w-full py-1 px-1.5 font-medium text-slate-800 focus:ring-1 focus:ring-emerald-500 focus:outline-none">
-                        @foreach($centers as $c)
-                            <option value="{{ $c->id }}">
-                                {{ $c->name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <!-- Notes / Remarks toggle -->
-                <button type="button" 
-                        @click="showAdvanced = !showAdvanced" 
-                        :class="showAdvanced ? 'bg-slate-200 text-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'"
-                        class="px-2 py-0.5 text-[11px] font-medium rounded-md transition flex items-center gap-1">
-                    <i data-lucide="sliders" class="w-3 h-3"></i>
-                    <span>Notes</span>
-                </button>
-
-                <template x-if="isEditMode">
-                    <button type="button" @click="cancelEdit()" class="px-2 py-0.5 text-[11px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-md transition">
-                        Cancel Edit
-                    </button>
-                </template>
-            </div>
-        </div>
-
-        <!-- Line 2: All Inputs in ONE SINGLE RESPONSIVE ROW (Customer Code, Liter, FAT, CLR, SNF, Rate, Net, Actions) -->
-        <form @submit.prevent="submitCollection(false)" class="p-2.5 sm:p-3 space-y-1.5">
-            <div class="flex flex-wrap lg:flex-nowrap gap-2 items-start">
-                
-                <!-- Customer / Farmer Code (Fast Code Input + Searchable Dropdown) -->
-                <div class="w-full sm:w-[48%] lg:flex-[2.6] min-w-[210px] relative" id="farmer_select_col" @click.away="farmerDropdownOpen = false">
-                    <div class="flex items-center justify-between mb-0.5">
-                        <label class="block text-[10px] font-bold text-slate-700 uppercase tracking-wider">Farmer Code / Name *</label>
-                        <span class="text-[9px] text-emerald-600 font-semibold" title="Type numeric code (e.g. 101 or 105) and press Enter">⚡ Fast Code or Search</span>
+                        <a href="{{ route('settings.center-information') }}"
+                           title="Click to change Collection Type in Center Information Settings"
+                           class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80 text-[10px] font-bold hover:bg-blue-100 transition">
+                            <i data-lucide="settings-2" class="w-3 h-3"></i>
+                            <span>Mode: {{ $collectionConfig['collection_type'] }}</span>
+                        </a>
                     </div>
-                    
-                    <div class="flex items-center gap-1.5 relative">
-                        <!-- Quick Code Input (e.g. 101 or 105) -->
-                        <div class="w-16 shrink-0">
-                            <input type="text" 
-                                   id="quick_farmer_code_input" 
-                                   placeholder="Code#" 
-                                   x-model="quickFarmerCode" 
-                                   @keydown.enter.prevent="lookupFarmerByCode()" 
-                                   @blur="lookupFarmerByCode()" 
-                                   title="Enter numeric code (e.g. 101 or 105) and press Enter"
-                                   class="w-full px-1.5 py-1.5 text-xs font-black text-emerald-800 bg-emerald-50/70 border border-emerald-300 rounded-lg text-center placeholder-emerald-400 focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
+
+                    <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-1.5 w-36 sm:w-44 relative" id="center_select_col">
+                            <span class="text-[11px] font-semibold text-slate-500 shrink-0">Center:</span>
+                            <select id="collection_center_select" x-model="form.collection_center_id" @change="triggerRateCalculation()" class="text-xs border border-slate-300 rounded-md bg-white w-full py-1 px-1.5 font-medium text-slate-800 focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+                                @foreach($centers as $c)
+                                    <option value="{{ $c->id }}">{{ $c->name }}</option>
+                                @endforeach
+                            </select>
                         </div>
 
-                        <!-- Searchable Dropdown Input with Live Filter -->
-                        <div class="flex-1 min-w-0 relative">
-                            <div class="relative">
+                        <button type="button" 
+                                @click="showAdvanced = !showAdvanced" 
+                                :class="showAdvanced ? 'bg-slate-200 text-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'"
+                                class="px-2 py-0.5 text-[11px] font-medium rounded-md transition flex items-center gap-1">
+                            <i data-lucide="sliders" class="w-3 h-3"></i>
+                            <span>Notes</span>
+                        </button>
+
+                        <template x-if="isEditMode">
+                            <button type="button" @click="cancelEdit()" class="px-2 py-0.5 text-[11px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-md transition">
+                                Cancel Edit
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Main Form Body -->
+                <form @submit.prevent="submitCollection(false)" class="p-3.5 sm:p-4 space-y-3.5">
+
+                    <!-- ROW 1: COLLECTION DATE | SHIFT | MILK TYPE -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pb-3 border-b border-slate-100">
+                        <!-- Collection Date -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Collection Date</label>
+                            <input type="date" 
+                                   x-model="form.collection_date" 
+                                   @change="triggerRateCalculation()"
+                                   required
+                                   class="w-full px-2.5 py-1.5 text-xs font-bold text-slate-800 border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition">
+                        </div>
+
+                        <!-- Shift -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Shift</label>
+                            <div class="flex items-center rounded-lg border border-slate-300 overflow-hidden bg-slate-50 p-0.5 gap-1">
+                                @if(in_array('morning', $collectionConfig['allowed_shifts']))
+                                <button type="button" 
+                                        @click="form.shift = 'morning'; triggerRateCalculation();"
+                                        :class="form.shift === 'morning' ? 'bg-amber-400 text-slate-900 font-bold shadow-2xs' : 'text-slate-600 hover:bg-white'"
+                                        class="flex-1 py-1 px-2 text-xs rounded-md transition flex items-center justify-center gap-1">
+                                    <span>☀️ Morning</span>
+                                </button>
+                                @endif
+                                @if(in_array('evening', $collectionConfig['allowed_shifts']))
+                                <button type="button" 
+                                        @click="form.shift = 'evening'; triggerRateCalculation();"
+                                        :class="form.shift === 'evening' ? 'bg-indigo-600 text-white font-bold shadow-2xs' : 'text-slate-600 hover:bg-white'"
+                                        class="flex-1 py-1 px-2 text-xs rounded-md transition flex items-center justify-center gap-1">
+                                    <span>🌙 Evening</span>
+                                </button>
+                                @endif
+                            </div>
+                        </div>
+
+                        <!-- Milk Type -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Milk Type</label>
+                            <div class="flex items-center rounded-lg border border-slate-300 overflow-hidden bg-slate-50 p-0.5 gap-1">
+                                @if(in_array('cow', $collectionConfig['allowed_milk_types']))
+                                <button type="button" 
+                                        @click="form.milk_type = 'cow'; triggerRateCalculation();"
+                                        :class="form.milk_type === 'cow' ? 'bg-emerald-600 text-white font-bold shadow-2xs' : 'text-slate-600 hover:bg-white'"
+                                        class="flex-1 py-1 px-2 text-xs rounded-md transition flex items-center justify-center gap-1">
+                                    <span>🐄 Cow</span>
+                                </button>
+                                @endif
+                                @if(in_array('buffalo', $collectionConfig['allowed_milk_types']))
+                                <button type="button" 
+                                        @click="form.milk_type = 'buffalo'; triggerRateCalculation();"
+                                        :class="form.milk_type === 'buffalo' ? 'bg-emerald-600 text-white font-bold shadow-2xs' : 'text-slate-600 hover:bg-white'"
+                                        class="flex-1 py-1 px-2 text-xs rounded-md transition flex items-center justify-center gap-1">
+                                    <span>🐃 Buffalo</span>
+                                </button>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ROW 2: FARMER CODE | FARMER NAME | SAMPLE NO. (AUTO) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start" id="farmer_select_col" @click.away="farmerDropdownOpen = false">
+                        <!-- Farmer Code -->
+                        <div class="sm:col-span-4">
+                            <label class="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Farmer Code *</label>
+                            <div class="flex items-stretch">
+                                <input type="text" 
+                                       id="quick_farmer_code_input" 
+                                       placeholder="e.g. 001 or 101" 
+                                       x-model="quickFarmerCode" 
+                                       @keydown.enter.prevent="lookupFarmerByCode()" 
+                                       @blur="lookupFarmerByCode()" 
+                                       class="w-full px-2.5 py-1.5 text-xs font-black text-slate-900 bg-white border border-r-0 border-slate-300 rounded-l-lg focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition">
+                                <button type="button"
+                                        @click="lookupFarmerByCode()"
+                                        title="Search Farmer Code"
+                                        class="px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-r-lg flex items-center justify-center transition shrink-0">
+                                    <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Farmer Name (Searchable Dropdown) -->
+                        <div class="sm:col-span-5 relative">
+                            <label class="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Farmer Name *</label>
+                            <div class="flex items-stretch relative">
                                 <input type="text" 
                                        id="farmer_search_input"
                                        placeholder="Search Name, Code, Phone..."
@@ -195,14 +196,11 @@
                                        @keydown.enter.prevent="selectHighlightedFarmer()"
                                        @keydown.escape="farmerDropdownOpen = false"
                                        autocomplete="off"
-                                       class="w-full pl-2 pr-6 py-1.5 text-xs font-bold text-slate-800 border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition">
-                                
+                                       class="w-full px-2.5 py-1.5 text-xs font-bold text-slate-800 border border-r-0 border-slate-300 rounded-l-lg bg-white focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition">
                                 <button type="button" 
                                         @click="farmerDropdownOpen = !farmerDropdownOpen; if (farmerDropdownOpen) document.getElementById('farmer_search_input').focus();"
-                                        class="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5">
-                                    <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="farmerDropdownOpen ? 'rotate-180 text-emerald-600' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                    </svg>
+                                        class="px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-r-lg flex items-center justify-center transition shrink-0">
+                                    <i data-lucide="search" class="w-3.5 h-3.5"></i>
                                 </button>
                             </div>
 
@@ -210,7 +208,6 @@
                             <div x-show="farmerDropdownOpen" 
                                  x-cloak
                                  class="absolute left-0 right-0 top-full mt-1 z-[999999] bg-white border border-slate-200 rounded-xl shadow-xl max-h-56 overflow-y-auto divide-y divide-slate-100">
-                                
                                 <template x-for="(farmer, idx) in filteredFarmers" :key="farmer.id">
                                     <div @click="chooseFarmer(farmer)"
                                          @mouseenter="highlightedIndex = idx"
@@ -231,310 +228,453 @@
                                               x-text="farmer.animal_type || 'cow'"></span>
                                     </div>
                                 </template>
-
                                 <div x-show="filteredFarmers.length === 0" class="p-3 text-center text-xs text-slate-400">
                                     No farmer matches "<span class="font-semibold text-slate-600" x-text="farmerSearchText"></span>"
                                 </div>
                             </div>
+
+                            <input type="hidden" name="farmer_id" :value="form.farmer_id">
+                        </div>
+
+                        <!-- Sample No. (Auto) -->
+                        <div class="sm:col-span-3">
+                            <label class="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Sample No. (Auto)</label>
+                            <div class="px-3 py-1.5 bg-slate-100/90 border border-slate-200 rounded-lg text-center font-black text-xs text-slate-800" x-text="sampleNo"></div>
                         </div>
                     </div>
 
-                    <!-- Hidden native input to bind farmer_id -->
-                    <input type="hidden" name="farmer_id" :value="form.farmer_id">
+                    <!-- ROW 3: MILK QTY (LTR.) | FAT (%) | CLR | SNF (%) | RATE (₹/LTR.) | TOTAL AMOUNT -->
+                    <div class="flex flex-wrap sm:flex-nowrap items-start gap-2.5 pt-1">
+                        <!-- Milk Qty (Ltr.) -->
+                        <div class="w-[47%] sm:flex-1 min-w-[90px]">
+                            <label class="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">Milk Qty (Ltr.) *</label>
+                            <input type="number" 
+                                   id="collection_quantity_input"
+                                   step="0.01" 
+                                   min="0.1"
+                                   x-model.number="form.quantity_liters" 
+                                   @input="onQuantityChange()" 
+                                   required 
+                                   placeholder="0.00"
+                                   class="w-full px-2.5 py-1.5 text-xs font-black text-slate-900 border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
+                        </div>
 
-                    <!-- Farmer details badge underneath -->
-                    <div class="text-[11px] font-bold text-emerald-700 truncate mt-0.5 flex items-center justify-between" x-show="selectedFarmer.name" x-cloak>
-                        <span class="truncate">
-                            <span class="font-extrabold" x-text="selectedFarmer.code || ('#' + quickFarmerCode)"></span>
-                            <span x-text="' • ' + selectedFarmer.name + (selectedFarmer.phone ? ' (' + selectedFarmer.phone + ')' : '')"></span>
-                            <span class="text-slate-400 font-normal" x-show="selectedFarmer.village" x-text="' • ' + selectedFarmer.village"></span>
-                        </span>
-                        <span class="text-[9px] uppercase px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold shrink-0 ml-1" x-text="selectedFarmer.animal || 'Cow'"></span>
+                        <!-- FAT (%) -->
+                        <div x-show="config.show_fat" class="w-[47%] sm:flex-1 min-w-[85px]">
+                            <label class="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">FAT (%) *</label>
+                            <input type="number" 
+                                   id="collection_fat_input"
+                                   step="0.1" 
+                                   min="0.5" 
+                                   max="20"
+                                   x-model.number="form.fat" 
+                                   @input="onFatChange()" 
+                                   :required="config.show_fat"
+                                   placeholder="4.0"
+                                   class="w-full px-2.5 py-1.5 text-xs font-black text-slate-900 border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
+                        </div>
+
+                        <!-- CLR -->
+                        <div x-show="config.show_clr" class="w-[47%] sm:flex-1 min-w-[85px]">
+                            <label class="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider"
+                                   x-text="config.auto_clr ? 'CLR' : 'CLR *'"></label>
+                            <input type="number" 
+                                   id="collection_clr_input"
+                                   step="0.5" 
+                                   min="5" 
+                                   max="50"
+                                   x-model.number="form.clr" 
+                                   @input="onClrChange()" 
+                                   :readonly="config.auto_clr"
+                                   :required="config.show_clr && !config.auto_clr"
+                                   placeholder="28"
+                                   :class="config.auto_clr ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : 'bg-white text-slate-900'"
+                                   class="w-full px-2.5 py-1.5 text-xs font-black border border-slate-300 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
+                            <span x-show="config.auto_clr" class="block text-[10px] text-slate-400 mt-0.5">(Auto)</span>
+                        </div>
+
+                        <!-- SNF (%) -->
+                        <div x-show="config.show_snf" class="w-[47%] sm:flex-1 min-w-[85px]">
+                            <label class="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider"
+                                   x-text="config.auto_snf ? 'SNF (%)' : 'SNF (%) *'"></label>
+                            <input type="number" 
+                                   id="collection_snf_input"
+                                   step="0.01" 
+                                   min="2" 
+                                   max="20"
+                                   x-model.number="form.snf" 
+                                   @input="onSnfChange()" 
+                                   :readonly="config.auto_snf"
+                                   :required="config.show_snf && !config.auto_snf"
+                                   placeholder="8.5"
+                                   :class="config.auto_snf ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : 'bg-white text-slate-900'"
+                                   class="w-full px-2.5 py-1.5 text-xs font-black border border-slate-300 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
+                            <span x-show="config.auto_snf" class="block text-[10px] text-slate-400 mt-0.5">(Auto)</span>
+                        </div>
+
+                        <!-- RATE (₹/LTR.) -->
+                        <div class="w-[47%] sm:flex-1 min-w-[95px]">
+                            <label class="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">Rate (₹/Ltr.)</label>
+                            <input type="number" 
+                                   step="0.01" 
+                                   min="0"
+                                   x-model.number="form.applied_rate" 
+                                   @input="recalculateTotals()" 
+                                   required
+                                   class="w-full px-2.5 py-1.5 text-xs font-black text-slate-900 border border-slate-300 rounded-lg bg-slate-100/80 focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
+                            <span class="block text-[10px] text-slate-400 mt-0.5">(Auto)</span>
+                        </div>
+
+                        <!-- Total Amount -->
+                        <div class="w-full sm:w-auto sm:min-w-[130px] pl-1">
+                            <label class="block text-xs font-semibold text-emerald-700 mb-0.5">Total Amount</label>
+                            <div class="text-xl font-black text-emerald-600 leading-tight">
+                                ₹ <span x-text="netAmountFormatted">0.00</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Liter (Qty) -->
-                <div class="w-[48%] sm:w-[23%] lg:flex-1 min-w-[85px]">
-                    <label class="block text-[10px] font-bold text-slate-700 mb-0.5 uppercase tracking-wider">Liter *</label>
-                    <input type="number" 
-                           id="collection_quantity_input"
-                           step="0.01" 
-                           min="0.1"
-                           x-model.number="form.quantity_liters" 
-                           @input="onQuantityChange()" 
-                           required 
-                           placeholder="10.0"
-                           class="w-full px-2 py-1.5 text-xs font-black text-slate-900 border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
-                </div>
-
-                <!-- FAT % (Shown when collection_type includes FAT) -->
-                <div x-show="config.show_fat" class="w-[48%] sm:w-[23%] lg:flex-1 min-w-[85px]">
-                    <label class="block text-[10px] font-bold text-slate-700 mb-0.5 uppercase tracking-wider">FAT % *</label>
-                    <input type="number" 
-                           id="collection_fat_input"
-                           step="0.1" 
-                           min="0.5" 
-                           max="20"
-                           x-model.number="form.fat" 
-                           @input="onFatChange()" 
-                           :required="config.show_fat"
-                           placeholder="4.0"
-                           class="w-full px-2 py-1.5 text-xs font-black text-slate-900 border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
-                </div>
-
-                <!-- CLR (Shown when collection_type includes CLR or Auto CLR) -->
-                <div x-show="config.show_clr" class="w-[48%] sm:w-[23%] lg:flex-1 min-w-[85px]">
-                    <label class="block text-[10px] font-bold mb-0.5 uppercase tracking-wider"
-                           :class="config.auto_clr ? 'text-blue-600' : 'text-slate-700'"
-                           x-text="config.auto_clr ? 'CLR (Auto)' : 'CLR *'"></label>
-                    <input type="number" 
-                           id="collection_clr_input"
-                           step="0.5" 
-                           min="5" 
-                           max="50"
-                           x-model.number="form.clr" 
-                           @input="onClrChange()" 
-                           :readonly="config.auto_clr"
-                           :required="config.show_clr && !config.auto_clr"
-                           placeholder="28"
-                           :class="config.auto_clr ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : 'bg-white text-slate-900'"
-                           class="w-full px-2 py-1.5 text-xs font-black border border-slate-300 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
-                </div>
-
-                <!-- SNF % (Shown when collection_type includes SNF or Auto SNF) -->
-                <div x-show="config.show_snf" class="w-[48%] sm:w-[23%] lg:flex-1 min-w-[85px]">
-                    <label class="block text-[10px] font-bold mb-0.5 uppercase tracking-wider"
-                           :class="config.auto_snf ? 'text-blue-600' : 'text-slate-700'"
-                           x-text="config.auto_snf ? 'SNF % (Auto)' : 'SNF % *'"></label>
-                    <input type="number" 
-                           id="collection_snf_input"
-                           step="0.01" 
-                           min="2" 
-                           max="20"
-                           x-model.number="form.snf" 
-                           @input="onSnfChange()" 
-                           :readonly="config.auto_snf"
-                           :required="config.show_snf && !config.auto_snf"
-                           placeholder="8.5"
-                           :class="config.auto_snf ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : 'bg-white text-slate-900'"
-                           class="w-full px-2 py-1.5 text-xs font-black border border-slate-300 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
-                </div>
-
-                <!-- Rate (₹/L) -->
-                <div class="w-[48%] sm:w-[30%] lg:flex-[1.1] min-w-[95px]">
-                    <div class="flex items-center justify-between mb-0.5">
-                        <label class="block text-[10px] font-bold text-slate-700 uppercase tracking-wider">Rate *</label>
-                        <a :href="activeChartId ? ('/rates/' + activeChartId + '/edit') : '{{ route('rates.index') }}'"
-                           class="text-[9px] font-bold text-emerald-600 hover:underline"
-                           title="Open Rate Charts">Chart ↗</a>
+                    <!-- Collapsible Optional Notes & Adjustments -->
+                    <div x-show="showAdvanced" x-cloak class="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                                Bonus / Additions (₹)
+                                <span x-show="config.per_liter_addition > 0" class="text-emerald-600 font-bold" x-text="'(+₹' + config.per_liter_addition + '/L)'"></span>
+                            </label>
+                            <input type="number" step="0.5" x-model.number="form.bonus" @input="recalculateTotals()" placeholder="0.00"
+                                   class="w-full px-2 py-1 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                                Deduction / Charges (₹)
+                                <span x-show="config.per_liter_deduction > 0" class="text-rose-600 font-bold" x-text="'(-₹' + config.per_liter_deduction + '/L)'"></span>
+                            </label>
+                            <input type="number" step="0.5" x-model.number="form.deduction" @input="recalculateTotals()" placeholder="0.00"
+                                   class="w-full px-2 py-1 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Remarks</label>
+                            <input type="text" x-model="form.notes" placeholder="Sample quality note..."
+                                   class="w-full px-2 py-1 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        </div>
                     </div>
-                    <input type="number" 
-                           step="0.01" 
-                           min="0"
-                           x-model.number="form.applied_rate" 
-                           @input="recalculateTotals()" 
-                           required
-                           class="w-full px-2 py-1.5 text-xs font-black text-slate-900 border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
-                    <div class="text-[9px] text-slate-400 font-mono truncate mt-0.5" x-text="rateChartFeedback" :title="rateChartFeedback"></div>
-                </div>
 
-                <!-- Net Farmer Amount -->
-                <div class="w-full sm:w-[38%] lg:flex-[1.5] min-w-[130px]">
-                    <label class="block text-[10px] font-bold text-slate-500 mb-0.5 uppercase tracking-wider">Net Amount</label>
-                    <div class="px-2.5 py-1.5 bg-emerald-50 border border-emerald-200/90 rounded-lg flex items-center justify-between">
-                        <span class="text-[10px] text-emerald-800 font-semibold" x-text="(form.quantity_liters || 0) + 'L'"></span>
-                        <span class="text-sm font-black text-emerald-700">₹ <span x-text="netAmountFormatted">0.00</span></span>
+                    <!-- ROW 4: + ADD CAN (LEFT) & SAVE / RESET / PRINT BUTTONS (RIGHT) -->
+                    <div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                        <!-- Left: + Add Can & Can Details -->
+                        <div class="space-y-1.5">
+                            <button type="button" 
+                                    @click="addCan()"
+                                    class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-2xs transition">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                                <span>Add Can</span>
+                            </button>
+
+                            <div x-show="cans.length === 0" class="text-xs text-slate-600">
+                                Can Details: <span class="text-slate-500">No cans added.</span>
+                            </div>
+
+                            <div x-show="cans.length > 0" x-cloak class="flex flex-wrap items-center gap-2 pt-1">
+                                <template x-for="(can, cIdx) in cans" :key="cIdx">
+                                    <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-xs">
+                                        <span class="font-bold text-emerald-800" x-text="'Can #' + (cIdx + 1) + ':'"></span>
+                                        <input type="number" step="0.1" min="0.1" x-model.number="can.liters" @input="syncCansToQuantity()" placeholder="Ltr" class="w-16 px-1.5 py-0.5 text-xs font-bold bg-white border border-emerald-300 rounded focus:outline-none">
+                                        <span class="text-[10px] text-emerald-700">L</span>
+                                        <button type="button" @click="removeCan(cIdx)" class="text-rose-500 hover:text-rose-700 font-bold px-0.5">×</button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Right: Save, Print, Reset -->
+                        <div class="flex items-center gap-2 ml-auto">
+                            <button type="button" 
+                                    @click="submitCollection(false)" 
+                                    :disabled="isSubmitting"
+                                    class="px-4 py-1.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 rounded-lg shadow-2xs transition flex items-center gap-1.5">
+                                <span x-show="!isSubmitting" x-text="isEditMode ? 'Update' : 'Save'"></span>
+                                <span x-show="isSubmitting" x-cloak>Saving...</span>
+                            </button>
+
+                            <button type="button" 
+                                    @click="submitCollection(true)" 
+                                    :disabled="isSubmitting"
+                                    title="Save & Print Slip"
+                                    class="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 disabled:opacity-50 rounded-lg transition flex items-center gap-1">
+                                <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                                <span>Save & Print</span>
+                            </button>
+
+                            <button type="button" 
+                                    @click="resetForm()" 
+                                    class="px-3.5 py-1.5 text-xs font-semibold text-blue-600 bg-white hover:bg-blue-50 border border-blue-400 rounded-lg transition">
+                                Reset
+                            </button>
+                        </div>
                     </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN (4 cols): SHIFT SUMMARY CARD + ACTIVE RATE CHART CARD -->
+        <div class="lg:col-span-4 flex flex-col gap-3 justify-between">
+
+            <!-- CARD 1: SHIFT SUMMARY (DATE - SHIFT) -->
+            <div class="bg-white rounded-xl border border-slate-200/80 shadow-xs p-3.5">
+                <div class="mb-2.5">
+                    <span class="inline-block px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold"
+                          x-text="'Shift Summary (' + shiftSummary.date_label + ')'">
+                        Shift Summary ({{ $liveStats['shift_summary']['date_label'] }})
+                    </span>
                 </div>
 
-                <!-- Action Buttons: Reset, Save, Print -->
-                <div class="w-full sm:w-[28%] lg:flex-[1.3] min-w-[135px] flex items-center justify-end gap-1 pt-4 sm:pt-4">
-                    <!-- Reset -->
-                    <button type="button" 
-                            @click="resetForm()" 
-                            title="Reset Form"
-                            class="p-2 text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition shrink-0">
-                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
-                    </button>
-
-                    <!-- Save Collection -->
-                    <button type="button" 
-                            @click="submitCollection(false)" 
-                            :disabled="isSubmitting"
-                            class="flex-1 py-1.5 px-2.5 text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 disabled:opacity-50 rounded-lg shadow-2xs transition flex items-center justify-center gap-1">
-                        <span x-show="!isSubmitting" class="flex items-center gap-1">
-                            <i data-lucide="check" class="w-3.5 h-3.5"></i>
-                            <span x-text="isEditMode ? 'Update' : 'Save'"></span>
-                        </span>
-                        <span x-show="isSubmitting" x-cloak class="flex items-center gap-1">
-                            <svg class="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <span>Saving</span>
-                        </span>
-                    </button>
-
-                    <!-- Save & Print Slip -->
-                    <button type="button" 
-                            @click="submitCollection(true)" 
-                            :disabled="isSubmitting"
-                            title="Save & Print Slip"
-                            class="p-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg shadow-2xs transition shrink-0">
-                        <i data-lucide="printer" class="w-3.5 h-3.5"></i>
-                    </button>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="border-b border-slate-100 text-[11px] font-bold text-slate-700">
+                                <th class="py-1.5 pr-2">Type</th>
+                                <th class="py-1.5 px-1.5 text-center">Members</th>
+                                <th class="py-1.5 px-1.5 text-right">Milk (Ltr.)</th>
+                                <th class="py-1.5 px-1.5 text-center">Avg Fat</th>
+                                <th class="py-1.5 px-1.5 text-center">Avg SNF</th>
+                                <th class="py-1.5 pl-1.5 text-right">Amount (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-xs">
+                            <!-- Cow Row -->
+                            <tr>
+                                <td class="py-2 pr-2 font-bold text-emerald-700">Cow</td>
+                                <td class="py-2 px-1.5 text-center text-slate-700" x-text="shiftSummary.cow.members">0</td>
+                                <td class="py-2 px-1.5 text-right text-slate-700" x-text="shiftSummary.cow.milk">0.00</td>
+                                <td class="py-2 px-1.5 text-center text-slate-700" x-text="shiftSummary.cow.avg_fat + '%'">0.0%</td>
+                                <td class="py-2 px-1.5 text-center text-slate-700" x-text="shiftSummary.cow.avg_snf + '%'">0.0%</td>
+                                <td class="py-2 pl-1.5 text-right text-slate-800 font-medium" x-text="shiftSummary.cow.amount">0.00</td>
+                            </tr>
+                            <!-- Buffalo Row -->
+                            <tr>
+                                <td class="py-2 pr-2 font-bold text-blue-600">Buffalo</td>
+                                <td class="py-2 px-1.5 text-center text-slate-700" x-text="shiftSummary.buffalo.members">0</td>
+                                <td class="py-2 px-1.5 text-right text-slate-700" x-text="shiftSummary.buffalo.milk">0.00</td>
+                                <td class="py-2 px-1.5 text-center text-slate-700" x-text="shiftSummary.buffalo.avg_fat + '%'">0.0%</td>
+                                <td class="py-2 px-1.5 text-center text-slate-700" x-text="shiftSummary.buffalo.avg_snf + '%'">0.0%</td>
+                                <td class="py-2 pl-1.5 text-right text-slate-800 font-medium" x-text="shiftSummary.buffalo.amount">0.00</td>
+                            </tr>
+                            <!-- Total (B+C) Row -->
+                            <tr class="bg-slate-50/90 font-bold">
+                                <td class="py-2 pr-2 text-slate-900 leading-tight">Total<br><span class="text-[10px] font-semibold text-slate-500">(B+C)</span></td>
+                                <td class="py-2 px-1.5 text-center text-slate-800" x-text="shiftSummary.total.members">0</td>
+                                <td class="py-2 px-1.5 text-right text-blue-600 font-extrabold" x-text="shiftSummary.total.milk">0.00</td>
+                                <td class="py-2 px-1.5 text-center text-slate-700" x-text="shiftSummary.total.avg_fat + '%'">0.0%</td>
+                                <td class="py-2 px-1.5 text-center text-slate-700" x-text="shiftSummary.total.avg_snf + '%'">0.0%</td>
+                                <td class="py-2 pl-1.5 text-right text-emerald-700 font-extrabold" x-text="shiftSummary.total.amount">0.00</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            <!-- Collapsible Optional Notes & Adjustments -->
-            <div x-show="showAdvanced" x-cloak class="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <div>
-                    <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">
-                        Bonus / Additions (₹)
-                        <span x-show="config.per_liter_addition > 0" class="text-emerald-600 font-bold" x-text="'(+₹' + config.per_liter_addition + '/L)'"></span>
-                    </label>
-                    <input type="number" step="0.5" x-model.number="form.bonus" @input="recalculateTotals()" placeholder="0.00"
-                           class="w-full px-2 py-1 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+            <!-- CARD 2: ACTIVE RATE CHART -->
+            <div class="bg-white rounded-xl border border-slate-200/80 shadow-xs p-3.5">
+                <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block"></span>
+                        <h4 class="text-xs font-extrabold text-slate-900">Active Rate Chart</h4>
+                    </div>
+                    <button type="button"
+                            @click="rateChartModalOpen = true"
+                            class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-700 hover:text-emerald-700 transition">
+                        <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                        <span>View Rate Chart</span>
+                    </button>
                 </div>
-                <div>
-                    <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">
-                        Deduction / Charges (₹)
-                        <span x-show="config.per_liter_deduction > 0" class="text-rose-600 font-bold" x-text="'(-₹' + config.per_liter_deduction + '/L)'"></span>
-                    </label>
-                    <input type="number" step="0.5" x-model.number="form.deduction" @input="recalculateTotals()" placeholder="0.00"
-                           class="w-full px-2 py-1 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Remarks</label>
-                    <input type="text" x-model="form.notes" placeholder="Sample quality note..."
-                           class="w-full px-2 py-1 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+
+                <div class="space-y-2 text-xs">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-slate-500">Rate Chart Name</span>
+                        <span class="font-semibold text-slate-800 text-right truncate" x-text="activeChart.name"></span>
+                    </div>
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-slate-500">Effective From</span>
+                        <span class="font-semibold text-slate-800 text-right" x-text="activeChart.effective_date"></span>
+                    </div>
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-slate-500">Rate Structure</span>
+                        <span class="font-semibold text-emerald-700 text-right truncate" x-text="activeChart.rate_structure"></span>
+                    </div>
                 </div>
             </div>
-        </form>
+
+        </div>
     </div>
 
-    <!-- ============================================================== -->
-    <!-- COLLECTIONS HISTORY TABLE CARD (WITH INTEGRATED INLINE FILTER)  -->
-    <!-- ============================================================== -->
+    <!-- ========================================================================= -->
+    <!-- PREVIOUS COLLECTION BAR (YESTERDAY MORNING/EVENING + 5-DAY AVG FAT)       -->
+    <!-- ========================================================================= -->
+    <div class="bg-white rounded-xl border border-slate-200/80 shadow-2xs px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex items-center gap-2">
+            <span class="font-bold text-slate-700">Previous Collection</span>
+            <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400" title="Shows Yesterday's Morning & Evening collection and 5-Day Average Fat"></i>
+            <span x-show="selectedFarmer.name" x-cloak class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold"
+                  x-text="selectedFarmer.code + ' • ' + selectedFarmer.name"></span>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+            <span>Yesterday (<span class="font-semibold text-slate-800" x-text="previousCollection.yesterday_date"></span>)</span>
+            <span class="inline-flex items-center gap-1">
+                <span>☀️</span>
+                <span class="font-semibold text-amber-500">Morning:</span>
+                <span class="font-semibold text-slate-700" x-text="previousCollection.morning">No entry</span>
+            </span>
+            <span class="text-slate-300">|</span>
+            <span class="inline-flex items-center gap-1">
+                <span class="font-semibold text-slate-600">Evening:</span>
+                <span class="font-semibold text-slate-700" x-text="previousCollection.evening">No entry</span>
+            </span>
+            <span class="text-slate-300">|</span>
+            <span>
+                Avg Fat (5 Days): <span class="font-bold text-slate-800" x-text="previousCollection.avg_fat_5_days">0.00%</span>
+            </span>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MILK DETAILS / COLLECTIONS HISTORY TABLE CARD                             -->
+    <!-- ========================================================================= -->
     <div class="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden w-full max-w-full">
         
-        <!-- Integrated Header with Inline Filter (No separate filter card!) -->
-        <div class="px-3.5 py-2 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50">
+        <!-- Integrated Header with Date Range, Milk Type, Search, Filter & Export -->
+        <div class="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2 shrink-0">
-                <h3 class="text-xs font-bold text-slate-900">Collections History</h3>
-                <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200/80 text-slate-700 font-bold">{{ $collections->total() }}</span>
+                <h3 class="text-xs font-bold tracking-wide">Milk Details</h3>
+                <span class="text-[11px] text-blue-100">
+                    ({{ request('from_date') || request('to_date') ? (request('from_date', 'Start') . ' to ' . request('to_date', 'Now')) : ('All Dates - ' . ucfirst(request('shift', 'All Shifts'))) }})
+                </span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-white/20 text-white font-bold">{{ $collections->total() }}</span>
             </div>
 
-            <!-- Compact Inline Search & Filters -->
+            <!-- Inline Filter & Export Bar -->
             <form method="GET" action="{{ route('collections.index') }}" class="flex flex-wrap items-center gap-1.5 text-xs">
-                <div class="relative">
-                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Search farmer/code..." 
-                           class="pl-6 pr-2 py-1 text-xs border border-slate-200 rounded-md w-32 sm:w-40 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white">
-                    <i data-lucide="search" class="w-3 h-3 text-slate-400 absolute left-1.5 top-1/2 -translate-y-1/2"></i>
-                </div>
-                <input type="date" name="date" value="{{ request('date', date('Y-m-d')) }}" 
-                       class="px-2 py-1 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white">
-                <select name="shift" class="px-2 py-1 text-xs border border-slate-200 rounded-md bg-white">
-                    <option value="">Shift: All</option>
+                <input type="date" name="from_date" value="{{ request('from_date') }}" title="From Date"
+                       class="px-2 py-1 text-xs text-slate-800 border border-white/30 rounded-md bg-white focus:outline-none">
+                <input type="date" name="to_date" value="{{ request('to_date') }}" title="To Date"
+                       class="px-2 py-1 text-xs text-slate-800 border border-white/30 rounded-md bg-white focus:outline-none">
+                <select name="shift" class="px-2 py-1 text-xs text-slate-800 border border-white/30 rounded-md bg-white focus:outline-none">
+                    <option value="">All Shifts</option>
                     <option value="morning" {{ request('shift') === 'morning' ? 'selected' : '' }}>Morning</option>
                     <option value="evening" {{ request('shift') === 'evening' ? 'selected' : '' }}>Evening</option>
                 </select>
-                <select name="milk_type" class="px-2 py-1 text-xs border border-slate-200 rounded-md bg-white">
-                    <option value="">Milk: All</option>
+                <select name="milk_type" class="px-2 py-1 text-xs text-slate-800 border border-white/30 rounded-md bg-white focus:outline-none">
+                    <option value="">All Milk Type</option>
                     <option value="cow" {{ request('milk_type') === 'cow' ? 'selected' : '' }}>Cow</option>
                     <option value="buffalo" {{ request('milk_type') === 'buffalo' ? 'selected' : '' }}>Buffalo</option>
                 </select>
-                <button type="submit" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-md shadow-2xs transition">
-                    Filter
+                <input type="text" name="search" value="{{ request('search') }}" placeholder="Search entries..." 
+                       class="px-2.5 py-1 text-xs text-slate-800 border border-white/30 rounded-md w-32 sm:w-40 bg-white focus:outline-none">
+
+                <button type="submit" class="px-3 py-1 bg-white/15 hover:bg-white/25 border border-white/40 text-white text-xs font-semibold rounded-md transition flex items-center gap-1">
+                    <i data-lucide="search" class="w-3 h-3"></i>
+                    <span>Filter</span>
                 </button>
-                @if(request()->anyFilled(['search', 'shift', 'milk_type', 'center_id']) || request('date') != date('Y-m-d'))
-                    <a href="{{ route('collections.index') }}" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs rounded-md transition">Reset</a>
+
+                <button type="submit" name="export" value="csv" class="px-3 py-1 bg-white/15 hover:bg-white/25 border border-white/40 text-white text-xs font-semibold rounded-md transition flex items-center gap-1">
+                    <i data-lucide="download" class="w-3 h-3"></i>
+                    <span>Export</span>
+                </button>
+
+                @if(request()->anyFilled(['search', 'shift', 'milk_type', 'center_id', 'from_date', 'to_date']))
+                    <a href="{{ route('collections.index') }}" class="px-2 py-1 bg-white text-blue-700 hover:bg-blue-50 text-xs font-semibold rounded-md transition">Reset</a>
                 @endif
             </form>
         </div>
 
-        <!-- Table Container with Horizontal Scroll restricted INSIDE table only -->
+        <!-- Table Container -->
         <div class="w-full max-w-full overflow-x-auto">
-            <table class="w-full min-w-[720px] text-left text-xs text-slate-600" id="collections-table">
-                <thead class="bg-slate-50 border-b border-slate-200/80 text-[10px] uppercase font-bold text-slate-400">
+            <table class="w-full min-w-[820px] text-center text-xs text-slate-700" id="collections-table">
+                <thead class="bg-slate-50 border-b border-slate-200/80 text-[10px] uppercase font-bold text-slate-600">
                     <tr>
-                        <th class="py-2.5 px-3">Receipt</th>
-                        <th class="py-2.5 px-3">Date & Shift</th>
-                        <th class="py-2.5 px-3">Farmer / Code</th>
-                        <th class="py-2.5 px-3">Type</th>
-                        <th class="py-2.5 px-3 text-center">Qty (L)</th>
-                        <th class="py-2.5 px-3 text-center">Fat / SNF / CLR</th>
-                        <th class="py-2.5 px-3 text-right">Rate (₹)</th>
-                        <th class="py-2.5 px-3 text-right">Net Amount</th>
-                        <th class="py-2.5 px-3 text-center w-24">Action</th>
+                        <th class="py-2.5 px-3 border-r border-slate-200/60">Sample No.</th>
+                        <th class="py-2.5 px-3 border-r border-slate-200/60">Farmer Code</th>
+                        <th class="py-2.5 px-3 border-r border-slate-200/60 text-left">Farmer Name</th>
+                        <th class="py-2.5 px-3 border-r border-slate-200/60">Shift</th>
+                        <th class="py-2.5 px-3 border-r border-slate-200/60">Milk Type</th>
+                        <th class="py-2.5 px-3 border-r border-slate-200/60">Ltr.</th>
+                        <th class="py-2.5 px-3 border-r border-slate-200/60">FAT (%)</th>
+                        <th class="py-2.5 px-3 border-r border-slate-200/60">CLR</th>
+                        <th class="py-2.5 px-3 border-r border-slate-200/60">SNF (%)</th>
+                        <th class="py-2.5 px-3 border-r border-slate-200/60">Rate (₹)</th>
+                        <th class="py-2.5 px-3 border-r border-slate-200/60">Amount (₹)</th>
+                        <th class="py-2.5 px-3 w-28">Action</th>
                     </tr>
                 </thead>
-                <tbody id="collections-table-body" class="divide-y divide-slate-100">
-                    @forelse($collections as $col)
-                        <tr id="row-col-{{ $col->id }}" class="hover:bg-slate-50/60 transition group">
-                            <!-- Receipt -->
-                            <td class="py-2.5 px-3 font-mono font-bold text-slate-800">
-                                {{ $col->receipt_number }}
+                <tbody id="collections-table-body" class="divide-y divide-slate-200/70">
+                    @forelse($collections as $idx => $col)
+                        <tr id="row-col-{{ $col->id }}" class="hover:bg-slate-50/70 transition group">
+                            <!-- Sample No / Receipt -->
+                            <td class="py-2.5 px-3 border-r border-slate-100 font-bold text-blue-600">
+                                <span title="{{ $col->receipt_number }}">{{ $collections->total() - (($collections->currentPage() - 1) * $collections->perPage()) - $idx }}</span>
                             </td>
 
-                            <!-- Date & Shift -->
-                            <td class="py-2.5 px-3">
-                                <span class="font-medium text-slate-900 block">{{ $col->collection_date ? $col->collection_date->format('d M Y') : '—' }}</span>
-                                <span class="text-[10px] capitalize px-1.5 py-0.2 rounded font-bold {{ $col->shift === 'morning' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800' }}">
-                                    {{ $col->shift }}
-                                </span>
+                            <!-- Farmer Code -->
+                            <td class="py-2.5 px-3 border-r border-slate-100 font-extrabold text-slate-900">
+                                {{ $col->farmer->farmer_code ?? '—' }}
                             </td>
 
-                            <!-- Farmer -->
-                            <td class="py-2.5 px-3">
-                                <a href="{{ route('farmers.show', $col->farmer) }}" class="font-bold text-emerald-700 hover:underline">
+                            <!-- Farmer Name -->
+                            <td class="py-2.5 px-3 border-r border-slate-100 text-left">
+                                <a href="{{ route('farmers.show', $col->farmer) }}" class="font-semibold text-slate-800 hover:text-emerald-700 hover:underline">
                                     {{ $col->farmer->name ?? 'N/A' }}
                                 </a>
-                                <span class="block text-[10px] text-slate-400">
-                                    {{ $col->farmer->farmer_code ?? '' }} • {{ $col->farmer->village ?? 'Local' }}
-                                </span>
                             </td>
 
-                            <!-- Type -->
-                            <td class="py-2.5 px-3 capitalize font-medium">
-                                <span class="inline-flex items-center gap-1 font-semibold {{ $col->milk_type === 'cow' ? 'text-amber-700' : 'text-slate-800' }}">
-                                    {{ $col->milk_type === 'cow' ? '🐄 Cow' : ($col->milk_type === 'buffalo' ? '🐃 Buffalo' : '🥛 Mixed') }}
-                                </span>
+                            <!-- Shift -->
+                            <td class="py-2.5 px-3 border-r border-slate-100 capitalize text-slate-700">
+                                {{ ucfirst($col->shift) }}
                             </td>
 
-                            <!-- Quantity -->
-                            <td class="py-2.5 px-3 text-center font-extrabold text-slate-900">
-                                {{ number_format($col->quantity_liters, 2) }} L
+                            <!-- Milk Type -->
+                            <td class="py-2.5 px-3 border-r border-slate-100 font-bold capitalize {{ $col->milk_type === 'cow' ? 'text-emerald-700' : 'text-blue-600' }}">
+                                {{ ucfirst($col->milk_type) }}
                             </td>
 
-                            <!-- FAT / SNF / CLR -->
-                            <td class="py-2.5 px-3 text-center">
-                                <span class="font-semibold text-slate-700">{{ number_format($col->fat, 1) }}%</span> / 
-                                <span class="font-semibold text-slate-700">{{ number_format($col->snf, 1) }}%</span>
-                                @if($col->clr)
-                                    <span class="text-[9px] text-slate-400 block font-mono">CLR: {{ $col->clr }}</span>
-                                @endif
+                            <!-- Quantity (Ltr.) -->
+                            <td class="py-2.5 px-3 border-r border-slate-100 font-extrabold text-slate-900">
+                                {{ number_format($col->quantity_liters, 2) }}
                             </td>
 
-                            <!-- Rate -->
-                            <td class="py-2.5 px-3 text-right font-semibold text-slate-800">
-                                ₹ {{ number_format($col->applied_rate, 2) }}
+                            <!-- FAT (%) -->
+                            <td class="py-2.5 px-3 border-r border-slate-100 text-slate-700">
+                                {{ number_format($col->fat, 2) }}
                             </td>
 
-                            <!-- Net Amount -->
-                            <td class="py-2.5 px-3 text-right font-extrabold text-sm text-emerald-700">
-                                ₹ {{ number_format($col->net_amount, 2) }}
+                            <!-- CLR -->
+                            <td class="py-2.5 px-3 border-r border-slate-100 text-slate-700">
+                                {{ $col->clr ? number_format($col->clr, 2) : '0.00' }}
+                            </td>
+
+                            <!-- SNF (%) -->
+                            <td class="py-2.5 px-3 border-r border-slate-100 text-slate-700">
+                                {{ number_format($col->snf, 2) }}
+                            </td>
+
+                            <!-- Rate (₹) -->
+                            <td class="py-2.5 px-3 border-r border-slate-100 font-semibold text-slate-800">
+                                {{ number_format($col->applied_rate, 2) }}
+                            </td>
+
+                            <!-- Amount (₹) -->
+                            <td class="py-2.5 px-3 border-r border-slate-100 font-extrabold text-slate-900">
+                                {{ number_format($col->net_amount, 2) }}
                             </td>
 
                             <!-- Action Buttons -->
-                            <td class="py-2.5 px-3 text-center">
+                            <td class="py-2.5 px-3">
                                 <div class="flex items-center justify-center gap-1">
-                                    <!-- Print Slip Button -->
-                                    <a href="{{ route('collections.slip', $col) }}" target="_blank" title="Print Slip" class="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition shadow-2xs">
-                                        <i data-lucide="printer" class="w-3 h-3"></i>
+                                    <!-- View / Print Slip Button -->
+                                    <a href="{{ route('collections.slip', $col) }}" target="_blank" title="View / Print Slip" class="w-7 h-6 rounded bg-cyan-500 hover:bg-cyan-600 text-white flex items-center justify-center transition shadow-2xs">
+                                        <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                                     </a>
 
-                                    <!-- Edit Collection Button (Loads into top embedded form!) -->
+                                    <!-- Edit Collection Button -->
                                     <button type="button" 
                                             @click="startEditCollection({
                                                 id: {{ $col->id }},
@@ -558,29 +698,29 @@
                                                 notes: '{{ addslashes($col->notes ?? '') }}'
                                             })"
                                             title="Edit Collection"
-                                            class="w-6 h-6 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition shadow-2xs">
-                                        <i data-lucide="edit-3" class="w-3 h-3"></i>
+                                            class="w-7 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition shadow-2xs">
+                                        <i data-lucide="edit" class="w-3.5 h-3.5"></i>
                                     </button>
 
                                     <!-- Delete Button -->
                                     <button type="button" 
                                             @click="deleteCollection({{ $col->id }}, '{{ $col->receipt_number }}')"
                                             title="Delete" 
-                                            class="w-6 h-6 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition shadow-2xs">
-                                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                            class="w-7 h-6 rounded bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center transition shadow-2xs">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                                     </button>
                                 </div>
                             </td>
                         </tr>
                     @empty
                         <tr id="no-collections-row">
-                            <td colspan="9" class="py-10 text-center text-slate-400">
+                            <td colspan="12" class="py-10 text-center text-slate-400">
                                 <div class="flex flex-col items-center justify-center">
                                     <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-1.5">
                                         <i data-lucide="milk" class="w-5 h-5"></i>
                                     </div>
                                     <span class="text-xs font-semibold text-slate-600">No collection entries found</span>
-                                    <p class="text-[11px] text-slate-400">Use the quick intake form above to record milk from farmers.</p>
+                                    <p class="text-[11px] text-slate-400">Use the intake form above to record milk from farmers.</p>
                                 </div>
                             </td>
                         </tr>
@@ -594,6 +734,121 @@
                 {{ $collections->links() }}
             </div>
         @endif
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- VIEW ACTIVE RATE CHART MODAL                                              -->
+    <!-- ========================================================================= -->
+    <div x-show="rateChartModalOpen" 
+         x-cloak 
+         class="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4"
+         @keydown.escape.window="rateChartModalOpen = false">
+        <div @click.away="rateChartModalOpen = false" 
+             class="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden">
+            <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+                    <h3 class="text-sm font-extrabold text-slate-900" x-text="activeChart.name || 'Active Rate Chart'"></h3>
+                </div>
+                <button type="button" @click="rateChartModalOpen = false" class="text-slate-400 hover:text-slate-700">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div class="p-5 space-y-4 text-xs max-h-[75vh] overflow-y-auto">
+                <div class="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Milk Type</span>
+                        <span class="font-bold text-slate-800 capitalize" x-text="form.milk_type"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Collection Mode</span>
+                        <span class="font-bold text-blue-700" x-text="config.collection_type"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Effective From</span>
+                        <span class="font-bold text-slate-800" x-text="activeChart.effective_date"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Rate Structure</span>
+                        <span class="font-bold text-emerald-700" x-text="activeChart.rate_structure"></span>
+                    </div>
+                </div>
+
+                <template x-if="activeChart.details">
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                            <span class="font-semibold text-emerald-900">Base / Fixed Rate</span>
+                            <span class="font-black text-emerald-700 text-sm" x-text="'₹ ' + Number(activeChart.details.base_rate || form.applied_rate || 0).toFixed(2) + ' / Ltr'"></span>
+                        </div>
+
+                        <template x-if="activeChart.details.fat_steps && activeChart.details.fat_steps.length > 0">
+                            <div>
+                                <h4 class="font-bold text-slate-700 mb-1.5">FAT Rate Steps</h4>
+                                <table class="w-full text-left border border-slate-200 rounded-lg overflow-hidden">
+                                    <thead class="bg-slate-100 text-[10px] uppercase text-slate-600">
+                                        <tr>
+                                            <th class="py-1.5 px-2.5">From</th>
+                                            <th class="py-1.5 px-2.5">To</th>
+                                            <th class="py-1.5 px-2.5 text-right">Rate / Amount (₹)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        <template x-for="(st, sIdx) in activeChart.details.fat_steps" :key="sIdx">
+                                            <tr>
+                                                <td class="py-1.5 px-2.5" x-text="st.from ?? st.step ?? '-'"></td>
+                                                <td class="py-1.5 px-2.5" x-text="st.to ?? '-'"></td>
+                                                <td class="py-1.5 px-2.5 text-right font-bold text-slate-800" x-text="'₹ ' + (st.amount ?? 0)"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </template>
+
+                        <template x-if="activeChart.details.snf_steps && activeChart.details.snf_steps.length > 0">
+                            <div>
+                                <h4 class="font-bold text-slate-700 mb-1.5">SNF / CLR Rate Steps</h4>
+                                <table class="w-full text-left border border-slate-200 rounded-lg overflow-hidden">
+                                    <thead class="bg-slate-100 text-[10px] uppercase text-slate-600">
+                                        <tr>
+                                            <th class="py-1.5 px-2.5">From</th>
+                                            <th class="py-1.5 px-2.5">To</th>
+                                            <th class="py-1.5 px-2.5 text-right">Rate / Amount (₹)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        <template x-for="(st, sIdx) in activeChart.details.snf_steps" :key="sIdx">
+                                            <tr>
+                                                <td class="py-1.5 px-2.5" x-text="st.from ?? st.step ?? '-'"></td>
+                                                <td class="py-1.5 px-2.5" x-text="st.to ?? '-'"></td>
+                                                <td class="py-1.5 px-2.5 text-right font-bold text-slate-800" x-text="'₹ ' + (st.amount ?? 0)"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+                <a href="{{ route('rates.index') }}" class="text-xs font-semibold text-slate-600 hover:text-slate-900 underline">
+                    All Rate Charts
+                </a>
+                <div class="flex items-center gap-2">
+                    <template x-if="activeChartId">
+                        <a :href="'/rates/' + activeChartId + '/edit'" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
+                            Edit Rate Chart
+                        </a>
+                    </template>
+                    <button type="button" @click="rateChartModalOpen = false" class="px-3.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded-lg transition">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Floating Live Toast Notifications -->
@@ -626,9 +881,22 @@ function milkCollectionManager() {
         isEditMode: false,
         isSubmitting: false,
         showAdvanced: false,
-        activeChartId: null,
-        rateChartFeedback: 'Rate Chart = ₹42.50/L',
+        rateChartModalOpen: false,
+        activeChartId: @json($initialRateInfo['chart_id'] ?? null),
+        rateChartFeedback: '{{ addslashes($initialRateInfo['chart_name'] ?? 'Rate Chart') }} = ₹{{ number_format($initialRateInfo['rate'] ?? 42.50, 2) }}/L',
         config: @json($collectionConfig),
+        sampleNo: {{ $liveStats['sample_no'] ?? 1 }},
+        cans: [],
+
+        shiftSummary: @json($liveStats['shift_summary']),
+        previousCollection: @json($liveStats['previous_collection']),
+
+        activeChart: {
+            name: @json($initialRateInfo['chart_name'] ?? 'Cow Collection Rate'),
+            effective_date: @json($initialRateInfo['effective_date'] ?? date('d/m/Y')),
+            rate_structure: @json($initialRateInfo['rate_structure'] ?? 'Standard Rate'),
+            details: @json($initialRateInfo['chart_details'] ?? null)
+        },
         
         toast: {
             show: false,
@@ -667,13 +935,13 @@ function milkCollectionManager() {
             collection_date: '{{ $today }}',
             shift: '{{ $currentShift }}',
             milk_type: '{{ $collectionConfig['default_milk_type'] }}',
-            quantity_liters: 10.0,
+            quantity_liters: '',
             fat: 4.0,
             clr: 28.0,
             snf: 8.5,
             bonus: 0,
             deduction: 0,
-            applied_rate: 42.50,
+            applied_rate: {{ (float) ($initialRateInfo['rate'] ?? 38.00) }},
             notes: ''
         },
 
@@ -689,6 +957,24 @@ function milkCollectionManager() {
                 self.triggerRateCalculation();
                 if (window.lucide) window.lucide.createIcons();
             });
+        },
+
+        addCan() {
+            this.cans.push({ liters: '' });
+        },
+
+        removeCan(idx) {
+            this.cans.splice(idx, 1);
+            this.syncCansToQuantity();
+        },
+
+        syncCansToQuantity() {
+            if (this.cans.length === 0) return;
+            const total = this.cans.reduce((acc, c) => acc + (parseFloat(c.liters) || 0), 0);
+            if (total > 0) {
+                this.form.quantity_liters = parseFloat(total.toFixed(2));
+                this.onQuantityChange();
+            }
         },
 
         get filteredFarmers() {
@@ -733,8 +1019,8 @@ function milkCollectionManager() {
             this.form.farmer_id = farmer.id;
             const code = farmer.farmer_code || ('FAR-' + farmer.id);
             const numCode = code.replace(/\D/g, '') || String(farmer.id);
-            this.quickFarmerCode = numCode;
-            this.farmerSearchText = code + ' - ' + farmer.name;
+            this.quickFarmerCode = numCode.padStart(3, '0');
+            this.farmerSearchText = farmer.name;
             this.selectedFarmer = {
                 id: farmer.id,
                 code: code,
@@ -758,17 +1044,15 @@ function milkCollectionManager() {
             var raw = (this.quickFarmerCode || '').toString().trim();
             if (!raw) return;
 
-            var numOnly = raw.replace(/\D/g, '');
+            var numOnly = raw.replace(/\D/g, '').replace(/^0+/, '') || '0';
             var found = null;
 
-            // 1. Exact match on number or code or id
             found = this.allFarmers.find(f => {
                 var code = (f.farmer_code || '').trim();
-                var num = code.replace(/\D/g, '') || String(f.id);
-                return num === raw || code.toLowerCase() === raw.toLowerCase() || String(f.id) === raw;
+                var num = (code.replace(/\D/g, '') || String(f.id)).replace(/^0+/, '') || '0';
+                return num === numOnly || code.toLowerCase() === raw.toLowerCase() || String(f.id) === raw;
             });
 
-            // 2. Partial match if single digit
             if (!found && numOnly) {
                 found = this.allFarmers.find(f => {
                     var code = (f.farmer_code || '').trim();
@@ -849,7 +1133,6 @@ function milkCollectionManager() {
             const clr = parseFloat(this.form.clr) || 0;
             const fat = parseFloat(this.form.fat) || 0;
             if (clr > 0 && fat > 0) {
-                // Indian Dairy Standard Formula: SNF = (CLR / 4) + (0.21 * FAT) + 0.36
                 const calculatedSnf = (clr / 4) + (0.21 * fat) + 0.36;
                 this.form.snf = parseFloat(calculatedSnf.toFixed(2));
             }
@@ -859,7 +1142,6 @@ function milkCollectionManager() {
             const snf = parseFloat(this.form.snf) || 0;
             const fat = parseFloat(this.form.fat) || 0;
             if (snf > 0 && fat > 0) {
-                // Inverse Indian Dairy Formula: CLR = (SNF - (0.21 * FAT) - 0.36) * 4
                 const calculatedClr = Math.max(0, (snf - (0.21 * fat) - 0.36) * 4);
                 this.form.clr = parseFloat(calculatedClr.toFixed(1));
             }
@@ -869,12 +1151,26 @@ function milkCollectionManager() {
             // Evaluated reactively via netAmountFormatted
         },
 
+        applyLiveStatsResponse(data) {
+            if (!data) return;
+            if (data.shift_summary) {
+                this.shiftSummary = data.shift_summary;
+            }
+            if (data.previous_collection) {
+                this.previousCollection = data.previous_collection;
+            }
+            if (typeof data.sample_no !== 'undefined') {
+                this.sampleNo = data.sample_no;
+            }
+        },
+
         triggerRateCalculation() {
             const fat = this.config.show_fat ? (parseFloat(this.form.fat) || 0) : 0;
             const snf = this.config.show_snf ? (parseFloat(this.form.snf) || 0) : 0;
             const clr = this.config.show_clr ? (parseFloat(this.form.clr) || 0) : 0;
             const milkType = this.form.milk_type || this.config.default_milk_type || 'cow';
             const shift = this.form.shift || 'morning';
+            const collectionDate = this.form.collection_date || '{{ $today }}';
             const farmerId = this.form.farmer_id || null;
             const centerId = this.form.collection_center_id || null;
 
@@ -891,6 +1187,7 @@ function milkCollectionManager() {
                     clr: clr,
                     milk_type: milkType,
                     shift: shift,
+                    collection_date: collectionDate,
                     farmer_id: farmerId,
                     collection_center_id: centerId
                 })
@@ -900,6 +1197,12 @@ function milkCollectionManager() {
                 if (data && typeof data.rate !== 'undefined') {
                     this.form.applied_rate = parseFloat(data.rate);
                     this.activeChartId = data.chart_id || null;
+                    this.activeChart = {
+                        name: data.chart_name || 'Standard Rate Chart',
+                        effective_date: data.effective_date || '{{ date("d/m/Y") }}',
+                        rate_structure: data.rate_structure || this.config.collection_type,
+                        details: data.chart_details || null
+                    };
                     if (this.config.auto_snf && data.snf > 0) {
                         this.form.snf = parseFloat(data.snf);
                     }
@@ -907,21 +1210,19 @@ function milkCollectionManager() {
                         this.form.clr = parseFloat(data.clr);
                     }
                     this.rateChartFeedback = (data.chart_name || 'Rate Chart') + ' = ₹' + Number(data.rate).toFixed(2) + '/L';
+                    this.applyLiveStatsResponse(data);
                 }
             })
             .catch(() => {
-                let fallbackRate = 40.0;
+                let fallbackRate = 38.0;
                 if (this.config.collection_type === 'FAT only') {
                     fallbackRate = fat * (milkType === 'buffalo' ? 10.5 : 9.5);
                 } else if (this.config.collection_type === 'CLR only') {
                     fallbackRate = clr * (milkType === 'buffalo' ? 1.85 : 1.45);
                 } else if (milkType === 'buffalo') {
-                    fallbackRate = (fat * 7.2) + ((snf || 8.5) * 4.5);
-                } else {
-                    fallbackRate = (fat * 6.8) + ((snf || 8.5) * 4.1);
+                    fallbackRate = 55.0;
                 }
                 this.form.applied_rate = parseFloat(fallbackRate.toFixed(2));
-                this.rateChartFeedback = (milkType.charAt(0).toUpperCase() + milkType.slice(1)) + ' Formula = ₹' + this.form.applied_rate + '/L';
             });
         },
 
@@ -967,6 +1268,7 @@ function milkCollectionManager() {
 
         resetForm() {
             this.isEditMode = false;
+            this.cans = [];
             this.form = {
                 id: null,
                 receipt_number: '{{ $nextReceipt }}',
@@ -975,13 +1277,13 @@ function milkCollectionManager() {
                 collection_date: '{{ $today }}',
                 shift: '{{ $currentShift }}',
                 milk_type: this.config.default_milk_type || 'cow',
-                quantity_liters: 10.0,
+                quantity_liters: '',
                 fat: 4.0,
                 clr: 28.0,
                 snf: 8.5,
                 bonus: 0,
                 deduction: 0,
-                applied_rate: 42.50,
+                applied_rate: 38.00,
                 notes: ''
             };
             this.quickFarmerCode = '';
@@ -1004,6 +1306,7 @@ function milkCollectionManager() {
             this.form.notes = '';
             this.form.bonus = 0;
             this.form.deduction = 0;
+            this.cans = [];
             this.quickFarmerCode = '';
             this.farmerSearchText = '';
             this.farmerDropdownOpen = false;
@@ -1021,7 +1324,7 @@ function milkCollectionManager() {
 
         submitCollection(printSlip = false) {
             if (!this.form.farmer_id) {
-                this.showToast('Please select or enter a Customer / Farmer Code first.', 'error');
+                this.showToast('Please select or enter a Farmer Code first.', 'error');
                 const codeIn = document.getElementById('quick_farmer_code_input');
                 if (codeIn) {
                     codeIn.focus();
@@ -1103,6 +1406,7 @@ function milkCollectionManager() {
             .then(data => {
                 this.isSubmitting = false;
                 this.showToast(data.message || 'Collection saved successfully!', 'success');
+                this.applyLiveStatsResponse(data);
 
                 if (printSlip && data.slip_url) {
                     window.open(data.slip_url, '_blank');
@@ -1148,6 +1452,7 @@ function milkCollectionManager() {
             })
             .then(data => {
                 this.showToast(data.message || `Receipt ${receipt} deleted successfully.`, 'success');
+                this.applyLiveStatsResponse(data);
                 const row = document.getElementById(`row-col-${id}`);
                 if (row) row.remove();
                 this.recalculateSummaryMetrics();
@@ -1166,7 +1471,7 @@ function milkCollectionManager() {
 
             const tr = document.createElement('tr');
             tr.id = `row-col-${col.id}`;
-            tr.className = 'hover:bg-slate-50/60 transition group bg-emerald-50/30';
+            tr.className = 'hover:bg-slate-50/70 transition group bg-emerald-50/30';
             tr.innerHTML = this.buildRowHtml(col);
             tbody.insertBefore(tr, tbody.firstChild);
 
@@ -1184,13 +1489,11 @@ function milkCollectionManager() {
 
         buildRowHtml(col) {
             const farmerName = (col.farmer ? col.farmer.name : 'N/A');
-            const farmerCode = (col.farmer ? col.farmer.farmer_code : '');
+            const farmerCode = (col.farmer ? col.farmer.farmer_code : '—');
             const farmerVillage = (col.farmer ? (col.farmer.village || 'Local') : 'Local');
-            const dateStr = col.collection_date ? new Date(col.collection_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-            const shiftBadgeClass = col.shift === 'morning' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800';
-            const milkTypeIcon = col.milk_type === 'cow' ? '🐄 Cow' : (col.milk_type === 'buffalo' ? '🐃 Buffalo' : '🥛 Mixed');
-            const milkTypeClass = col.milk_type === 'cow' ? 'text-amber-700' : 'text-slate-800';
-            const clrBadge = col.clr ? `<span class="text-[9px] text-slate-400 block font-mono">CLR: ${col.clr}</span>` : '';
+            const shiftText = col.shift ? (col.shift.charAt(0).toUpperCase() + col.shift.slice(1)) : 'Morning';
+            const milkTypeText = col.milk_type ? (col.milk_type.charAt(0).toUpperCase() + col.milk_type.slice(1)) : 'Cow';
+            const milkTypeClass = col.milk_type === 'cow' ? 'text-emerald-700' : 'text-blue-600';
 
             const safeDataJson = JSON.stringify({
                 id: col.id,
@@ -1214,43 +1517,38 @@ function milkCollectionManager() {
                 notes: col.notes || ''
             }).replace(/"/g, '&quot;');
 
+            const rowCount = document.querySelectorAll('#collections-table-body tr:not(#no-collections-row)').length + 1;
+
             return `
-                <td class="py-2.5 px-3 font-mono font-bold text-slate-800">${col.receipt_number}</td>
+                <td class="py-2.5 px-3 border-r border-slate-100 font-bold text-blue-600">${rowCount}</td>
+                <td class="py-2.5 px-3 border-r border-slate-100 font-extrabold text-slate-900">${farmerCode}</td>
+                <td class="py-2.5 px-3 border-r border-slate-100 text-left">
+                    <a href="/farmers/${col.farmer_id}" class="font-semibold text-slate-800 hover:text-emerald-700 hover:underline">${farmerName}</a>
+                </td>
+                <td class="py-2.5 px-3 border-r border-slate-100 capitalize text-slate-700">${shiftText}</td>
+                <td class="py-2.5 px-3 border-r border-slate-100 font-bold capitalize ${milkTypeClass}">${milkTypeText}</td>
+                <td class="py-2.5 px-3 border-r border-slate-100 font-extrabold text-slate-900">${parseFloat(col.quantity_liters).toFixed(2)}</td>
+                <td class="py-2.5 px-3 border-r border-slate-100 text-slate-700">${parseFloat(col.fat).toFixed(2)}</td>
+                <td class="py-2.5 px-3 border-r border-slate-100 text-slate-700">${parseFloat(col.clr || 0).toFixed(2)}</td>
+                <td class="py-2.5 px-3 border-r border-slate-100 text-slate-700">${parseFloat(col.snf).toFixed(2)}</td>
+                <td class="py-2.5 px-3 border-r border-slate-100 font-semibold text-slate-800">${parseFloat(col.applied_rate).toFixed(2)}</td>
+                <td class="py-2.5 px-3 border-r border-slate-100 font-extrabold text-slate-900">${parseFloat(col.net_amount).toFixed(2)}</td>
                 <td class="py-2.5 px-3">
-                    <span class="font-medium text-slate-900 block">${dateStr}</span>
-                    <span class="text-[10px] capitalize px-1.5 py-0.2 rounded font-bold ${shiftBadgeClass}">${col.shift}</span>
-                </td>
-                <td class="py-2.5 px-3">
-                    <a href="/farmers/${col.farmer_id}" class="font-bold text-emerald-700 hover:underline">${farmerName}</a>
-                    <span class="block text-[10px] text-slate-400">${farmerCode} • ${farmerVillage}</span>
-                </td>
-                <td class="py-2.5 px-3 capitalize font-medium">
-                    <span class="inline-flex items-center gap-1 font-semibold ${milkTypeClass}">${milkTypeIcon}</span>
-                </td>
-                <td class="py-2.5 px-3 text-center font-extrabold text-slate-900">${parseFloat(col.quantity_liters).toFixed(2)} L</td>
-                <td class="py-2.5 px-3 text-center">
-                    <span class="font-semibold text-slate-700">${parseFloat(col.fat).toFixed(1)}%</span> / 
-                    <span class="font-semibold text-slate-700">${parseFloat(col.snf).toFixed(1)}%</span>
-                    ${clrBadge}
-                </td>
-                <td class="py-2.5 px-3 text-right font-semibold text-slate-800">₹ ${parseFloat(col.applied_rate).toFixed(2)}</td>
-                <td class="py-2.5 px-3 text-right font-extrabold text-sm text-emerald-700">₹ ${parseFloat(col.net_amount).toFixed(2)}</td>
-                <td class="py-2.5 px-3 text-center">
                     <div class="flex items-center justify-center gap-1">
-                        <a href="/collections/slip/${col.id}" target="_blank" title="Print Slip" class="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition shadow-2xs">
-                            <i data-lucide="printer" class="w-3 h-3"></i>
+                        <a href="/collections/slip/${col.id}" target="_blank" title="View / Print Slip" class="w-7 h-6 rounded bg-cyan-500 hover:bg-cyan-600 text-white flex items-center justify-center transition shadow-2xs">
+                            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                         </a>
                         <button type="button" 
                                 onclick='Alpine.$data(document.querySelector("[x-data]")).startEditCollection(${safeDataJson})'
                                 title="Edit Collection"
-                                class="w-6 h-6 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition shadow-2xs">
-                            <i data-lucide="edit-3" class="w-3 h-3"></i>
+                                class="w-7 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition shadow-2xs">
+                            <i data-lucide="edit" class="w-3.5 h-3.5"></i>
                         </button>
                         <button type="button" 
                                 onclick='Alpine.$data(document.querySelector("[x-data]")).deleteCollection(${col.id}, "${col.receipt_number}")'
                                 title="Delete" 
-                                class="w-6 h-6 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition shadow-2xs">
-                            <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                class="w-7 h-6 rounded bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center transition shadow-2xs">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                         </button>
                     </div>
                 </td>
@@ -1267,13 +1565,11 @@ function milkCollectionManager() {
             const rows = document.querySelectorAll('#collections-table-body tr:not(#no-collections-row)');
             rows.forEach(r => {
                 const cells = r.querySelectorAll('td');
-                if (cells.length >= 8) {
-                    const qty = parseFloat(cells[4].innerText.replace('L', '').trim()) || 0;
-                    const fatSnfText = cells[5].innerText;
-                    const parts = fatSnfText.split('/');
-                    const fat = parts[0] ? (parseFloat(parts[0].replace('%', '').trim()) || 0) : 0;
-                    const snf = parts[1] ? (parseFloat(parts[1].replace('%', '').trim()) || 0) : 0;
-                    const net = parseFloat(cells[7].innerText.replace('₹', '').replace(/,/g, '').trim()) || 0;
+                if (cells.length >= 11) {
+                    const qty = parseFloat(cells[5].innerText.trim()) || 0;
+                    const fat = parseFloat(cells[6].innerText.trim()) || 0;
+                    const snf = parseFloat(cells[8].innerText.trim()) || 0;
+                    const net = parseFloat(cells[10].innerText.replace(/,/g, '').trim()) || 0;
 
                     totalLiters += qty;
                     totalAmount += net;
