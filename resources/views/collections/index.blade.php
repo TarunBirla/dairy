@@ -68,45 +68,61 @@
                            class="text-xs font-semibold px-2 py-0.5 border border-slate-300 rounded-md bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none">
                 </div>
 
-                <!-- Shift Pills -->
+                <!-- Shift Pills (Reflects Collection Shift Setting) -->
                 <div class="flex items-center gap-1 border-l border-slate-200 pl-2">
+                    @if(in_array('morning', $collectionConfig['allowed_shifts']))
                     <button type="button" 
                             @click="form.shift = 'morning'; triggerRateCalculation();"
                             :class="form.shift === 'morning' ? 'bg-amber-400 text-slate-900 font-bold shadow-2xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'"
                             class="px-2 py-0.5 text-xs rounded-md transition flex items-center gap-1">
                         <span>☀️ Morning</span>
                     </button>
+                    @endif
+                    @if(in_array('evening', $collectionConfig['allowed_shifts']))
                     <button type="button" 
                             @click="form.shift = 'evening'; triggerRateCalculation();"
                             :class="form.shift === 'evening' ? 'bg-indigo-600 text-white font-bold shadow-2xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'"
                             class="px-2 py-0.5 text-xs rounded-md transition flex items-center gap-1">
                         <span>🌙 Evening</span>
                     </button>
+                    @endif
                 </div>
 
-                <!-- Milk Type Pills -->
+                <!-- Milk Type Pills (Reflects Milk Type Setting) -->
                 <div class="flex items-center gap-1 border-l border-slate-200 pl-2">
                     <span class="text-[11px] font-semibold text-slate-500 mr-0.5">Milk:</span>
+                    @if(in_array('cow', $collectionConfig['allowed_milk_types']))
                     <button type="button" 
                             @click="form.milk_type = 'cow'; triggerRateCalculation();"
                             :class="form.milk_type === 'cow' ? 'bg-emerald-600 text-white font-bold shadow-2xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'"
                             class="px-2 py-0.5 text-xs rounded-md transition flex items-center gap-1">
                         <span>🐄 Cow</span>
                     </button>
+                    @endif
+                    @if(in_array('buffalo', $collectionConfig['allowed_milk_types']))
                     <button type="button" 
                             @click="form.milk_type = 'buffalo'; triggerRateCalculation();"
                             :class="form.milk_type === 'buffalo' ? 'bg-emerald-600 text-white font-bold shadow-2xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'"
                             class="px-2 py-0.5 text-xs rounded-md transition flex items-center gap-1">
                         <span>🐃 Buffalo</span>
                     </button>
+                    @endif
                 </div>
+
+                <!-- Active Collection Mode Badge -->
+                <a href="{{ route('settings.center-information') }}"
+                   title="Click to change Collection Type in Center Information Settings"
+                   class="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80 text-[10px] font-bold hover:bg-blue-100 transition">
+                    <i data-lucide="settings-2" class="w-3 h-3"></i>
+                    <span>Mode: {{ $collectionConfig['collection_type'] }}</span>
+                </a>
             </div>
 
             <!-- Right Controls: Center + Notes toggle -->
             <div class="flex items-center gap-2">
                 <div class="flex items-center gap-1.5 w-36 sm:w-44 relative" id="center_select_col">
                     <span class="text-[11px] font-semibold text-slate-500 shrink-0">Center:</span>
-                    <select id="collection_center_select" x-model="form.collection_center_id" class="text-xs border border-slate-300 rounded-md bg-white w-full py-1 px-1.5 font-medium text-slate-800 focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+                    <select id="collection_center_select" x-model="form.collection_center_id" @change="triggerRateCalculation()" class="text-xs border border-slate-300 rounded-md bg-white w-full py-1 px-1.5 font-medium text-slate-800 focus:ring-1 focus:ring-emerald-500 focus:outline-none">
                         @foreach($centers as $c)
                             <option value="{{ $c->id }}">
                                 {{ $c->name }}
@@ -134,10 +150,10 @@
 
         <!-- Line 2: All Inputs in ONE SINGLE RESPONSIVE ROW (Customer Code, Liter, FAT, CLR, SNF, Rate, Net, Actions) -->
         <form @submit.prevent="submitCollection(false)" class="p-2.5 sm:p-3 space-y-1.5">
-            <div class="grid grid-cols-12 gap-2 items-start">
+            <div class="flex flex-wrap lg:flex-nowrap gap-2 items-start">
                 
                 <!-- Customer / Farmer Code (Fast Code Input + Searchable Dropdown) -->
-                <div class="col-span-12 sm:col-span-6 lg:col-span-3 relative" id="farmer_select_col" @click.away="farmerDropdownOpen = false">
+                <div class="w-full sm:w-[48%] lg:flex-[2.6] min-w-[210px] relative" id="farmer_select_col" @click.away="farmerDropdownOpen = false">
                     <div class="flex items-center justify-between mb-0.5">
                         <label class="block text-[10px] font-bold text-slate-700 uppercase tracking-wider">Farmer Code / Name *</label>
                         <span class="text-[9px] text-emerald-600 font-semibold" title="Type numeric code (e.g. 101 or 105) and press Enter">⚡ Fast Code or Search</span>
@@ -229,64 +245,75 @@
                     </div>
                 </div>
 
-                <!-- Liter (Qty) (1.2 cols) -->
-                <div class="col-span-4 sm:col-span-3 lg:col-span-1">
+                <!-- Liter (Qty) -->
+                <div class="w-[48%] sm:w-[23%] lg:flex-1 min-w-[85px]">
                     <label class="block text-[10px] font-bold text-slate-700 mb-0.5 uppercase tracking-wider">Liter *</label>
                     <input type="number" 
                            id="collection_quantity_input"
                            step="0.01" 
                            min="0.1"
                            x-model.number="form.quantity_liters" 
-                           @input="recalculateTotals()" 
+                           @input="onQuantityChange()" 
                            required 
                            placeholder="10.0"
                            class="w-full px-2 py-1.5 text-xs font-black text-slate-900 border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
                 </div>
 
-                <!-- FAT % (1 col) -->
-                <div class="col-span-4 sm:col-span-3 lg:col-span-1">
+                <!-- FAT % (Shown when collection_type includes FAT) -->
+                <div x-show="config.show_fat" class="w-[48%] sm:w-[23%] lg:flex-1 min-w-[85px]">
                     <label class="block text-[10px] font-bold text-slate-700 mb-0.5 uppercase tracking-wider">FAT % *</label>
                     <input type="number" 
+                           id="collection_fat_input"
                            step="0.1" 
-                           min="1" 
-                           max="15"
+                           min="0.5" 
+                           max="20"
                            x-model.number="form.fat" 
-                           @input="onFatOrClrChange()" 
-                           required 
+                           @input="onFatChange()" 
+                           :required="config.show_fat"
                            placeholder="4.0"
                            class="w-full px-2 py-1.5 text-xs font-black text-slate-900 border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
                 </div>
 
-                <!-- CLR (1 col) -->
-                <div class="col-span-4 sm:col-span-3 lg:col-span-1">
-                    <label class="block text-[10px] font-bold text-slate-700 mb-0.5 uppercase tracking-wider">CLR *</label>
+                <!-- CLR (Shown when collection_type includes CLR or Auto CLR) -->
+                <div x-show="config.show_clr" class="w-[48%] sm:w-[23%] lg:flex-1 min-w-[85px]">
+                    <label class="block text-[10px] font-bold mb-0.5 uppercase tracking-wider"
+                           :class="config.auto_clr ? 'text-blue-600' : 'text-slate-700'"
+                           x-text="config.auto_clr ? 'CLR (Auto)' : 'CLR *'"></label>
                     <input type="number" 
+                           id="collection_clr_input"
                            step="0.5" 
-                           min="10" 
-                           max="40"
+                           min="5" 
+                           max="50"
                            x-model.number="form.clr" 
-                           @input="onFatOrClrChange()" 
-                           required 
+                           @input="onClrChange()" 
+                           :readonly="config.auto_clr"
+                           :required="config.show_clr && !config.auto_clr"
                            placeholder="28"
-                           class="w-full px-2 py-1.5 text-xs font-black text-slate-900 border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
+                           :class="config.auto_clr ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : 'bg-white text-slate-900'"
+                           class="w-full px-2 py-1.5 text-xs font-black border border-slate-300 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
                 </div>
 
-                <!-- SNF % (1 col) -->
-                <div class="col-span-4 sm:col-span-3 lg:col-span-1">
-                    <label class="block text-[10px] font-bold text-slate-700 mb-0.5 uppercase tracking-wider">SNF % *</label>
+                <!-- SNF % (Shown when collection_type includes SNF or Auto SNF) -->
+                <div x-show="config.show_snf" class="w-[48%] sm:w-[23%] lg:flex-1 min-w-[85px]">
+                    <label class="block text-[10px] font-bold mb-0.5 uppercase tracking-wider"
+                           :class="config.auto_snf ? 'text-blue-600' : 'text-slate-700'"
+                           x-text="config.auto_snf ? 'SNF % (Auto)' : 'SNF % *'"></label>
                     <input type="number" 
+                           id="collection_snf_input"
                            step="0.01" 
-                           min="4" 
-                           max="15"
+                           min="2" 
+                           max="20"
                            x-model.number="form.snf" 
-                           @input="triggerRateCalculation()" 
-                           required 
+                           @input="onSnfChange()" 
+                           :readonly="config.auto_snf"
+                           :required="config.show_snf && !config.auto_snf"
                            placeholder="8.5"
-                           class="w-full px-2 py-1.5 text-xs font-black text-slate-900 border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
+                           :class="config.auto_snf ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : 'bg-white text-slate-900'"
+                           class="w-full px-2 py-1.5 text-xs font-black border border-slate-300 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
                 </div>
 
-                <!-- Rate (₹/L) (1.2 cols) -->
-                <div class="col-span-4 sm:col-span-3 lg:col-span-1">
+                <!-- Rate (₹/L) -->
+                <div class="w-[48%] sm:w-[30%] lg:flex-[1.1] min-w-[95px]">
                     <label class="block text-[10px] font-bold text-slate-700 mb-0.5 uppercase tracking-wider">Rate *</label>
                     <input type="number" 
                            step="0.01" 
@@ -295,11 +322,11 @@
                            @input="recalculateTotals()" 
                            required
                            class="w-full px-2 py-1.5 text-xs font-black text-slate-900 border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
-                    <div class="text-[9px] text-slate-400 font-mono truncate mt-0.5" x-text="rateChartFeedback"></div>
+                    <div class="text-[9px] text-slate-400 font-mono truncate mt-0.5" x-text="rateChartFeedback" :title="rateChartFeedback"></div>
                 </div>
 
-                <!-- Net Farmer Amount (2 cols) -->
-                <div class="col-span-8 sm:col-span-6 lg:col-span-2">
+                <!-- Net Farmer Amount -->
+                <div class="w-full sm:w-[38%] lg:flex-[1.5] min-w-[130px]">
                     <label class="block text-[10px] font-bold text-slate-500 mb-0.5 uppercase tracking-wider">Net Amount</label>
                     <div class="px-2.5 py-1.5 bg-emerald-50 border border-emerald-200/90 rounded-lg flex items-center justify-between">
                         <span class="text-[10px] text-emerald-800 font-semibold" x-text="(form.quantity_liters || 0) + 'L'"></span>
@@ -307,8 +334,8 @@
                     </div>
                 </div>
 
-                <!-- Action Buttons: Reset, Save, Print (1.8 cols) -->
-                <div class="col-span-4 sm:col-span-6 lg:col-span-2 flex items-center justify-end gap-1 pt-4 sm:pt-4">
+                <!-- Action Buttons: Reset, Save, Print -->
+                <div class="w-full sm:w-[28%] lg:flex-[1.3] min-w-[135px] flex items-center justify-end gap-1 pt-4 sm:pt-4">
                     <!-- Reset -->
                     <button type="button" 
                             @click="resetForm()" 
@@ -349,12 +376,18 @@
             <!-- Collapsible Optional Notes & Adjustments -->
             <div x-show="showAdvanced" x-cloak class="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div>
-                    <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Bonus (₹)</label>
+                    <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                        Bonus / Additions (₹)
+                        <span x-show="config.per_liter_addition > 0" class="text-emerald-600 font-bold" x-text="'(+₹' + config.per_liter_addition + '/L)'"></span>
+                    </label>
                     <input type="number" step="0.5" x-model.number="form.bonus" @input="recalculateTotals()" placeholder="0.00"
                            class="w-full px-2 py-1 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
                 </div>
                 <div>
-                    <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Deduction (₹)</label>
+                    <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                        Deduction / Charges (₹)
+                        <span x-show="config.per_liter_deduction > 0" class="text-rose-600 font-bold" x-text="'(-₹' + config.per_liter_deduction + '/L)'"></span>
+                    </label>
                     <input type="number" step="0.5" x-model.number="form.deduction" @input="recalculateTotals()" placeholder="0.00"
                            class="w-full px-2 py-1 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
                 </div>
@@ -581,6 +614,7 @@ function milkCollectionManager() {
         isSubmitting: false,
         showAdvanced: false,
         rateChartFeedback: 'Rate Chart = ₹42.50/L',
+        config: @json($collectionConfig),
         
         toast: {
             show: false,
@@ -608,7 +642,7 @@ function milkCollectionManager() {
             name: '',
             phone: '',
             village: '',
-            animal: 'cow'
+            animal: '{{ $collectionConfig['default_milk_type'] }}'
         },
 
         form: {
@@ -618,7 +652,7 @@ function milkCollectionManager() {
             collection_center_id: '{{ $centers->first()->id ?? "" }}',
             collection_date: '{{ $today }}',
             shift: '{{ $currentShift }}',
-            milk_type: 'cow',
+            milk_type: '{{ $collectionConfig['default_milk_type'] }}',
             quantity_liters: 10.0,
             fat: 4.0,
             clr: 28.0,
@@ -632,7 +666,12 @@ function milkCollectionManager() {
         init() {
             const self = this;
             this.$nextTick(() => {
-                self.calculateSnfFromClr();
+                if (self.config.auto_snf) {
+                    self.calculateSnfFromClr();
+                } else if (self.config.auto_clr) {
+                    self.calculateClrFromSnf();
+                }
+                self.applyPerLiterCharges();
                 self.triggerRateCalculation();
                 if (window.lucide) window.lucide.createIcons();
             });
@@ -690,7 +729,7 @@ function milkCollectionManager() {
                 village: farmer.village || '',
                 animal: farmer.animal_type || 'cow'
             };
-            if (farmer.animal_type && (farmer.animal_type === 'cow' || farmer.animal_type === 'buffalo')) {
+            if (farmer.animal_type && this.config.allowed_milk_types.includes(farmer.animal_type)) {
                 this.form.milk_type = farmer.animal_type;
             }
             this.farmerDropdownOpen = false;
@@ -754,8 +793,41 @@ function milkCollectionManager() {
             }, 4500);
         },
 
-        onFatOrClrChange() {
-            this.calculateSnfFromClr();
+        onQuantityChange() {
+            this.applyPerLiterCharges();
+            this.recalculateTotals();
+        },
+
+        applyPerLiterCharges() {
+            const qty = parseFloat(this.form.quantity_liters) || 0;
+            if (this.config.per_liter_addition > 0) {
+                this.form.bonus = parseFloat((qty * this.config.per_liter_addition).toFixed(2));
+            }
+            if (this.config.per_liter_deduction > 0) {
+                this.form.deduction = parseFloat((qty * this.config.per_liter_deduction).toFixed(2));
+            }
+        },
+
+        onFatChange() {
+            if (this.config.auto_snf) {
+                this.calculateSnfFromClr();
+            } else if (this.config.auto_clr) {
+                this.calculateClrFromSnf();
+            }
+            this.triggerRateCalculation();
+        },
+
+        onClrChange() {
+            if (this.config.auto_snf) {
+                this.calculateSnfFromClr();
+            }
+            this.triggerRateCalculation();
+        },
+
+        onSnfChange() {
+            if (this.config.auto_clr) {
+                this.calculateClrFromSnf();
+            }
             this.triggerRateCalculation();
         },
 
@@ -769,15 +841,28 @@ function milkCollectionManager() {
             }
         },
 
+        calculateClrFromSnf() {
+            const snf = parseFloat(this.form.snf) || 0;
+            const fat = parseFloat(this.form.fat) || 0;
+            if (snf > 0 && fat > 0) {
+                // Inverse Indian Dairy Formula: CLR = (SNF - (0.21 * FAT) - 0.36) * 4
+                const calculatedClr = Math.max(0, (snf - (0.21 * fat) - 0.36) * 4);
+                this.form.clr = parseFloat(calculatedClr.toFixed(1));
+            }
+        },
+
         recalculateTotals() {
             // Evaluated reactively via netAmountFormatted
         },
 
         triggerRateCalculation() {
-            const fat = parseFloat(this.form.fat) || 4.0;
-            const snf = parseFloat(this.form.snf) || 8.5;
-            const milkType = this.form.milk_type || 'cow';
+            const fat = this.config.show_fat ? (parseFloat(this.form.fat) || 0) : 0;
+            const snf = this.config.show_snf ? (parseFloat(this.form.snf) || 0) : 0;
+            const clr = this.config.show_clr ? (parseFloat(this.form.clr) || 0) : 0;
+            const milkType = this.form.milk_type || this.config.default_milk_type || 'cow';
+            const shift = this.form.shift || 'morning';
             const farmerId = this.form.farmer_id || null;
+            const centerId = this.form.collection_center_id || null;
 
             fetch('{{ route("collections.calc-rate") }}', {
                 method: 'POST',
@@ -789,23 +874,36 @@ function milkCollectionManager() {
                 body: JSON.stringify({
                     fat: fat,
                     snf: snf,
+                    clr: clr,
                     milk_type: milkType,
-                    farmer_id: farmerId
+                    shift: shift,
+                    farmer_id: farmerId,
+                    collection_center_id: centerId
                 })
             })
             .then(res => res.json())
             .then(data => {
-                if (data && data.rate) {
+                if (data && typeof data.rate !== 'undefined') {
                     this.form.applied_rate = parseFloat(data.rate);
+                    if (this.config.auto_snf && data.snf > 0) {
+                        this.form.snf = parseFloat(data.snf);
+                    }
+                    if (this.config.auto_clr && data.clr > 0) {
+                        this.form.clr = parseFloat(data.clr);
+                    }
                     this.rateChartFeedback = (data.chart_name || 'Rate Chart') + ' = ₹' + Number(data.rate).toFixed(2) + '/L';
                 }
             })
             .catch(() => {
                 let fallbackRate = 40.0;
-                if (milkType === 'buffalo') {
-                    fallbackRate = (fat * 7.2) + (snf * 4.5);
+                if (this.config.collection_type === 'FAT only') {
+                    fallbackRate = fat * (milkType === 'buffalo' ? 10.5 : 9.5);
+                } else if (this.config.collection_type === 'CLR only') {
+                    fallbackRate = clr * (milkType === 'buffalo' ? 1.85 : 1.45);
+                } else if (milkType === 'buffalo') {
+                    fallbackRate = (fat * 7.2) + ((snf || 8.5) * 4.5);
                 } else {
-                    fallbackRate = (fat * 6.8) + (snf * 4.1);
+                    fallbackRate = (fat * 6.8) + ((snf || 8.5) * 4.1);
                 }
                 this.form.applied_rate = parseFloat(fallbackRate.toFixed(2));
                 this.rateChartFeedback = (milkType.charAt(0).toUpperCase() + milkType.slice(1)) + ' Formula = ₹' + this.form.applied_rate + '/L';
@@ -824,7 +922,7 @@ function milkCollectionManager() {
                 milk_type: item.milk_type,
                 quantity_liters: item.quantity_liters,
                 fat: item.fat,
-                clr: item.clr,
+                clr: item.clr || 28.0,
                 snf: item.snf,
                 bonus: item.bonus || 0,
                 deduction: item.deduction || 0,
@@ -861,7 +959,7 @@ function milkCollectionManager() {
                 collection_center_id: this.form.collection_center_id || '{{ $centers->first()->id ?? "" }}',
                 collection_date: '{{ $today }}',
                 shift: '{{ $currentShift }}',
-                milk_type: 'cow',
+                milk_type: this.config.default_milk_type || 'cow',
                 quantity_liters: 10.0,
                 fat: 4.0,
                 clr: 28.0,
@@ -874,8 +972,13 @@ function milkCollectionManager() {
             this.quickFarmerCode = '';
             this.farmerSearchText = '';
             this.farmerDropdownOpen = false;
-            this.selectedFarmer = { id: '', code: '', name: '', phone: '', village: '', animal: 'cow' };
-            this.calculateSnfFromClr();
+            this.selectedFarmer = { id: '', code: '', name: '', phone: '', village: '', animal: this.config.default_milk_type || 'cow' };
+            if (this.config.auto_snf) {
+                this.calculateSnfFromClr();
+            } else if (this.config.auto_clr) {
+                this.calculateClrFromSnf();
+            }
+            this.applyPerLiterCharges();
             this.triggerRateCalculation();
         },
 
@@ -889,7 +992,7 @@ function milkCollectionManager() {
             this.quickFarmerCode = '';
             this.farmerSearchText = '';
             this.farmerDropdownOpen = false;
-            this.selectedFarmer = { id: '', code: '', name: '', phone: '', village: '', animal: 'cow' };
+            this.selectedFarmer = { id: '', code: '', name: '', phone: '', village: '', animal: this.config.default_milk_type || 'cow' };
             this.$nextTick(() => {
                 const codeIn = document.getElementById('quick_farmer_code_input');
                 if (codeIn) {
@@ -919,8 +1022,22 @@ function milkCollectionManager() {
                 document.getElementById('collection_quantity_input').focus();
                 return;
             }
-            if (!this.form.fat || parseFloat(this.form.fat) <= 0) {
+            if (this.config.show_fat && (!this.form.fat || parseFloat(this.form.fat) <= 0)) {
                 this.showToast('Please enter a valid FAT %.', 'error');
+                const fatIn = document.getElementById('collection_fat_input');
+                if (fatIn) fatIn.focus();
+                return;
+            }
+            if (this.config.show_clr && !this.config.auto_clr && (!this.form.clr || parseFloat(this.form.clr) <= 0)) {
+                this.showToast('Please enter a valid CLR reading.', 'error');
+                const clrIn = document.getElementById('collection_clr_input');
+                if (clrIn) clrIn.focus();
+                return;
+            }
+            if (this.config.show_snf && !this.config.auto_snf && (!this.form.snf || parseFloat(this.form.snf) <= 0)) {
+                this.showToast('Please enter a valid SNF %.', 'error');
+                const snfIn = document.getElementById('collection_snf_input');
+                if (snfIn) snfIn.focus();
                 return;
             }
 
@@ -934,9 +1051,9 @@ function milkCollectionManager() {
                 shift: this.form.shift,
                 milk_type: this.form.milk_type,
                 quantity_liters: this.form.quantity_liters,
-                fat: this.form.fat,
-                snf: this.form.snf,
-                clr: this.form.clr,
+                fat: this.config.show_fat ? this.form.fat : 0,
+                snf: this.config.show_snf ? this.form.snf : 0,
+                clr: this.config.show_clr ? this.form.clr : 0,
                 bonus: this.form.bonus || 0,
                 deduction: this.form.deduction || 0,
                 applied_rate: this.form.applied_rate,
