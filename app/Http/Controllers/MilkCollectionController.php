@@ -159,7 +159,7 @@ class MilkCollectionController extends Controller
         $rate = 0.0;
 
         // 1. Check Farmer Custom Override according to farmer_wise_rate setting
-        if ($farmer && $farmer->custom_rate_override > 0) {
+        if ($farmer && $farmer->custom_rate_override > 0 && $config['farmer_wise_rate'] !== 'As per Rate Chart') {
             if ($config['farmer_wise_rate'] === 'Fat Wise' && $fat > 0) {
                 $rate = round($fat * (float) $farmer->custom_rate_override, 2);
                 $chartName = "Farmer Fat Wise (₹{$farmer->custom_rate_override}/FAT)";
@@ -167,52 +167,71 @@ class MilkCollectionController extends Controller
                 $rate = round((float) $farmer->custom_rate_override, 2);
                 $chartName = "Custom Farmer Rate (₹" . number_format($rate, 2) . ")";
             }
+        } elseif ($farmer && $farmer->custom_rate_override > 0 && $config['rate_chart_status'] === 'Off') {
+            $rate = round((float) $farmer->custom_rate_override, 2);
+            $chartName = "Custom Farmer Rate (₹" . number_format($rate, 2) . ")";
         } else {
-            // 2. Match RateChart according to Farmer -> Center -> MilkType & Format -> Default
+            // 2. Match RateChart according to MilkType + Farmer -> Center -> Format -> Default
             $chart = null;
 
-            if ($farmer && $farmer->rate_chart_id) {
-                $chart = RateChart::where('id', $farmer->rate_chart_id)->where('status', 'active')->first();
-            }
-
-            if (!$chart && ($centerId || ($farmer && $farmer->collection_center_id))) {
-                $cid = $centerId ?: $farmer->collection_center_id;
-                $center = CollectionCenter::find($cid);
-                if ($center && $center->rate_chart_id) {
-                    $chart = RateChart::where('id', $center->rate_chart_id)->where('status', 'active')->first();
+            if ($config['rate_chart_status'] !== 'Off') {
+                if ($farmer && $farmer->rate_chart_id) {
+                    $chart = RateChart::where('id', $farmer->rate_chart_id)
+                        ->whereIn('milk_type', [$milkType, 'mixed', 'both'])
+                        ->where('status', 'active')
+                        ->first();
                 }
-            }
 
-            if (!$chart) {
-                // Map collection_type to preferred RateChart format
-                $preferredFormat = match ($collectionType) {
-                    'FAT only' => 'fat_only',
-                    'FAT + CLR', 'CLR only' => 'fat_clr',
-                    'Liter Only' => 'fixed_rate',
-                    default => 'fat_snf',
-                };
-
-                $chart = RateChart::whereIn('milk_type', [$milkType, 'both'])
-                    ->where('status', 'active')
-                    ->where('format', $preferredFormat)
-                    ->first();
+                if (!$chart && ($centerId || ($farmer && $farmer->collection_center_id))) {
+                    $cid = $centerId ?: $farmer->collection_center_id;
+                    $center = CollectionCenter::find($cid);
+                    if ($center && $center->rate_chart_id) {
+                        $chart = RateChart::where('id', $center->rate_chart_id)
+                            ->whereIn('milk_type', [$milkType, 'mixed', 'both'])
+                            ->where('status', 'active')
+                            ->first();
+                    }
+                }
 
                 if (!$chart) {
-                    $chart = RateChart::whereIn('milk_type', [$milkType, 'both'])
+                    // Map collection_type to preferred RateChart format
+                    $preferredFormat = match ($collectionType) {
+                        'FAT only' => 'fat_only',
+                        'FAT + CLR', 'CLR only' => 'fat_clr',
+                        'Liter Only' => 'fixed_rate',
+                        default => 'fat_snf',
+                    };
+
+                    $chart = RateChart::where('milk_type', $milkType)
                         ->where('status', 'active')
-                        ->first()
-                        ?? RateChart::where('is_default', true)->where('status', 'active')->first()
-                        ?? RateChart::where('status', 'active')->first();
+                        ->where('format', $preferredFormat)
+                        ->orderByDesc('is_default')
+                        ->latest('id')
+                        ->first();
+
+                    if (!$chart) {
+                        $chart = RateChart::where('milk_type', $milkType)
+                            ->where('status', 'active')
+                            ->orderByDesc('is_default')
+                            ->latest('id')
+                            ->first()
+                            ?? RateChart::whereIn('milk_type', [$milkType, 'mixed', 'both'])
+                                ->where('status', 'active')
+                                ->orderByDesc('is_default')
+                                ->latest('id')
+                                ->first();
+                    }
                 }
             }
 
             if ($chart) {
                 $rate = $chart->calculateRate($fat, $snf, $clr, $collectionType);
                 $chartName = $chart->name;
+                $chartId = $chart->id;
             } else {
-                // 3. Fallback formula according to collection_type
+                // 3. Fallback formula according to collection_type and milk_type
                 if ($collectionType === 'Liter Only') {
-                    $rate = ($milkType === 'buffalo') ? 55.00 : 40.00;
+                    $rate = ($milkType === 'buffalo') ? 55.00 : 38.00;
                 } elseif ($collectionType === 'FAT only') {
                     $rate = round($fat * ($milkType === 'buffalo' ? 10.50 : 9.50), 2);
                 } elseif ($collectionType === 'CLR only') {
@@ -225,6 +244,7 @@ class MilkCollectionController extends Controller
                     $rate = round($rate, 2);
                 }
                 $chartName = ucfirst($milkType) . ' (' . $collectionType . ')';
+                $chartId = null;
             }
         }
 
@@ -241,6 +261,7 @@ class MilkCollectionController extends Controller
             'fat' => $fat,
             'snf' => $snf,
             'clr' => $clr,
+            'chart_id' => $chartId ?? null,
             'chart_name' => $chartName,
             'collection_type' => $collectionType,
             'per_liter_addition' => $config['per_liter_addition'],

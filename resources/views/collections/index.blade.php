@@ -116,6 +116,14 @@
                     <i data-lucide="settings-2" class="w-3 h-3"></i>
                     <span>Mode: {{ $collectionConfig['collection_type'] }}</span>
                 </a>
+
+                <!-- Active Rate Chart Source Link -->
+                <a :href="activeChartId ? ('/rates/' + activeChartId + '/edit') : '{{ route('rates.index') }}'"
+                   title="Click to view or edit the Rate Chart where this rate comes from"
+                   class="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[10px] font-bold hover:bg-emerald-100 transition">
+                    <i data-lucide="table-2" class="w-3 h-3"></i>
+                    <span x-text="rateChartFeedback"></span>
+                </a>
             </div>
 
             <!-- Right Controls: Center + Notes toggle -->
@@ -314,7 +322,12 @@
 
                 <!-- Rate (₹/L) -->
                 <div class="w-[48%] sm:w-[30%] lg:flex-[1.1] min-w-[95px]">
-                    <label class="block text-[10px] font-bold text-slate-700 mb-0.5 uppercase tracking-wider">Rate *</label>
+                    <div class="flex items-center justify-between mb-0.5">
+                        <label class="block text-[10px] font-bold text-slate-700 uppercase tracking-wider">Rate *</label>
+                        <a :href="activeChartId ? ('/rates/' + activeChartId + '/edit') : '{{ route('rates.index') }}'"
+                           class="text-[9px] font-bold text-emerald-600 hover:underline"
+                           title="Open Rate Charts">Chart ↗</a>
+                    </div>
                     <input type="number" 
                            step="0.01" 
                            min="0"
@@ -613,6 +626,7 @@ function milkCollectionManager() {
         isEditMode: false,
         isSubmitting: false,
         showAdvanced: false,
+        activeChartId: null,
         rateChartFeedback: 'Rate Chart = ₹42.50/L',
         config: @json($collectionConfig),
         
@@ -885,6 +899,7 @@ function milkCollectionManager() {
             .then(data => {
                 if (data && typeof data.rate !== 'undefined') {
                     this.form.applied_rate = parseFloat(data.rate);
+                    this.activeChartId = data.chart_id || null;
                     if (this.config.auto_snf && data.snf > 0) {
                         this.form.snf = parseFloat(data.snf);
                     }
