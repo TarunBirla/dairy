@@ -185,7 +185,7 @@
                         </div>
 
                         <!-- Farmer Name (Searchable Dropdown, 5 cols) -->
-                        <div class="sm:col-span-5 relative">
+                        <div class="sm:col-span-6 relative">
                             <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Farmer Name *</label>
                             <div class="flex items-stretch h-7 relative">
                                 <input type="text" 
