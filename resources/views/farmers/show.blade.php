@@ -136,6 +136,10 @@
                 </span>
             @endif
         </button>
+        <button @click="tab = 'passbook'" :class="tab === 'passbook' ? 'border-b-2 border-emerald-600 text-emerald-700' : 'text-slate-500 hover:text-slate-700'" class="pb-3 transition flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="book-open-check" class="w-3.5 h-3.5"></i>
+            <span>All Passbook Detail ({{ count($passbookEntries) }})</span>
+        </button>
     </div>
 
     <!-- TAB 1: Milk Collections -->
@@ -440,6 +444,224 @@
                             </tr>
                         </tfoot>
                     @endif
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 5: All Passbook Detail (Month-wise Full Statement + Date Filter + Print & PDF) -->
+    <div x-show="tab === 'passbook'" x-cloak class="space-y-4">
+        <!-- Filter & Export Bar -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+            <form action="{{ route('farmers.show', $farmer) }}" method="GET" class="flex flex-wrap items-end gap-3">
+                <input type="hidden" name="tab" value="passbook">
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">From Date</label>
+                    <input type="date" name="passbook_from" value="{{ $passbookFrom }}"
+                           class="px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold text-slate-700">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">To Date</label>
+                    <input type="date" name="passbook_to" value="{{ $passbookTo }}"
+                           class="px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold text-slate-700">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Month Wise</label>
+                    <select name="passbook_month" class="px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold text-slate-700 bg-white">
+                        <option value="">All Months</option>
+                        @foreach($passbookAvailableMonths as $ymKey => $ymLabel)
+                            <option value="{{ $ymKey }}" {{ $passbookMonth === $ymKey ? 'selected' : '' }}>{{ $ymLabel }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Entry Type</label>
+                    <select name="passbook_type" class="px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold text-slate-700 bg-white">
+                        <option value="all" {{ $passbookType === 'all' ? 'selected' : '' }}>All Transactions</option>
+                        <option value="collection" {{ $passbookType === 'collection' ? 'selected' : '' }}>Milk Supply (+)</option>
+                        <option value="purchase" {{ $passbookType === 'purchase' ? 'selected' : '' }}>Product Purchases (-)</option>
+                        <option value="advance" {{ $passbookType === 'advance' ? 'selected' : '' }}>Advances & Loans (-)</option>
+                        <option value="deduction" {{ $passbookType === 'deduction' ? 'selected' : '' }}>Deductions (-)</option>
+                        <option value="settlement" {{ $passbookType === 'settlement' ? 'selected' : '' }}>Settlements (-)</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-2xs transition cursor-pointer">
+                        <i data-lucide="filter" class="w-3.5 h-3.5"></i>
+                        <span>Apply Filter</span>
+                    </button>
+                    @if($passbookFrom || $passbookTo || $passbookMonth || ($passbookType && $passbookType !== 'all'))
+                        <a href="{{ route('farmers.show', ['farmer' => $farmer->id, 'tab' => 'passbook']) }}"
+                           class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-lg transition">
+                            Reset
+                        </a>
+                    @endif
+                </div>
+            </form>
+
+            <!-- Print & Download PDF Buttons -->
+            <div class="flex items-center gap-2">
+                <a href="{{ route('farmers.passbook.statement', ['farmer' => $farmer->id, 'from_date' => $passbookFrom, 'to_date' => $passbookTo, 'month' => $passbookMonth, 'type' => $passbookType, 'download' => 1]) }}"
+                   target="_blank"
+                   class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition">
+                    <i data-lucide="file-down" class="w-3.5 h-3.5"></i>
+                    <span>Download PDF</span>
+                </a>
+                <a href="{{ route('farmers.passbook.statement', ['farmer' => $farmer->id, 'from_date' => $passbookFrom, 'to_date' => $passbookTo, 'month' => $passbookMonth, 'type' => $passbookType, 'print' => 1]) }}"
+                   target="_blank"
+                   class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg shadow-xs transition">
+                    <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                    <span>Print Statement</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- On-Screen Passbook Statement Sheet (Reference Statement Layout) -->
+        <div class="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/90 shadow-xs space-y-5">
+            <!-- Statement Title & Date Range -->
+            <div class="text-center space-y-1">
+                <h3 class="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">
+                    {{ $farmer->name }} Statement
+                </h3>
+                <p class="text-xs sm:text-sm font-semibold text-slate-600">
+                    ({{ $passbookStartDateFormatted }} - {{ $passbookEndDateFormatted }})
+                </p>
+            </div>
+
+            <!-- 4-Column Summary Box (Opening Balance | Total Debit(-) | Total Credit(+) | Net Balance) -->
+            <div class="border border-slate-300 rounded-xl p-4 sm:p-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="lg:border-r lg:border-slate-200 lg:pr-4">
+                    <span class="text-xs font-semibold text-slate-600 block">Opening Balance</span>
+                    <div class="mt-1.5 flex items-baseline gap-1">
+                        <span class="text-base sm:text-lg font-extrabold {{ $passbookOpeningBalance < 0 ? 'text-rose-600' : ($passbookOpeningBalance > 0 ? 'text-emerald-700' : 'text-slate-900') }}">
+                            ₹{{ number_format(abs($passbookOpeningBalance), 2) }}
+                        </span>
+                        @if($passbookOpeningBalance != 0)
+                            <span class="text-xs font-semibold text-slate-500">{{ $passbookOpeningBalance < 0 ? 'Dr' : 'Cr' }}</span>
+                        @endif
+                    </div>
+                    <span class="text-[11px] text-slate-500 mt-1 block">(on {{ $passbookStartDateFormatted }})</span>
+                </div>
+
+                <div class="lg:border-r lg:border-slate-200 lg:pr-4">
+                    <span class="text-xs font-semibold text-slate-600 block">Total Debit(-)</span>
+                    <span class="text-base sm:text-lg font-extrabold text-slate-900 mt-1.5 block">
+                        ₹{{ number_format($passbookTotalDebit, 2) }}
+                    </span>
+                </div>
+
+                <div class="lg:border-r lg:border-slate-200 lg:pr-4">
+                    <span class="text-xs font-semibold text-slate-600 block">Total Credit(+)</span>
+                    <span class="text-base sm:text-lg font-extrabold text-slate-900 mt-1.5 block">
+                        ₹{{ number_format($passbookTotalCredit, 2) }}
+                    </span>
+                </div>
+
+                <div>
+                    <span class="text-xs font-semibold text-slate-600 block">Net Balance</span>
+                    <div class="mt-1.5 flex items-baseline gap-1">
+                        <span class="text-base sm:text-lg font-extrabold {{ $passbookNetBalance < 0 ? 'text-rose-600' : ($passbookNetBalance > 0 ? 'text-emerald-700' : 'text-slate-900') }}">
+                            ₹{{ number_format(abs($passbookNetBalance), 2) }}
+                        </span>
+                        @if($passbookNetBalance != 0)
+                            <span class="text-xs font-semibold text-slate-500">{{ $passbookNetBalance < 0 ? 'Dr' : 'Cr' }}</span>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <!-- Entries Count Label -->
+            <div class="text-xs text-slate-700">
+                No. of Entries: <b class="font-extrabold text-slate-900">{{ count($passbookEntries) }} (Date Range)</b>
+            </div>
+
+            <!-- Month-Wise Statement Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse border border-slate-300">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-900 font-bold">
+                            <th class="py-2.5 px-3.5 border border-slate-300 w-24">Date</th>
+                            <th class="py-2.5 px-3.5 border border-slate-300">Details</th>
+                            <th class="py-2.5 px-3.5 border border-slate-300 text-right w-32">Debit(-)</th>
+                            <th class="py-2.5 px-3.5 border border-slate-300 text-right w-32">Credit(+)</th>
+                            <th class="py-2.5 px-3.5 border border-slate-300 text-right w-36">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @php $mIndex = 0; @endphp
+                        @forelse($passbookMonthlyGroups as $ym => $mGroup)
+                            @php $mIndex++; @endphp
+                            <!-- Month Section Header Row -->
+                            <tr class="bg-white border-t-2 border-b-2 border-slate-500">
+                                @if($mIndex === 1)
+                                    <td colspan="3" class="py-2.5 px-3.5 font-extrabold text-slate-900 text-xs border border-slate-300">
+                                        {{ $mGroup['first_date_full'] }}
+                                    </td>
+                                    <td colspan="2" class="py-2.5 px-3.5 text-right text-xs text-slate-600 border border-slate-300">
+                                        (Opening Balance:
+                                        <span class="font-bold {{ $mGroup['opening_balance'] < 0 ? 'text-rose-600' : ($mGroup['opening_balance'] > 0 ? 'text-emerald-700' : 'text-slate-900') }}">
+                                            {{ number_format(abs($mGroup['opening_balance']), 2) }})
+                                        </span>
+                                        @if($mGroup['opening_balance'] != 0)
+                                            <span class="text-[11px] font-semibold text-slate-500">{{ $mGroup['opening_balance'] < 0 ? 'Dr' : 'Cr' }}</span>
+                                        @endif
+                                    </td>
+                                @else
+                                    <td colspan="5" class="py-2.5 px-3.5 font-extrabold text-slate-900 text-xs border border-slate-300">
+                                        {{ $mGroup['month_year'] }}
+                                    </td>
+                                @endif
+                            </tr>
+
+                            <!-- Entries within this Month -->
+                            @foreach($mGroup['entries'] as $row)
+                                <tr class="hover:bg-slate-50/60 transition">
+                                    <td class="py-3 px-3.5 font-bold text-slate-800 bg-slate-50/50 border border-slate-300 whitespace-nowrap">
+                                        {{ $row['date_short'] }}
+                                    </td>
+                                    <td class="py-3 px-3.5 text-slate-700 border border-slate-300 leading-relaxed">
+                                        {{ $row['details'] }}
+                                    </td>
+                                    <td class="py-3 px-3.5 text-right font-bold text-slate-900 bg-rose-50/40 border border-slate-300 whitespace-nowrap">
+                                        {{ $row['debit'] > 0 ? number_format($row['debit'], 2) : '' }}
+                                    </td>
+                                    <td class="py-3 px-3.5 text-right font-bold text-slate-900 bg-emerald-50/50 border border-slate-300 whitespace-nowrap">
+                                        {{ $row['credit'] > 0 ? number_format($row['credit'], 2) : '' }}
+                                    </td>
+                                    <td class="py-3 px-3.5 text-right font-bold bg-slate-50/40 border border-slate-300 whitespace-nowrap">
+                                        @if(abs($row['balance']) < 0.005)
+                                            <span class="text-slate-900">0.00</span>
+                                        @else
+                                            <span class="{{ $row['balance'] < 0 ? 'text-rose-600' : 'text-emerald-700' }}">
+                                                {{ number_format(abs($row['balance']), 2) }}
+                                            </span>
+                                            <span class="text-[10px] font-semibold text-slate-500 ml-0.5">{{ $row['balance'] < 0 ? 'Dr' : 'Cr' }}</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+
+                            <!-- Month Subtotal Row -->
+                            <tr class="bg-white font-extrabold text-slate-900 border-t-2 border-b-2 border-slate-500">
+                                <td colspan="2" class="py-2.5 px-3.5 border border-slate-300">
+                                    {{ $mGroup['month_name'] }} Total
+                                </td>
+                                <td class="py-2.5 px-3.5 text-right border border-slate-300">
+                                    {{ number_format($mGroup['total_debit'], 2) }}
+                                </td>
+                                <td class="py-2.5 px-3.5 text-right border border-slate-300">
+                                    {{ number_format($mGroup['total_credit'], 2) }}
+                                </td>
+                                <td class="py-2.5 px-3.5 border border-slate-300"></td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="py-10 text-center text-slate-400 border border-slate-300">
+                                    No passbook transactions found for the selected filter criteria.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
                 </table>
             </div>
         </div>

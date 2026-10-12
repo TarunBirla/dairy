@@ -206,7 +206,7 @@ class FarmerController extends Controller
     /**
      * View farmer passbook
      */
-    public function show(Farmer $farmer)
+    public function show(Request $request, Farmer $farmer)
     {
         $farmer->load(['collectionCenter', 'rateChart', 'route', 'advances', 'settlements']);
         $collections = MilkCollection::where('farmer_id', $farmer->id)->latest()->take(20)->get();
@@ -246,7 +246,16 @@ class FarmerController extends Controller
         $paidPurchasesCount = $farmerPurchases->filter(fn($s) => $s->is_paid && (float) $s->remaining_amount <= 0)->count();
         $unpaidPurchasesCount = $farmerPurchases->filter(fn($s) => !$s->is_paid || (float) $s->remaining_amount > 0)->count();
 
-        return view('farmers.show', compact(
+        // Build comprehensive month-wise All Passbook Detail statement
+        $passbookData = $this->buildPassbookStatement(
+            $farmer,
+            $request->input('passbook_from'),
+            $request->input('passbook_to'),
+            $request->input('passbook_month'),
+            $request->input('passbook_type')
+        );
+
+        return view('farmers.show', array_merge(compact(
             'farmer',
             'collections',
             'ledgers',
@@ -261,7 +270,329 @@ class FarmerController extends Controller
             'totalPurchaseUnpaid',
             'paidPurchasesCount',
             'unpaidPurchasesCount'
-        ));
+        ), $passbookData));
+    }
+
+    /**
+     * Dedicated Print / PDF Statement page for Farmer Passbook
+     */
+    public function printPassbookStatement(Request $request, Farmer $farmer)
+    {
+        $farmer->load(['collectionCenter', 'rateChart', 'route']);
+        $passbookData = $this->buildPassbookStatement(
+            $farmer,
+            $request->input('from_date'),
+            $request->input('to_date'),
+            $request->input('month'),
+            $request->input('type')
+        );
+
+        return view('farmers.passbook_statement', array_merge([
+            'farmer' => $farmer,
+            'autoDownload' => $request->boolean('download'),
+            'autoPrint' => $request->boolean('print'),
+        ], $passbookData));
+    }
+
+    /**
+     * Build unified, chronological, month-grouped passbook statement for a farmer.
+     */
+    protected function buildPassbookStatement(
+        Farmer $farmer,
+        ?string $fromDate = null,
+        ?string $toDate = null,
+        ?string $month = null,
+        ?string $entryType = null
+    ): array {
+        $rawEntries = [];
+        $seq = 0;
+
+        // 1. Milk Collections (Credit +)
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('milk_collections')) {
+                $milkCols = MilkCollection::where('farmer_id', $farmer->id)
+                    ->orderBy('collection_date')
+                    ->orderBy('id')
+                    ->get();
+                foreach ($milkCols as $mc) {
+                    $dt = $mc->collection_date ? $mc->collection_date->format('Y-m-d') : $mc->created_at->format('Y-m-d');
+                    $rawEntries[] = [
+                        'date' => $dt,
+                        'seq' => ++$seq,
+                        'type' => 'collection',
+                        'badge' => 'Milk Supply',
+                        'details' => "Milk Supply (" . ucfirst($mc->shift) . ") — {$mc->quantity_liters} Ltr (" . ucfirst($mc->milk_type) . ", FAT {$mc->fat}% / SNF {$mc->snf}%) @ ₹" . number_format((float) $mc->applied_rate, 2) . " [{$mc->receipt_number}]",
+                        'debit' => 0.0,
+                        'credit' => round((float) $mc->net_amount, 2),
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        // 2. Product Purchases (Debit - for purchase bill, Credit + if paid)
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('product_sales')) {
+                $sales = \App\Models\ProductSale::where(function ($q) use ($farmer) {
+                        $q->where('farmer_id', $farmer->id);
+                        if (!empty($farmer->farmer_code)) {
+                            $q->orWhere('farmer_code', $farmer->farmer_code);
+                        }
+                    })
+                    ->orderBy('sale_date')
+                    ->orderBy('id')
+                    ->get();
+                foreach ($sales as $s) {
+                    $dt = $s->sale_date ? $s->sale_date->format('Y-m-d') : $s->created_at->format('Y-m-d');
+                    $rawEntries[] = [
+                        'date' => $dt,
+                        'seq' => ++$seq,
+                        'type' => 'purchase',
+                        'badge' => 'Purchase',
+                        'details' => "Product Purchase #{$s->sale_number} — {$s->product_name} ({$s->quantity} {$s->unit} @ ₹" . number_format((float) $s->rate, 2) . ")" . ($s->remarks ? " • {$s->remarks}" : ""),
+                        'debit' => round((float) $s->total_amount, 2),
+                        'credit' => 0.0,
+                    ];
+
+                    if ((float) $s->paid_amount > 0) {
+                        $rawEntries[] = [
+                            'date' => $dt,
+                            'seq' => ++$seq,
+                            'type' => 'purchase',
+                            'badge' => 'Purchase Paid',
+                            'details' => "Payment Received against Purchase #{$s->sale_number} ({$s->product_name}) via " . ($s->payment_mode ?: 'Cash'),
+                            'debit' => 0.0,
+                            'credit' => round((float) $s->paid_amount, 2),
+                        ];
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        // 3. Farmer Advances & Repayments
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('farmer_advances')) {
+                $advs = FarmerAdvance::where('farmer_id', $farmer->id)
+                    ->orderBy('advance_date')
+                    ->orderBy('id')
+                    ->get();
+                foreach ($advs as $adv) {
+                    $dt = $adv->advance_date ? $adv->advance_date->format('Y-m-d') : $adv->created_at->format('Y-m-d');
+                    $voucherStr = !empty($adv->voucher_no) ? " (Voucher #{$adv->voucher_no})" : "";
+                    $rawEntries[] = [
+                        'date' => $dt,
+                        'seq' => ++$seq,
+                        'type' => 'advance',
+                        'badge' => 'Advance',
+                        'details' => "Advance / Loan Issued{$voucherStr} — " . ($adv->purpose ?: ($adv->notes ?: 'Cash Advance')),
+                        'debit' => round((float) $adv->amount, 2),
+                        'credit' => 0.0,
+                    ];
+
+                    // Repayments if any
+                    $repaidAmount = (float) ($adv->paid_amount > 0 ? $adv->paid_amount : $adv->deducted_amount);
+                    if ($repaidAmount > 0) {
+                        $repDt = $adv->paid_date ? $adv->paid_date->format('Y-m-d') : $dt;
+                        $rawEntries[] = [
+                            'date' => $repDt,
+                            'seq' => ++$seq,
+                            'type' => 'advance',
+                            'badge' => 'Advance Recovery',
+                            'details' => "Advance Recovery / Repayment{$voucherStr}",
+                            'debit' => 0.0,
+                            'credit' => round($repaidAmount, 2),
+                        ];
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        // 4. Farmer Deductions
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('farmer_deductions')) {
+                $deds = \App\Models\FarmerDeduction::where('farmer_id', $farmer->id)
+                    ->orderBy('entry_date')
+                    ->orderBy('id')
+                    ->get();
+                foreach ($deds as $ded) {
+                    $dt = $ded->entry_date ? $ded->entry_date->format('Y-m-d') : $ded->created_at->format('Y-m-d');
+                    $isCred = strtolower($ded->transaction_type ?? '') === 'credit';
+                    $rawEntries[] = [
+                        'date' => $dt,
+                        'seq' => ++$seq,
+                        'type' => 'deduction',
+                        'badge' => 'Deduction',
+                        'details' => "{$ded->type_label}" . ($ded->comments ? " — {$ded->comments}" : ""),
+                        'debit' => $isCred ? 0.0 : round((float) $ded->amount, 2),
+                        'credit' => $isCred ? round((float) $ded->amount, 2) : 0.0,
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        // 5. Farmer Settlements
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('farmer_settlements')) {
+                $settles = \App\Models\FarmerSettlement::where('farmer_id', $farmer->id)
+                    ->orderBy('period_end')
+                    ->orderBy('id')
+                    ->get();
+                foreach ($settles as $st) {
+                    $dt = $st->settled_at
+                        ? $st->settled_at->format('Y-m-d')
+                        : ($st->period_end ? $st->period_end->format('Y-m-d') : $st->created_at->format('Y-m-d'));
+                    $amt = (float) ($st->paid_amount > 0 ? $st->paid_amount : $st->net_payable);
+                    $pStart = $st->period_start ? $st->period_start->format('d/m/Y') : '';
+                    $pEnd = $st->period_end ? $st->period_end->format('d/m/Y') : '';
+                    $rawEntries[] = [
+                        'date' => $dt,
+                        'seq' => ++$seq,
+                        'type' => 'settlement',
+                        'badge' => 'Settlement',
+                        'details' => "Settlement Payout #{$st->settlement_number}" . ($pStart && $pEnd ? " ({$pStart} se {$pEnd} ke hafte me jma)" : "") . " via " . ucfirst($st->payment_mode ?? 'Cash/Bank'),
+                        'debit' => round($amt, 2),
+                        'credit' => 0.0,
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        // 6. Standalone FarmerLedger entries (not already covered by reference_type)
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('farmer_ledgers')) {
+                $manualLedgers = FarmerLedger::where('farmer_id', $farmer->id)
+                    ->where(function ($q) {
+                        $q->whereNull('reference_type')
+                          ->orWhereNotIn('reference_type', ['milk_collection', 'advance', 'settlement', 'product_sale', 'deduction']);
+                    })
+                    ->orderBy('transaction_date')
+                    ->orderBy('id')
+                    ->get();
+                foreach ($manualLedgers as $ml) {
+                    $dt = $ml->transaction_date ? $ml->transaction_date->format('Y-m-d') : $ml->created_at->format('Y-m-d');
+                    $isCred = $ml->type === 'credit';
+                    $rawEntries[] = [
+                        'date' => $dt,
+                        'seq' => ++$seq,
+                        'type' => 'ledger',
+                        'badge' => 'Ledger Entry',
+                        'details' => $ml->description ?: 'Passbook Adjustment',
+                        'debit' => $isCred ? 0.0 : round((float) $ml->amount, 2),
+                        'credit' => $isCred ? round((float) $ml->amount, 2) : 0.0,
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        // Sort chronologically by date ASC, seq ASC
+        usort($rawEntries, function ($a, $b) {
+            if ($a['date'] === $b['date']) {
+                return $a['seq'] <=> $b['seq'];
+            }
+            return strcmp($a['date'], $b['date']);
+        });
+
+        // Collect available months for filter dropdown
+        $availableMonths = [];
+        foreach ($rawEntries as $re) {
+            $ym = substr($re['date'], 0, 7);
+            if (!isset($availableMonths[$ym])) {
+                $availableMonths[$ym] = \Carbon\Carbon::parse($re['date'])->format('F Y');
+            }
+        }
+        krsort($availableMonths);
+
+        // Resolve effective date range from month or explicit from/to
+        $effectiveFrom = $fromDate ?: null;
+        $effectiveTo = $toDate ?: null;
+
+        if (!empty($month) && preg_match('/^\d{4}-\d{2}$/', $month)) {
+            $mStart = \Carbon\Carbon::parse($month . '-01')->startOfMonth()->format('Y-m-d');
+            $mEnd = \Carbon\Carbon::parse($month . '-01')->endOfMonth()->format('Y-m-d');
+            if (!$effectiveFrom) $effectiveFrom = $mStart;
+            if (!$effectiveTo) $effectiveTo = $mEnd;
+        }
+
+        // Calculate Opening Balance prior to $effectiveFrom and filter entries
+        $openingBalance = 0.0;
+        $filteredEntries = [];
+
+        foreach ($rawEntries as $entry) {
+            if ($effectiveFrom && $entry['date'] < $effectiveFrom) {
+                $openingBalance = round($openingBalance + $entry['credit'] - $entry['debit'], 2);
+                continue;
+            }
+            if ($effectiveTo && $entry['date'] > $effectiveTo) {
+                continue;
+            }
+            if (!empty($entryType) && $entryType !== 'all' && $entry['type'] !== $entryType) {
+                continue;
+            }
+            $filteredEntries[] = $entry;
+        }
+
+        // Compute running balance & group by month (YYYY-MM)
+        $runningBalance = $openingBalance;
+        $totalDebit = 0.0;
+        $totalCredit = 0.0;
+        $monthlyGroups = [];
+
+        foreach ($filteredEntries as $idx => $entry) {
+            $ym = substr($entry['date'], 0, 7);
+            $carbonDate = \Carbon\Carbon::parse($entry['date']);
+
+            if (!isset($monthlyGroups[$ym])) {
+                $monthlyGroups[$ym] = [
+                    'month_key' => $ym,
+                    'month_name' => $carbonDate->format('F'),
+                    'month_year' => $carbonDate->format('F Y'),
+                    'first_date_full' => $carbonDate->format('d F Y'),
+                    'opening_balance' => $runningBalance,
+                    'entries' => [],
+                    'total_debit' => 0.0,
+                    'total_credit' => 0.0,
+                    'closing_balance' => $runningBalance,
+                ];
+            }
+
+            $runningBalance = round($runningBalance + $entry['credit'] - $entry['debit'], 2);
+            $totalDebit = round($totalDebit + $entry['debit'], 2);
+            $totalCredit = round($totalCredit + $entry['credit'], 2);
+
+            $entry['date_short'] = $carbonDate->format('d M');
+            $entry['date_formatted'] = $carbonDate->format('d M Y');
+            $entry['balance'] = $runningBalance;
+
+            $monthlyGroups[$ym]['entries'][] = $entry;
+            $monthlyGroups[$ym]['total_debit'] = round($monthlyGroups[$ym]['total_debit'] + $entry['debit'], 2);
+            $monthlyGroups[$ym]['total_credit'] = round($monthlyGroups[$ym]['total_credit'] + $entry['credit'], 2);
+            $monthlyGroups[$ym]['closing_balance'] = $runningBalance;
+        }
+
+        $netBalance = round($openingBalance + $totalCredit - $totalDebit, 2);
+
+        // Determine display start and end dates
+        $startDateObj = $effectiveFrom
+            ? \Carbon\Carbon::parse($effectiveFrom)
+            : (!empty($filteredEntries) ? \Carbon\Carbon::parse($filteredEntries[0]['date']) : now()->startOfMonth());
+        $endDateObj = $effectiveTo
+            ? \Carbon\Carbon::parse($effectiveTo)
+            : (!empty($filteredEntries) ? \Carbon\Carbon::parse($filteredEntries[count($filteredEntries) - 1]['date']) : now());
+
+        return [
+            'passbookEntries' => $filteredEntries,
+            'passbookMonthlyGroups' => $monthlyGroups,
+            'passbookAvailableMonths' => $availableMonths,
+            'passbookOpeningBalance' => $openingBalance,
+            'passbookTotalDebit' => $totalDebit,
+            'passbookTotalCredit' => $totalCredit,
+            'passbookNetBalance' => $netBalance,
+            'passbookStartDateFormatted' => $startDateObj->format('d M Y'),
+            'passbookEndDateFormatted' => $endDateObj->format('d M Y'),
+            'passbookFrom' => $fromDate ?? '',
+            'passbookTo' => $toDate ?? '',
+            'passbookMonth' => $month ?? '',
+            'passbookType' => $entryType ?? 'all',
+        ];
     }
 
     /**

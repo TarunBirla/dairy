@@ -473,6 +473,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/sample-template', [FarmerController::class, 'sampleTemplate'])->name('sample-template');
         Route::post('/bulk-import', [FarmerController::class, 'bulkImport'])->name('bulk-import');
         Route::get('/{farmer}', [FarmerController::class, 'show'])->name('show');
+        Route::get('/{farmer}/passbook-statement', [FarmerController::class, 'printPassbookStatement'])->name('passbook.statement');
         Route::get('/{farmer}/edit', [FarmerController::class, 'edit'])->name('edit');
         Route::put('/{farmer}', [FarmerController::class, 'update'])->name('update');
         Route::delete('/{farmer}', [FarmerController::class, 'destroy'])->name('destroy');
