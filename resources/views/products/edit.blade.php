@@ -65,9 +65,9 @@
                 </div>
             </div>
 
-            <!-- Category & Unit Section with Select2 -->
+            <!-- Category & Unit Section (Searchable Dropdowns) -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <!-- Category with Select2 + Add new -->
+                <!-- Category Searchable Dropdown + Add new -->
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <label class="block text-xs font-semibold text-slate-700">Product Category <span class="text-slate-400 font-normal">(Optional)</span></label>
@@ -75,24 +75,84 @@
                             <span>+ Add new</span>
                         </button>
                     </div>
-                    <div class="w-full">
-                        <select 
-                            name="category_id" 
-                            id="edit_product_category" 
-                            class="w-full text-xs"
-                            data-placeholder="Select Category"
+                    <div class="relative w-full" @click.away="catDropdownOpen = false">
+                        <input type="hidden" name="category_id" :value="selectedCategoryId">
+                        <div 
+                            @click="toggleCategoryDropdown()"
+                            class="w-full min-h-[42px] px-3.5 py-2.5 text-xs border rounded-xl bg-white flex items-center justify-between cursor-pointer transition select-none"
+                            :class="catDropdownOpen ? 'border-emerald-600 ring-2 ring-emerald-500/20' : 'border-slate-200 hover:border-slate-300'"
                         >
-                            <option value="">Select Category</option>
-                            @foreach($categories as $cat)
-                                <option value="{{ $cat->id }}" {{ old('category_id', $product->category_id) == $cat->id ? 'selected' : '' }}>
-                                    {{ $cat->name }}
-                                </option>
-                            @endforeach
-                        </select>
+                            <span class="truncate" :class="selectedCategoryId ? 'text-slate-800 font-medium' : 'text-slate-400'" x-text="selectedCategoryName || 'Select Category'"></span>
+                            <div class="flex items-center gap-1.5 shrink-0 ml-2">
+                                <button 
+                                    type="button" 
+                                    x-show="selectedCategoryId" 
+                                    @click.stop="clearCategory()" 
+                                    title="Clear Category"
+                                    class="text-slate-400 hover:text-rose-500 p-0.5 rounded transition"
+                                >
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
+                                <svg class="w-4 h-4 text-slate-400 transition-transform duration-150" :class="catDropdownOpen ? 'rotate-180 text-emerald-600' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- Category Dropdown Panel -->
+                        <div 
+                            x-show="catDropdownOpen" 
+                            x-cloak 
+                            x-transition.opacity.duration.150ms
+                            class="absolute left-0 right-0 top-full mt-1.5 z-[70] bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden"
+                        >
+                            <div class="p-2 border-b border-slate-100 bg-slate-50/60">
+                                <div class="relative">
+                                    <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                    <input 
+                                        type="text" 
+                                        x-ref="catSearchInput"
+                                        x-model="catSearch" 
+                                        @keydown.escape.stop="catDropdownOpen = false"
+                                        @keydown.enter.prevent="selectFirstFilteredCategory()"
+                                        placeholder="Search category..." 
+                                        class="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                                    >
+                                </div>
+                            </div>
+                            <div class="max-h-56 overflow-y-auto divide-y divide-slate-50 py-1">
+                                <div 
+                                    @click="clearCategory()"
+                                    class="px-3.5 py-2 text-xs cursor-pointer transition flex items-center justify-between text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                                >
+                                    <span>-- No Category (Optional) --</span>
+                                </div>
+                                <template x-for="cat in filteredCategories" :key="cat.id">
+                                    <div 
+                                        @click="selectCategory(cat)"
+                                        class="px-3.5 py-2 text-xs cursor-pointer transition flex items-center justify-between"
+                                        :class="String(selectedCategoryId) === String(cat.id) ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-700 hover:bg-emerald-600 hover:text-white'"
+                                    >
+                                        <span x-text="cat.name"></span>
+                                        <svg x-show="String(selectedCategoryId) === String(cat.id)" class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+                                    </div>
+                                </template>
+                                <div x-show="filteredCategories.length === 0" class="px-3.5 py-3 text-center text-xs text-slate-400 space-y-1.5">
+                                    <p>No category matching "<span class="font-semibold text-slate-600" x-text="catSearch"></span>"</p>
+                                    <button 
+                                        type="button" 
+                                        @click="newCategoryName = catSearch; catDropdownOpen = false; showCategoryModal = true;"
+                                        class="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 font-semibold text-[11px]"
+                                    >
+                                        <span>+ Add "<span x-text="catSearch"></span>" as new category</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Unit with Select2 + Add new -->
+                <!-- Unit Searchable Dropdown + Add new -->
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <label class="block text-xs font-semibold text-slate-700">Unit of Measure *</label>
@@ -100,23 +160,63 @@
                             <span>+ Add new</span>
                         </button>
                     </div>
-                    <div class="w-full">
-                        <select 
-                            name="unit" 
-                            id="edit_product_unit" 
-                            required 
-                            class="w-full text-xs"
-                            data-placeholder="Select Unit"
+                    <div class="relative w-full" @click.away="unitDropdownOpen = false">
+                        <input type="hidden" name="unit" :value="selectedUnit" required>
+                        <div 
+                            @click="toggleUnitDropdown()"
+                            class="w-full min-h-[42px] px-3.5 py-2.5 text-xs border rounded-xl bg-white flex items-center justify-between cursor-pointer transition select-none"
+                            :class="unitDropdownOpen ? 'border-emerald-600 ring-2 ring-emerald-500/20' : 'border-slate-200 hover:border-slate-300'"
                         >
-                            <option value="liter" {{ old('unit', $product->unit) == 'liter' ? 'selected' : '' }}>Liter (ltr)</option>
-                            <option value="kg" {{ old('unit', $product->unit) == 'kg' ? 'selected' : '' }}>Kilogram (kg)</option>
-                            <option value="bottle" {{ old('unit', $product->unit) == 'bottle' ? 'selected' : '' }}>Bottle</option>
-                            <option value="piece" {{ old('unit', $product->unit) == 'piece' ? 'selected' : '' }}>Piece / Bag</option>
-                            <option value="pack" {{ old('unit', $product->unit) == 'pack' ? 'selected' : '' }}>Pack / Pouch</option>
-                            @if(!in_array($product->unit, ['liter', 'kg', 'bottle', 'piece', 'pack']) && $product->unit)
-                                <option value="{{ $product->unit }}" selected>{{ $product->unit }}</option>
-                            @endif
-                        </select>
+                            <span class="truncate" :class="selectedUnit ? 'text-slate-800 font-medium' : 'text-slate-400'" x-text="selectedUnitLabel || 'Select Unit'"></span>
+                            <svg class="w-4 h-4 text-slate-400 shrink-0 ml-2 transition-transform duration-150" :class="unitDropdownOpen ? 'rotate-180 text-emerald-600' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+
+                        <!-- Unit Dropdown Panel -->
+                        <div 
+                            x-show="unitDropdownOpen" 
+                            x-cloak 
+                            x-transition.opacity.duration.150ms
+                            class="absolute left-0 right-0 top-full mt-1.5 z-[70] bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden"
+                        >
+                            <div class="p-2 border-b border-slate-100 bg-slate-50/60">
+                                <div class="relative">
+                                    <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                    <input 
+                                        type="text" 
+                                        x-ref="unitSearchInput"
+                                        x-model="unitSearch" 
+                                        @keydown.escape.stop="unitDropdownOpen = false"
+                                        @keydown.enter.prevent="selectFirstFilteredUnit()"
+                                        placeholder="Search unit..." 
+                                        class="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                                    >
+                                </div>
+                            </div>
+                            <div class="max-h-56 overflow-y-auto divide-y divide-slate-50 py-1">
+                                <template x-for="u in filteredUnits" :key="u.value">
+                                    <div 
+                                        @click="selectUnit(u)"
+                                        class="px-3.5 py-2 text-xs cursor-pointer transition flex items-center justify-between"
+                                        :class="String(selectedUnit) === String(u.value) ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-700 hover:bg-emerald-600 hover:text-white'"
+                                    >
+                                        <span x-text="u.label"></span>
+                                        <svg x-show="String(selectedUnit) === String(u.value)" class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+                                    </div>
+                                </template>
+                                <div x-show="filteredUnits.length === 0" class="px-3.5 py-3 text-center text-xs text-slate-400 space-y-1.5">
+                                    <p>No unit matching "<span class="font-semibold text-slate-600" x-text="unitSearch"></span>"</p>
+                                    <button 
+                                        type="button" 
+                                        @click="newUnitLabel = unitSearch; unitDropdownOpen = false; showUnitModal = true;"
+                                        class="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 font-semibold text-[11px]"
+                                    >
+                                        <span>+ Add "<span x-text="unitSearch"></span>" as new unit</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -254,11 +354,105 @@ function productEditForm() {
         categoryError: '',
         savingCategory: false,
 
+        selectedCategoryId: '{{ old('category_id', $product->category_id ?? '') }}',
+        catDropdownOpen: false,
+        catSearch: '',
+        categories: @json($categories->map(fn($c) => ['id' => $c->id, 'name' => $c->name])->values()),
+
         newUnitLabel: '',
         unitError: '',
+        selectedUnit: '{{ old('unit', $product->unit ?: 'liter') }}',
+        unitDropdownOpen: false,
+        unitSearch: '',
+        units: [
+            { value: 'liter', label: 'Liter (ltr)' },
+            { value: 'kg', label: 'Kilogram (kg)' },
+            { value: 'bottle', label: 'Bottle' },
+            { value: 'piece', label: 'Piece / Bag' },
+            { value: 'pack', label: 'Pack / Pouch' },
+        ],
 
         currentProductImage: '{{ $product->image ? addslashes($product->image) : '' }}',
         productImagePreview: null,
+
+        get filteredCategories() {
+            const q = (this.catSearch || '').trim().toLowerCase();
+            if (!q) return this.categories;
+            return this.categories.filter(c => (c.name || '').toLowerCase().includes(q));
+        },
+
+        get selectedCategoryName() {
+            if (!this.selectedCategoryId) return '';
+            const found = this.categories.find(c => String(c.id) === String(this.selectedCategoryId));
+            return found ? found.name : '';
+        },
+
+        get filteredUnits() {
+            const q = (this.unitSearch || '').trim().toLowerCase();
+            if (!q) return this.units;
+            return this.units.filter(u => 
+                (u.label || '').toLowerCase().includes(q) || 
+                (u.value || '').toLowerCase().includes(q)
+            );
+        },
+
+        get selectedUnitLabel() {
+            if (!this.selectedUnit) return '';
+            const found = this.units.find(u => String(u.value) === String(this.selectedUnit));
+            return found ? found.label : this.selectedUnit;
+        },
+
+        toggleCategoryDropdown() {
+            this.catDropdownOpen = !this.catDropdownOpen;
+            if (this.catDropdownOpen) {
+                this.unitDropdownOpen = false;
+                this.catSearch = '';
+                this.$nextTick(() => {
+                    if (this.$refs.catSearchInput) this.$refs.catSearchInput.focus();
+                });
+            }
+        },
+
+        selectCategory(cat) {
+            this.selectedCategoryId = String(cat.id);
+            this.catDropdownOpen = false;
+            this.catSearch = '';
+        },
+
+        clearCategory() {
+            this.selectedCategoryId = '';
+            this.catDropdownOpen = false;
+            this.catSearch = '';
+        },
+
+        selectFirstFilteredCategory() {
+            if (this.filteredCategories.length > 0) {
+                this.selectCategory(this.filteredCategories[0]);
+            }
+        },
+
+        toggleUnitDropdown() {
+            this.unitDropdownOpen = !this.unitDropdownOpen;
+            if (this.unitDropdownOpen) {
+                this.catDropdownOpen = false;
+                this.unitSearch = '';
+                this.$nextTick(() => {
+                    if (this.$refs.unitSearchInput) this.$refs.unitSearchInput.focus();
+                });
+            }
+        },
+
+        selectUnit(u) {
+            this.selectedUnit = u.value;
+            this.unitDropdownOpen = false;
+            this.unitSearch = '';
+        },
+
+        selectFirstFilteredUnit() {
+            if (this.filteredUnits.length > 0) {
+                this.selectUnit(this.filteredUnits[0]);
+            }
+        },
 
         previewProductImage(e) {
             const file = e.target.files[0];
@@ -266,19 +460,24 @@ function productEditForm() {
         },
 
         init() {
-            this.$nextTick(() => {
-                if (window.jQuery && jQuery.fn.select2) {
-                    $('#edit_product_category').select2({
-                        width: '100%',
-                        placeholder: 'Select Category',
-                        allowClear: true
-                    });
-                    $('#edit_product_unit').select2({
-                        width: '100%',
-                        placeholder: 'Select Unit'
-                    });
-                }
-            });
+            const currentUnit = '{{ old('unit', $product->unit) }}';
+            if (currentUnit && !this.units.some(u => u.value === currentUnit)) {
+                this.units.push({ value: currentUnit, label: currentUnit });
+            }
+
+            // Always sync categories from server so the list is guaranteed up-to-date
+            fetch('{{ route('products.categories.ajax.get') }}')
+                .then(r => r.json())
+                .then(res => {
+                    if (res.results && Array.isArray(res.results) && res.results.length > 0) {
+                        res.results.forEach(item => {
+                            if (!this.categories.some(c => String(c.id) === String(item.id))) {
+                                this.categories.push({ id: item.id, name: item.text });
+                            }
+                        });
+                    }
+                })
+                .catch(e => console.error('Categories sync error:', e));
         },
 
         async saveCategory() {
@@ -303,15 +502,12 @@ function productEditForm() {
                 const data = await response.json();
                 if (response.ok && data.success) {
                     const category = data.category;
-                    if (window.jQuery) {
-                        const $catSelect = $('#edit_product_category');
-                        if ($catSelect.find("option[value='" + category.id + "']").length === 0) {
-                            const newOption = new Option(category.name, category.id, true, true);
-                            $catSelect.append(newOption);
-                        }
-                        $catSelect.val(category.id).trigger('change');
+                    if (!this.categories.some(c => String(c.id) === String(category.id))) {
+                        this.categories.push({ id: category.id, name: category.name });
                     }
+                    this.selectedCategoryId = String(category.id);
                     this.newCategoryName = '';
+                    this.catDropdownOpen = false;
                     this.showCategoryModal = false;
                 } else {
                     this.categoryError = data.message || 'Error saving category.';
@@ -331,17 +527,14 @@ function productEditForm() {
             const label = this.newUnitLabel.trim();
             const val = label.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
-            if (window.jQuery) {
-                const $unitSelect = $('#edit_product_unit');
-                if ($unitSelect.find("option[value='" + val + "']").length === 0) {
-                    const newOption = new Option(label, val, true, true);
-                    $unitSelect.append(newOption);
-                }
-                $unitSelect.val(val).trigger('change');
+            if (!this.units.some(u => u.value === val)) {
+                this.units.push({ value: val, label: label });
             }
+            this.selectedUnit = val;
 
             this.newUnitLabel = '';
             this.unitError = '';
+            this.unitDropdownOpen = false;
             this.showUnitModal = false;
         }
     }
