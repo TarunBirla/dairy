@@ -42,16 +42,38 @@ class FarmerInvoiceController extends Controller
                     $table->decimal('advance_deduction', 10, 2)->default(0.00);
                     $table->decimal('other_deduction', 10, 2)->default(0.00);
                     $table->decimal('total_deduction', 10, 2)->default(0.00);
+                    $table->decimal('other_credit', 10, 2)->default(0.00);
+                    $table->decimal('transport_credit', 10, 2)->default(0.00);
+                    $table->decimal('subsidy_credit', 10, 2)->default(0.00);
+                    $table->decimal('incentive_credit', 10, 2)->default(0.00);
                     $table->decimal('total_credit', 10, 2)->default(0.00);
                     $table->decimal('total_amount', 10, 2)->default(0.00);
+                    $table->decimal('round_off', 10, 2)->default(0.00);
                     $table->decimal('previous_balance', 10, 2)->default(0.00);
                     $table->decimal('net_payment', 10, 2)->default(0.00);
-                    $table->string('status')->default('generated');
+                    $table->string('status')->default('pending');
+                    $table->boolean('is_edited')->default(false);
                     $table->string('payment_mode')->nullable()->default('Bank Transfer');
                     $table->string('payment_reference')->nullable();
                     $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
                     $table->timestamps();
                 });
+            } else {
+                $newCols = [
+                    'other_credit' => "ALTER TABLE `farmer_invoices` ADD COLUMN `other_credit` DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER `total_deduction`",
+                    'transport_credit' => "ALTER TABLE `farmer_invoices` ADD COLUMN `transport_credit` DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER `other_credit`",
+                    'subsidy_credit' => "ALTER TABLE `farmer_invoices` ADD COLUMN `subsidy_credit` DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER `transport_credit`",
+                    'incentive_credit' => "ALTER TABLE `farmer_invoices` ADD COLUMN `incentive_credit` DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER `subsidy_credit`",
+                    'round_off' => "ALTER TABLE `farmer_invoices` ADD COLUMN `round_off` DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER `total_amount`",
+                    'is_edited' => "ALTER TABLE `farmer_invoices` ADD COLUMN `is_edited` TINYINT(1) NOT NULL DEFAULT 0 AFTER `status`",
+                ];
+                foreach ($newCols as $col => $sql) {
+                    if (!Schema::hasColumn('farmer_invoices', $col)) {
+                        try {
+                            \DB::statement($sql);
+                        } catch (\Throwable $ex) {}
+                    }
+                }
             }
 
             if (Schema::hasTable('farmer_advances')) {
@@ -74,14 +96,11 @@ class FarmerInvoiceController extends Controller
 
     /**
      * Calculate accurate period billing figures for a farmer.
-     * Ensures:
-     *   Total Deduction (A) = Stationary + Feed + In Hand Advance
-     *   Total Amount (B+C)  = Total Credit (B) + Milk Amount (C)
-     *   Balance             = max(0, A - (B + C))  (remaining unpaid deduction balance)
-     *   Payment (B+C-A)     = max(0, (B + C) - A)  (net payable amount to farmer)
      */
     private function calculateInvoiceMetrics(int $farmerId, string $startDate, string $endDate): array
     {
+        $farmer = Farmer::find($farmerId);
+
         $collections = MilkCollection::where('farmer_id', $farmerId)
             ->whereBetween('collection_date', [$startDate, $endDate])
             ->get();
@@ -99,7 +118,10 @@ class FarmerInvoiceController extends Controller
         $feedDeduction = 0.00;
         $stationaryDeduction = 0.00;
         $advanceFromDeductions = 0.00;
-        $totalCredit = 0.00;
+        $otherCredit = 0.00;
+        $transportCredit = 0.00;
+        $subsidyCredit = 0.00;
+        $incentiveCredit = 0.00;
 
         if (Schema::hasTable('farmer_deductions')) {
             $deductions = FarmerDeduction::where('farmer_id', $farmerId)
@@ -110,7 +132,21 @@ class FarmerInvoiceController extends Controller
             $feedDeduction = round((float) $given->where('deduction_type', 'cattle_feed')->sum('amount'), 2);
             $advanceFromDeductions = round((float) $given->where('deduction_type', 'advance_recovery')->sum('amount'), 2);
             $stationaryDeduction = round((float) $given->whereNotIn('deduction_type', ['cattle_feed', 'advance_recovery'])->sum('amount'), 2);
-            $totalCredit = round((float) $deductions->where('transaction_type', 'received')->sum('amount'), 2);
+            $otherCredit = round((float) $deductions->where('transaction_type', 'received')->sum('amount'), 2);
+        }
+
+        // Include unpaid product purchases (ProductSale) in feedDeduction
+        if (Schema::hasTable('product_sales')) {
+            $farmerCode = $farmer ? $farmer->farmer_code : null;
+            $unpaidSalesDue = (float) \App\Models\ProductSale::where(function ($q) use ($farmerId, $farmerCode) {
+                    $q->where('farmer_id', $farmerId);
+                    if (!empty($farmerCode)) {
+                        $q->orWhere('farmer_code', $farmerCode);
+                    }
+                })
+                ->whereBetween('sale_date', [$startDate, $endDate])
+                ->sum('remaining_amount');
+            $feedDeduction = round($feedDeduction + $unpaidSalesDue, 2);
         }
 
         $advanceFromLoans = 0.00;
@@ -128,6 +164,8 @@ class FarmerInvoiceController extends Controller
         $advanceDeduction = round($advanceFromLoans + $advanceFromDeductions, 2);
         $otherDeduction = 0.00;
 
+        $totalCredit = round($otherCredit + $transportCredit + $subsidyCredit + $incentiveCredit, 2);
+
         // A = Stationary + Feed + In Hand Advance
         $totalDeduction = round($stationaryDeduction + $feedDeduction + $advanceDeduction, 2);
 
@@ -138,7 +176,9 @@ class FarmerInvoiceController extends Controller
         $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);
 
         // Payment (B+C-A) = Net payable amount if (B + C) >= A, else 0.00
-        $netPayment = round(max(0, $totalAmount - $totalDeduction), 2);
+        $rawPayable = round(max(0, $totalAmount - $totalDeduction), 2);
+        $roundOff = 0.00;
+        $netPayment = $rawPayable;
 
         return [
             'total_quantity' => $totalQuantity,
@@ -148,18 +188,28 @@ class FarmerInvoiceController extends Controller
             'advance_deduction' => $advanceDeduction,
             'other_deduction' => $otherDeduction,
             'total_deduction' => $totalDeduction,
+            'other_credit' => $otherCredit,
+            'transport_credit' => $transportCredit,
+            'subsidy_credit' => $subsidyCredit,
+            'incentive_credit' => $incentiveCredit,
             'total_credit' => $totalCredit,
             'total_amount' => $totalAmount,
+            'round_off' => $roundOff,
             'previous_balance' => $previousBalance,
             'net_payment' => $netPayment,
         ];
     }
 
     /**
-     * Synchronize a FarmerInvoice record with live collections, deductions, and advances.
+     * Synchronize a FarmerInvoice record with live collections, deductions, and advances
+     * ONLY if it has not been manually edited/verified by admin.
      */
     private function syncInvoice(FarmerInvoice $invoice): FarmerInvoice
     {
+        if ($invoice->is_edited) {
+            return $invoice;
+        }
+
         $start = $invoice->period_start instanceof Carbon
             ? $invoice->period_start->format('Y-m-d')
             : Carbon::parse($invoice->period_start)->format('Y-m-d');
@@ -171,7 +221,7 @@ class FarmerInvoiceController extends Controller
 
         $needsUpdate = false;
         foreach ($metrics as $key => $val) {
-            if (round((float) $invoice->{$key}, 2) !== round((float) $val, 2)) {
+            if (round((float) ($invoice->{$key} ?? 0), 2) !== round((float) $val, 2)) {
                 $needsUpdate = true;
                 break;
             }
@@ -185,7 +235,7 @@ class FarmerInvoiceController extends Controller
     }
 
     /**
-     * Display Farmer Invoice Listing matching Screenshot 1 (media_1791388705563.png)
+     * Display Farmer Invoice Listing with Pending Invoices & Generated Invoices Tabs
      */
     public function index(Request $request)
     {
@@ -195,15 +245,15 @@ class FarmerInvoiceController extends Controller
         $invoiceSearch = $request->get('invoice_search');
         $perPage = (int) $request->get('per_page', 50);
 
-        $query = FarmerInvoice::with('farmer');
+        $baseQuery = FarmerInvoice::with('farmer');
 
         if ($startDate && $endDate) {
-            $query->whereDate('period_start', '>=', $startDate)
-                  ->whereDate('period_end', '<=', $endDate);
+            $baseQuery->whereDate('period_start', '>=', $startDate)
+                      ->whereDate('period_end', '<=', $endDate);
         }
 
         if (!empty($farmerSearch)) {
-            $query->whereHas('farmer', function ($q) use ($farmerSearch) {
+            $baseQuery->whereHas('farmer', function ($q) use ($farmerSearch) {
                 $q->where('name', 'like', "%{$farmerSearch}%")
                   ->orWhere('farmer_code', 'like', "%{$farmerSearch}%")
                   ->orWhere('phone', 'like', "%{$farmerSearch}%");
@@ -211,15 +261,15 @@ class FarmerInvoiceController extends Controller
         }
 
         if (!empty($invoiceSearch)) {
-            $query->where('invoice_number', 'like', "%{$invoiceSearch}%");
+            $baseQuery->where('invoice_number', 'like', "%{$invoiceSearch}%");
         }
 
-        // Deduplicate overlapping 'generated' invoices for the same farmer & period_start (keep latest)
-        $matchingInvoices = (clone $query)->orderBy('id', 'desc')->get();
+        // Deduplicate overlapping invoices for the same farmer & period_start (keep latest)
+        $matchingInvoices = (clone $baseQuery)->orderBy('id', 'desc')->get();
         $seenFarmerPeriod = [];
         foreach ($matchingInvoices as $inv) {
             $key = $inv->farmer_id . '_' . ($inv->period_start instanceof Carbon ? $inv->period_start->format('Y-m-d') : $inv->period_start);
-            if ($inv->status === 'generated' && isset($seenFarmerPeriod[$key])) {
+            if (isset($seenFarmerPeriod[$key])) {
                 $inv->delete();
                 continue;
             }
@@ -227,7 +277,26 @@ class FarmerInvoiceController extends Controller
             $this->syncInvoice($inv);
         }
 
-        $invoices = $query->latest('id')->paginate($perPage)->withQueryString();
+        $pendingCount = (clone $baseQuery)->where('status', 'pending')->count();
+        $generatedCount = (clone $baseQuery)->where('status', '!=', 'pending')->count();
+
+        // Default to 'pending' tab if explicitly requested or if pending invoices exist; otherwise 'generated'
+        if ($request->filled('status_tab')) {
+            $statusTab = $request->get('status_tab') === 'generated' ? 'generated' : 'pending';
+        } else {
+            $statusTab = $pendingCount > 0 ? 'pending' : 'generated';
+        }
+
+        $query = clone $baseQuery;
+        if ($statusTab === 'pending') {
+            $query->where('status', 'pending');
+        } else {
+            $query->where('status', '!=', 'pending');
+        }
+
+        $allTabIds = (clone $query)->orderBy('id', 'asc')->pluck('id')->toArray();
+
+        $invoices = $query->orderBy('id', 'asc')->paginate($perPage)->withQueryString();
 
         // Calculate System Totals for Table Summary Row
         $summaryQuery = clone $query;
@@ -253,6 +322,10 @@ class FarmerInvoiceController extends Controller
             'farmerSearch',
             'invoiceSearch',
             'perPage',
+            'statusTab',
+            'pendingCount',
+            'generatedCount',
+            'allTabIds',
             'totalQuantity',
             'totalStationary',
             'totalFeed',
@@ -267,7 +340,7 @@ class FarmerInvoiceController extends Controller
     }
 
     /**
-     * Generate Invoices for period (matching "Generate Invoice" button in Screenshot 1)
+     * Generate Invoices for period -> Pushes first into 'pending' tab section for admin review & correction
      */
     public function generate(Request $request)
     {
@@ -296,7 +369,7 @@ class FarmerInvoiceController extends Controller
                 continue;
             }
 
-            // Find existing generated invoice for same farmer & period_start to avoid duplicate overlapping bills
+            // Find existing invoice for same farmer & period_start to avoid duplicate overlapping bills
             $existing = FarmerInvoice::where('farmer_id', $farmer->id)
                 ->whereDate('period_start', $startDate)
                 ->orderBy('id', 'desc')
@@ -305,14 +378,13 @@ class FarmerInvoiceController extends Controller
             if ($existing) {
                 $existing->update(array_merge($metrics, [
                     'period_end' => $endDate,
-                    'status' => 'generated',
+                    'status' => 'pending',
+                    'is_edited' => false,
                     'created_by' => Auth::id(),
                 ]));
-                // Remove any older duplicate bills for same farmer & period_start
                 FarmerInvoice::where('farmer_id', $farmer->id)
                     ->whereDate('period_start', $startDate)
                     ->where('id', '!=', $existing->id)
-                    ->where('status', 'generated')
                     ->delete();
             } else {
                 $invNum = 'BILL-' . str_pad((FarmerInvoice::max('id') + 101), 4, '0', STR_PAD_LEFT);
@@ -321,7 +393,8 @@ class FarmerInvoiceController extends Controller
                     'period_start' => $startDate,
                     'period_end' => $endDate,
                     'invoice_number' => $invNum,
-                    'status' => 'generated',
+                    'status' => 'pending',
+                    'is_edited' => false,
                     'created_by' => Auth::id(),
                 ]));
             }
@@ -329,7 +402,7 @@ class FarmerInvoiceController extends Controller
             $generatedCount++;
         }
 
-        AuditLog::log("Generated {$generatedCount} Farmer Invoices", 'FarmerInvoice', null, [
+        AuditLog::log("Generated {$generatedCount} Pending Farmer Invoices", 'FarmerInvoice', null, [
             'period' => "{$startDate} to {$endDate}",
             'count' => $generatedCount
         ]);
@@ -337,11 +410,12 @@ class FarmerInvoiceController extends Controller
         return redirect()->route('farmer-invoices.index', [
             'start_date' => $startDate,
             'end_date' => $endDate,
-        ])->with('success', "Successfully generated {$generatedCount} farmer invoices for period {$startDate} to {$endDate}!");
+            'status_tab' => 'pending',
+        ])->with('success', "Prepared {$generatedCount} Pending Invoices ({$startDate} to {$endDate}). Review, modify if needed, and click 'Save Invoice' to move them to Generated state!");
     }
 
     /**
-     * Display Invoice Details full page matching Screenshot 4 (media_1791388765764.png)
+     * Display Invoice Details full page
      */
     public function show(FarmerInvoice $invoice)
     {
@@ -363,7 +437,7 @@ class FarmerInvoiceController extends Controller
     }
 
     /**
-     * Return JSON data for Invoice Preview Modal matching Screenshot 2 & 3
+     * Return JSON data for Invoice Preview & 1-by-1 Pending Invoice Review/Correction Modal
      */
     public function previewData(FarmerInvoice $invoice)
     {
@@ -373,12 +447,51 @@ class FarmerInvoiceController extends Controller
 
         $collections = $invoice->milk_collections;
         $deductions = $invoice->deductions_list;
+        $cattleFeeds = $invoice->cattle_feeds_list;
+
+        $daysInPeriod = max(1, $invoice->period_start->diffInDays($invoice->period_end) + 1);
+        $totalPossibleShifts = $daysInPeriod * 2;
+        $presentShifts = $collections->count();
+
+        $avgFat = $collections->count() > 0 ? round((float) $collections->avg('fat'), 2) : 0.0;
+        $avgSnf = $collections->count() > 0 ? round((float) $collections->avg('snf'), 2) : 0.0;
+        $avgClr = $collections->count() > 0 ? round((float) $collections->avg('clr'), 2) : 0.0;
+        $avgRate = (float) $invoice->total_quantity > 0
+            ? round((float) $invoice->milk_amount / (float) $invoice->total_quantity, 2)
+            : 0.0;
+
+        $feedPaymentReceived = round((float) $cattleFeeds->sum('paid_amount'), 2);
+        $feedRemainingBalance = round((float) $cattleFeeds->sum('remaining_amount'), 2);
+
+        $formattedCollections = $collections->map(function ($c) {
+            $dt = $c->collection_date instanceof Carbon ? $c->collection_date : Carbon::parse($c->collection_date);
+            return [
+                'id' => $c->id,
+                'collection_date' => $dt->format('Y-m-d'),
+                'day_num' => $dt->format('d'),
+                'date_display' => $dt->format('d M Y'),
+                'shift' => ucfirst($c->shift),
+                'milk_type' => ucfirst($c->milk_type),
+                'quantity_liters' => (float) $c->quantity_liters,
+                'fat' => (float) ($c->fat ?? 0),
+                'snf' => (float) ($c->snf ?? 0),
+                'clr' => (float) ($c->clr ?? 0),
+                'applied_rate' => (float) ($c->applied_rate ?: $c->calculated_rate ?: 0),
+                'net_amount' => (float) $c->net_amount,
+            ];
+        });
 
         return response()->json([
             'id' => $invoice->id,
             'invoice_number' => $invoice->invoice_number,
+            'status' => $invoice->status,
+            'is_edited' => (bool) $invoice->is_edited,
             'period_start' => $invoice->period_start->format('Y-m-d'),
             'period_end' => $invoice->period_end->format('Y-m-d'),
+            'period_start_display' => $invoice->period_start->format('d/m/Y'),
+            'period_end_display' => $invoice->period_end->format('d/m/Y'),
+            'present_shifts' => $presentShifts,
+            'total_shifts' => $totalPossibleShifts,
             'farmer' => [
                 'id' => $farmer->id,
                 'name' => $farmer->name,
@@ -388,18 +501,144 @@ class FarmerInvoiceController extends Controller
                 'bank_name' => $farmer->bank_name ?? 'N/A',
                 'account_number' => $farmer->account_number ?? 'N/A',
                 'ifsc_code' => $farmer->ifsc_code ?? 'N/A',
+                'anamat' => (float) ($farmer->anamat ?? 0),
             ],
-            'collections' => $collections,
-            'deductions' => $deductions,
+            'collections' => $formattedCollections,
+            'cattle_feeds' => $cattleFeeds->values(),
+            'feed_payment_received' => $feedPaymentReceived,
+            'feed_remaining_balance' => $feedRemainingBalance,
+            'deductions' => $deductions->values(),
+            'additions' => [
+                'other_credit' => (float) ($invoice->other_credit ?? 0),
+                'transport_credit' => (float) ($invoice->transport_credit ?? 0),
+                'subsidy_credit' => (float) ($invoice->subsidy_credit ?? 0),
+                'incentive_credit' => (float) ($invoice->incentive_credit ?? 0),
+                'total_credit' => (float) ($invoice->total_credit ?? 0),
+            ],
+            'deduction_inputs' => [
+                'stationary_deduction' => (float) ($invoice->stationary_deduction ?? 0),
+                'feed_deduction' => (float) ($invoice->feed_deduction ?? 0),
+                'advance_deduction' => (float) ($invoice->advance_deduction ?? 0),
+                'total_deduction' => (float) ($invoice->total_deduction ?? 0),
+            ],
             'totals' => [
                 'total_quantity' => (float) $invoice->total_quantity,
+                'avg_fat' => $avgFat,
+                'avg_snf' => $avgSnf,
+                'avg_clr' => $avgClr,
+                'avg_rate' => $avgRate,
                 'milk_amount' => (float) $invoice->milk_amount,
                 'total_credit' => (float) $invoice->total_credit,
+                'total_amount' => (float) $invoice->total_amount,
                 'total_deduction' => (float) $invoice->total_deduction,
+                'round_off' => (float) ($invoice->round_off ?? 0),
                 'previous_balance' => (float) $invoice->previous_balance,
                 'net_payment' => (float) $invoice->net_payment,
             ]
         ]);
+    }
+
+    /**
+     * Save Corrections & Verify Invoice (Moves invoice from 'pending' to 'generated')
+     */
+    public function verifyAndSave(Request $request, FarmerInvoice $invoice)
+    {
+        $validated = $request->validate([
+            'other_credit' => 'nullable|numeric|min:0',
+            'transport_credit' => 'nullable|numeric|min:0',
+            'subsidy_credit' => 'nullable|numeric|min:0',
+            'incentive_credit' => 'nullable|numeric|min:0',
+            'stationary_deduction' => 'nullable|numeric|min:0',
+            'feed_deduction' => 'nullable|numeric|min:0',
+            'advance_deduction' => 'nullable|numeric|min:0',
+            'round_off' => 'nullable|numeric',
+        ]);
+
+        $otherCredit = round((float) ($validated['other_credit'] ?? 0), 2);
+        $transportCredit = round((float) ($validated['transport_credit'] ?? 0), 2);
+        $subsidyCredit = round((float) ($validated['subsidy_credit'] ?? 0), 2);
+        $incentiveCredit = round((float) ($validated['incentive_credit'] ?? 0), 2);
+        $totalCredit = round($otherCredit + $transportCredit + $subsidyCredit + $incentiveCredit, 2);
+
+        $stationaryDeduction = round((float) ($validated['stationary_deduction'] ?? 0), 2);
+        $feedDeduction = round((float) ($validated['feed_deduction'] ?? 0), 2);
+        $advanceDeduction = round((float) ($validated['advance_deduction'] ?? 0), 2);
+        $totalDeduction = round($stationaryDeduction + $feedDeduction + $advanceDeduction, 2);
+
+        $milkAmount = round((float) $invoice->milk_amount, 2);
+        $totalAmount = round($milkAmount + $totalCredit, 2);
+
+        $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);
+        $rawPayable = round(max(0, $totalAmount - $totalDeduction), 2);
+
+        if (isset($validated['round_off']) && $validated['round_off'] !== null && $validated['round_off'] !== '') {
+            $roundOff = round((float) $validated['round_off'], 2);
+        } else {
+            $roundOff = round(round($rawPayable) - $rawPayable, 2);
+        }
+
+        $netPayment = round(max(0, $rawPayable + $roundOff), 2);
+
+        $invoice->update([
+            'other_credit' => $otherCredit,
+            'transport_credit' => $transportCredit,
+            'subsidy_credit' => $subsidyCredit,
+            'incentive_credit' => $incentiveCredit,
+            'total_credit' => $totalCredit,
+            'stationary_deduction' => $stationaryDeduction,
+            'feed_deduction' => $feedDeduction,
+            'advance_deduction' => $advanceDeduction,
+            'total_deduction' => $totalDeduction,
+            'total_amount' => $totalAmount,
+            'round_off' => $roundOff,
+            'previous_balance' => $previousBalance,
+            'net_payment' => $netPayment,
+            'status' => 'generated',
+            'is_edited' => true,
+        ]);
+
+        AuditLog::log('Verified & Saved Farmer Invoice', 'FarmerInvoice', $invoice->id, [
+            'invoice_number' => $invoice->invoice_number,
+            'net_payment' => $netPayment,
+            'status' => 'generated',
+        ]);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Invoice #{$invoice->invoice_number} saved and moved to Generated state!",
+                'invoice' => $invoice->fresh('farmer'),
+            ]);
+        }
+
+        return redirect()->route('farmer-invoices.index', [
+            'start_date' => $invoice->period_start->format('Y-m-d'),
+            'end_date' => $invoice->period_end->format('Y-m-d'),
+            'status_tab' => 'generated',
+        ])->with('success', "Invoice #{$invoice->invoice_number} verified and generated successfully!");
+    }
+
+    /**
+     * Bulk Approve Selected Pending Invoices to Generated State
+     */
+    public function bulkApprove(Request $request)
+    {
+        $validated = $request->validate([
+            'invoice_ids' => 'required|array',
+            'invoice_ids.*' => 'exists:farmer_invoices,id',
+        ]);
+
+        $count = FarmerInvoice::whereIn('id', $validated['invoice_ids'])->update([
+            'status' => 'generated',
+        ]);
+
+        AuditLog::log("Bulk Approved {$count} Pending Invoices to Generated", 'FarmerInvoice', null);
+
+        return redirect()->route('farmer-invoices.index', [
+            'start_date' => $request->input('start_date'),
+            'end_date' => $request->input('end_date'),
+            'status_tab' => 'generated',
+        ])->with('success', "Successfully approved and generated {$count} selected invoices!");
     }
 
     /**

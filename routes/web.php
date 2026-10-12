@@ -513,6 +513,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [FarmerInvoiceController::class, 'index'])->name('index');
         Route::post('/generate', [FarmerInvoiceController::class, 'generate'])->name('generate');
         Route::get('/preview/{invoice}', [FarmerInvoiceController::class, 'previewData'])->name('preview');
+        Route::post('/verify-save/{invoice}', [FarmerInvoiceController::class, 'verifyAndSave'])->name('verify-save');
+        Route::post('/bulk-approve', [FarmerInvoiceController::class, 'bulkApprove'])->name('bulk-approve');
         Route::get('/print/{invoice}', [FarmerInvoiceController::class, 'print'])->name('print');
         Route::get('/bank-payment-print', [FarmerInvoiceController::class, 'bankPaymentPrint'])->name('bank-payment-print');
         Route::get('/export-excel', [FarmerInvoiceController::class, 'exportExcel'])->name('export-excel');
