@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#002e79">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Gopal Dairy">
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('icons/icon-192x192.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('icons/apple-touch-icon.png') }}">
     <title>@yield('title', 'DairyMaster') | {{ \App\Models\SystemSetting::get('dairy_name', 'Simple Dairy') }}</title>
     
     <!-- Google Fonts: Plus Jakarta Sans -->
@@ -878,6 +886,16 @@
 
             <!-- Topbar right actions matching screenshot -->
             <div class="flex items-center space-x-2 sm:space-x-4">
+
+                <!-- PWA Install App Button (Hidden automatically when running as installed standalone app) -->
+                <button type="button"
+                        id="pwa-install-btn"
+                        onclick="window.triggerPwaInstall()"
+                        title="Install Gopal Dairy as Desktop / Mobile App"
+                        class="hidden items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-[#002e79] border border-emerald-200 transition shadow-2xs cursor-pointer">
+                    <i data-lucide="download" class="w-3.5 h-3.5 text-[#002e79]"></i>
+                    <span class="hidden md:inline">Install App</span>
+                </button>
                 
                 <!-- Quick Role Switcher (Convenient demo testing for all 13 roles) -->
                 <div class="relative" x-data="{ open: false }">
@@ -1288,7 +1306,122 @@
                 }
             });
         })();
+
+        // Progressive Web App (PWA) Service Worker Registration & Install Prompt
+        (function() {
+            let deferredPwaPrompt = null;
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+            function updateInstallButtonVisibility() {
+                const btn = document.getElementById('pwa-install-btn');
+                if (!btn) return;
+                if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+                    btn.classList.add('hidden');
+                    btn.classList.remove('inline-flex');
+                } else {
+                    btn.classList.remove('hidden');
+                    btn.classList.add('inline-flex');
+                }
+            }
+
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function() {});
+                });
+            }
+
+            window.addEventListener('DOMContentLoaded', updateInstallButtonVisibility);
+
+            window.addEventListener('beforeinstallprompt', function(e) {
+                e.preventDefault();
+                deferredPwaPrompt = e;
+                updateInstallButtonVisibility();
+            });
+
+            window.addEventListener('appinstalled', function() {
+                deferredPwaPrompt = null;
+                updateInstallButtonVisibility();
+                const modal = document.getElementById('pwa-install-guide-modal');
+                if (modal) modal.classList.add('hidden');
+            });
+
+            window.triggerPwaInstall = async function() {
+                if (deferredPwaPrompt) {
+                    deferredPwaPrompt.prompt();
+                    const { outcome } = await deferredPwaPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        deferredPwaPrompt = null;
+                    }
+                    return;
+                }
+                const modal = document.getElementById('pwa-install-guide-modal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                }
+            };
+
+            window.closePwaInstallModal = function() {
+                const modal = document.getElementById('pwa-install-guide-modal');
+                if (modal) {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                }
+            };
+        })();
     </script>
+
+    <!-- PWA Install Guide Modal (Fallback for iOS Safari / Manual Browser Install) -->
+    <div id="pwa-install-guide-modal"
+         onclick="if (event.target === this) window.closePwaInstallModal()"
+         class="hidden fixed inset-0 z-[99999] items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <img src="{{ asset('icons/icon-192x192.png') }}" alt="Gopal Dairy" class="w-7 h-7 rounded-lg border border-slate-200 object-contain bg-white">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 leading-tight">Install Gopal Dairy App</h3>
+                        <p class="text-[10px] text-slate-500">Use as a standalone desktop or mobile app</p>
+                    </div>
+                </div>
+                <button type="button" onclick="window.closePwaInstallModal()" class="text-slate-400 hover:text-slate-700 p-1">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-3 text-xs text-slate-600">
+                <div class="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/80 space-y-1">
+                    <p class="font-bold text-[#002e79] flex items-center gap-1.5">
+                        <span>💻</span> Desktop (Chrome / Edge)
+                    </p>
+                    <p class="text-[11px] text-slate-600 leading-relaxed">
+                        Click the <strong>Install icon</strong> (<span class="font-mono text-[10px] px-1 py-0.5 bg-white border border-slate-200 rounded">⊕</span> or computer icon) on the right side of your browser's address bar, or open the browser menu (<strong>⋮</strong>) &rarr; <strong>Save and share / Cast, save, and share</strong> &rarr; <strong>Install page as app</strong>.
+                    </p>
+                </div>
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                    <p class="font-bold text-slate-800 flex items-center gap-1.5">
+                        <span>📱</span> Android (Chrome)
+                    </p>
+                    <p class="text-[11px] text-slate-600 leading-relaxed">
+                        Tap the browser menu (<strong>⋮</strong>) in the top-right corner and select <strong>Add to Home screen</strong> or <strong>Install app</strong>.
+                    </p>
+                </div>
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                    <p class="font-bold text-slate-800 flex items-center gap-1.5">
+                        <span>🍏</span> iPhone / iPad (Safari)
+                    </p>
+                    <p class="text-[11px] text-slate-600 leading-relaxed">
+                        Tap the <strong>Share</strong> button at the bottom of Safari and select <strong>Add to Home Screen</strong>.
+                    </p>
+                </div>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+                <button type="button" onclick="window.closePwaInstallModal()" class="px-4 py-1.5 bg-[#002e79] hover:bg-[#001f52] text-white text-xs font-semibold rounded-lg transition cursor-pointer">
+                    Got it
+                </button>
+            </div>
+        </div>
+    </div>
+
     @stack('scripts')
 </body>
 </html>

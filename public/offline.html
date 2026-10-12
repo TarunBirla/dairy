@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline | Gopal Dudh Dairy</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body {
+            background: #F8FAFC;
+            color: #1E293B;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+        .card {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+        }
+        .logo {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            margin: 0 auto 1rem;
+            display: block;
+        }
+        h1 {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: #0F172A;
+            margin-bottom: 0.5rem;
+        }
+        p {
+            font-size: 0.8125rem;
+            color: #64748B;
+            line-height: 1.5;
+            margin-bottom: 1.25rem;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #002e79;
+            color: #FFFFFF;
+            font-weight: 600;
+            font-size: 0.8125rem;
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.5rem;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+        }
+        .btn:hover {
+            background: #001f52;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <img src="/icons/icon-192x192.png" alt="Gopal Dairy" class="logo">
+        <h1>You're currently offline</h1>
+        <p>Please check your internet connection to sync live milk collections, farmer records, and billing data.</p>
+        <button type="button" class="btn" onclick="window.location.reload()">Retry Connection</button>
+    </div>
+</body>
+</html>
