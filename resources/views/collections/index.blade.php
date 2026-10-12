@@ -17,7 +17,7 @@
 <div class="space-y-2 w-full max-w-full" x-data="milkCollectionManager()" x-init="init()">
 
     <!-- Ultra-Slim KPI Metrics Bar -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+    <!-- <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
             <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Procured</span>
             <span class="text-xs font-black text-slate-900 leading-none">
@@ -42,7 +42,7 @@
                 <span x-text="metrics.avgSnf">{{ number_format($avgSnf, 1) }}</span>%
             </span>
         </div>
-    </div>
+    </div> -->
 
     <!-- ========================================================================= -->
     <!-- MAIN 2-COLUMN WORKSPACE: LEFT INTAKE FORM + RIGHT SHIFT SUMMARY & CHART    -->
