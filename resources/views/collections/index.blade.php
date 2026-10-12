@@ -71,14 +71,26 @@
                     </div>
 
                     <div class="flex flex-wrap items-center gap-1.5">
-                        <div class="flex items-center gap-1 w-36 sm:w-44 relative" id="center_select_col">
-                            <span class="text-[10px] font-semibold text-slate-500 shrink-0">Center:</span>
-                            <select id="collection_center_select" x-model="form.collection_center_id" @change="triggerRateCalculation()" class="text-[10px] border border-slate-200 rounded bg-white w-full py-0.5 px-1.5 font-semibold text-slate-800 focus:ring-1 focus:ring-emerald-500 focus:outline-none">
-                                @foreach($centers as $c)
-                                    <option value="{{ $c->id }}">{{ $c->name }}</option>
+                        <input type="hidden" id="collection_center_select" x-model="form.collection_center_id">
+
+                        @if(($collectionConfig['route_wise_collection'] ?? 'On') === 'On')
+                        <div x-show="config.route_wise_collection === 'On'" class="flex items-center gap-1 relative" id="route_select_col">
+                            <span class="text-[10px] font-semibold text-slate-500 shrink-0">Route:</span>
+                            <select id="collection_route_select"
+                                    x-model="selectedRouteId"
+                                    class="text-[10px] border border-slate-200 rounded bg-white w-32 sm:w-40 py-0.5 px-1.5 font-semibold text-slate-800 focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+                                <option value="">All Routes {{ !empty($collectionConfig['center_vehicle_route']) ? '(' . $collectionConfig['center_vehicle_route'] . ')' : '' }}</option>
+                                @foreach($routes ?? [] as $rt)
+                                    <option value="{{ $rt->id }}">{{ $rt->name }}</option>
                                 @endforeach
                             </select>
+                            <a href="{{ route('delivery.routes') }}"
+                               title="Add / Manage Routes"
+                               class="w-5 h-5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center justify-center text-[10px] font-bold shrink-0 transition">
+                                +
+                            </a>
                         </div>
+                        @endif
 
                         <button type="button" 
                                 @click="showAdvanced = !showAdvanced" 
@@ -225,6 +237,9 @@
                                             <div class="text-[10px] text-slate-400 truncate flex items-center gap-2">
                                                 <span x-show="farmer.phone" x-text="farmer.phone"></span>
                                                 <span x-show="farmer.village" x-text="'• ' + farmer.village"></span>
+                                                <span x-show="config.route_wise_collection === 'On' && farmer.route && farmer.route.name"
+                                                      class="text-emerald-600 font-semibold"
+                                                      x-text="'• Route: ' + (farmer.route ? farmer.route.name : '')"></span>
                                             </div>
                                         </div>
                                         <span class="text-[10px] px-2 py-0.5 rounded font-bold shrink-0 border whitespace-nowrap" 
@@ -463,6 +478,8 @@
 
                     <span class="px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
                         Avg Fat (5d): <span class="font-bold text-slate-900" x-text="previousCollection.avg_fat_5_days">0.00%</span>
+                        <span class="text-slate-300 mx-0.5">|</span>
+                        Avg CLR (5d): <span class="font-bold text-slate-900" x-text="previousCollection.avg_clr_5_days || '0.0'">0.0</span>
                     </span>
                 </div>
             </div>
@@ -607,12 +624,21 @@
                     <option value="buffalo" {{ request('milk_type') === 'buffalo' ? 'selected' : '' }}>🐃 Buffalo</option>
                 </select>
 
+                @if(($collectionConfig['route_wise_collection'] ?? 'On') === 'On' && isset($routes) && $routes->count() > 0)
+                <select name="route_id" class="h-7 px-1.5 text-[11px] border border-slate-200 rounded-md bg-slate-50 focus:bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition">
+                    <option value="">All Routes</option>
+                    @foreach($routes as $rt)
+                        <option value="{{ $rt->id }}" {{ (string) request('route_id') === (string) $rt->id ? 'selected' : '' }}>{{ $rt->name }}</option>
+                    @endforeach
+                </select>
+                @endif
+
                 <button type="submit" class="h-7 px-2.5 text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md shadow-2xs transition flex items-center gap-1">
                     <i data-lucide="filter" class="w-3 h-3"></i>
                     <span>Apply</span>
                 </button>
 
-                @if(request()->anyFilled(['search', 'shift', 'milk_type', 'center_id', 'from_date', 'to_date']))
+                @if(request()->anyFilled(['search', 'shift', 'milk_type', 'center_id', 'route_id', 'from_date', 'to_date']))
                     <a href="{{ route('collections.index') }}" class="h-7 px-2 text-[11px] font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-md flex items-center transition">
                         Reset
                     </a>
@@ -974,6 +1000,7 @@ function milkCollectionManager() {
         },
 
         allFarmers: @json($farmers),
+        selectedRouteId: '',
         quickFarmerCode: '',
         farmerSearchText: '',
         farmerDropdownOpen: false,
@@ -1039,11 +1066,15 @@ function milkCollectionManager() {
         },
 
         get filteredFarmers() {
+            let list = this.allFarmers;
+            if (this.config.route_wise_collection === 'On' && this.selectedRouteId) {
+                list = list.filter(f => String(f.route_id || '') === String(this.selectedRouteId));
+            }
             if (!this.farmerSearchText || this.farmerSearchText.trim() === '') {
-                return this.allFarmers;
+                return list;
             }
             const q = this.farmerSearchText.toLowerCase().trim();
-            return this.allFarmers.filter(f => {
+            return list.filter(f => {
                 const code = (f.farmer_code || '').toLowerCase();
                 const num = code.replace(/\D/g, '') || String(f.id);
                 const name = (f.name || '').toLowerCase();
@@ -1090,6 +1121,9 @@ function milkCollectionManager() {
                 village: farmer.village || '',
                 animal: farmer.animal_type || 'cow'
             };
+            if (this.config.route_wise_collection === 'On' && farmer.route_id) {
+                this.selectedRouteId = String(farmer.route_id);
+            }
             if (farmer.animal_type && this.config.allowed_milk_types.includes(farmer.animal_type)) {
                 this.form.milk_type = farmer.animal_type;
             }

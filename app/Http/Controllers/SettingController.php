@@ -166,6 +166,8 @@ class SettingController extends Controller
             ];
         }
 
+        $routes = \App\Models\DeliveryRoute::orderBy('name')->get();
+
         return view('settings.center_information', compact(
             'settings',
             'center',
@@ -181,7 +183,8 @@ class SettingController extends Controller
             'subscriptionInfo',
             'locationInfo',
             'additionTypes',
-            'deductionTypes'
+            'deductionTypes',
+            'routes'
         ));
     }
 
@@ -197,6 +200,18 @@ class SettingController extends Controller
                     SystemSetting::set($settingKey, $request->input('setting_value'), 'collection_setting');
                 } else {
                     SystemSetting::set($settingKey, json_encode($data), 'collection_setting');
+                    if ($settingKey === 'center_details' && !empty($data['vehicle_route']) && trim($data['vehicle_route']) !== '-') {
+                        $rName = trim($data['vehicle_route']);
+                        $exists = \App\Models\DeliveryRoute::where('name', $rName)->exists();
+                        if (!$exists) {
+                            \App\Models\DeliveryRoute::create([
+                                'name' => $rName,
+                                'code' => 'RT-' . strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $rName), 0, 4)) . rand(10, 99),
+                                'area_name' => $data['address_english'] ?? 'Center Route',
+                                'status' => 'active',
+                            ]);
+                        }
+                    }
                 }
             } else {
                 // Bulk key-value save

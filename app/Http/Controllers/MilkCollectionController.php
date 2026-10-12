@@ -25,6 +25,7 @@ class MilkCollectionController extends Controller
         $milkTypeSetting = SystemSetting::get('milk_type', 'Cow, Buffalo');
         $shiftSetting = SystemSetting::get('collection_shift', 'Morning + Evening');
         $showPreviousCollection = SystemSetting::get('show_previous_collection', "Yesterday's both shift");
+        $routeWiseCollection = SystemSetting::get('route_wise_collection', 'On');
         $rateChartStatus = SystemSetting::get('rate_chart_status', 'On');
         $farmerWiseRate = SystemSetting::get('farmer_wise_rate', 'As per Rate Chart');
         $shiftMorningBonus = (float) SystemSetting::get('shift_wise_morning', '0.00');
@@ -34,6 +35,11 @@ class MilkCollectionController extends Controller
         $fatFormat = SystemSetting::get('fat_format', 'Automatic + Manual');
         $snfFormat = SystemSetting::get('snf_format', 'Automatic + Manual');
         $clrFormat = SystemSetting::get('clr_lacto_format', 'Automatic + Manual');
+
+        $centerDetails = json_decode(SystemSetting::get('center_details', '{}'), true) ?: [];
+        $centerVehicleRoute = (!empty($centerDetails['vehicle_route']) && trim($centerDetails['vehicle_route']) !== '-')
+            ? trim($centerDetails['vehicle_route'])
+            : null;
 
         $additionTypes = json_decode(SystemSetting::get('center_addition_types', '[]'), true) ?: [];
         $deductionTypes = json_decode(SystemSetting::get('center_deduction_types', '[]'), true) ?: [];
@@ -106,6 +112,8 @@ class MilkCollectionController extends Controller
             'allowed_shifts' => $allowedShifts,
             'default_shift' => $defaultShift,
             'show_previous_collection' => $showPreviousCollection,
+            'route_wise_collection' => $routeWiseCollection,
+            'center_vehicle_route' => $centerVehicleRoute,
             'rate_chart_status' => $rateChartStatus,
             'farmer_wise_rate' => $farmerWiseRate,
             'shift_wise_morning' => $shiftMorningBonus,
@@ -383,38 +391,59 @@ class MilkCollectionController extends Controller
                 ->first();
 
             $morningText = $mCol
-                ? number_format((float) $mCol->quantity_liters, 1) . ' L (' . number_format((float) $mCol->fat, 1) . '% F • ₹' . number_format((float) $mCol->net_amount, 2) . ')'
+                ? number_format((float) $mCol->quantity_liters, 1) . ' L | FAT: ' . number_format((float) ($mCol->fat ?? 0), 1) . '% | CLR: ' . number_format((float) ($mCol->clr ?? 0), 1) . ' (₹' . number_format((float) $mCol->net_amount, 2) . ')'
                 : 'No entry';
             $eveningText = $eCol
-                ? number_format((float) $eCol->quantity_liters, 1) . ' L (' . number_format((float) $eCol->fat, 1) . '% F • ₹' . number_format((float) $eCol->net_amount, 2) . ')'
+                ? number_format((float) $eCol->quantity_liters, 1) . ' L | FAT: ' . number_format((float) ($eCol->fat ?? 0), 1) . '% | CLR: ' . number_format((float) ($eCol->clr ?? 0), 1) . ' (₹' . number_format((float) $eCol->net_amount, 2) . ')'
                 : 'No entry';
             $prevShiftText = $pCol
-                ? number_format((float) $pCol->quantity_liters, 1) . ' L (' . number_format((float) $pCol->fat, 1) . '% F • ₹' . number_format((float) $pCol->net_amount, 2) . ')'
+                ? number_format((float) $pCol->quantity_liters, 1) . ' L | FAT: ' . number_format((float) ($pCol->fat ?? 0), 1) . '% | CLR: ' . number_format((float) ($pCol->clr ?? 0), 1) . ' (₹' . number_format((float) $pCol->net_amount, 2) . ')'
                 : 'No entry';
 
             $avgFat5Days = round((float) (MilkCollection::where('farmer_id', $farmerId)
                 ->whereBetween('collection_date', [$fiveDaysStart, $dateStr])
                 ->where('fat', '>', 0)
                 ->avg('fat') ?? 0), 2);
+            $avgClr5Days = round((float) (MilkCollection::where('farmer_id', $farmerId)
+                ->whereBetween('collection_date', [$fiveDaysStart, $dateStr])
+                ->where('clr', '>', 0)
+                ->avg('clr') ?? 0), 1);
         } else {
             $mQuery = MilkCollection::whereDate('collection_date', $yesterdayStr)->where('shift', 'morning');
             $eQuery = MilkCollection::whereDate('collection_date', $yesterdayStr)->where('shift', 'evening');
             $pQuery = MilkCollection::whereDate('collection_date', $prevShiftDateStr)->where('shift', $prevShiftType);
 
             $mLtr = (float) (clone $mQuery)->sum('quantity_liters');
+            $mFat = (float) ((clone $mQuery)->avg('fat') ?? 0);
+            $mClr = (float) ((clone $mQuery)->avg('clr') ?? 0);
             $mAmt = (float) (clone $mQuery)->sum('net_amount');
+
             $eLtr = (float) (clone $eQuery)->sum('quantity_liters');
+            $eFat = (float) ((clone $eQuery)->avg('fat') ?? 0);
+            $eClr = (float) ((clone $eQuery)->avg('clr') ?? 0);
             $eAmt = (float) (clone $eQuery)->sum('net_amount');
+
             $pLtr = (float) (clone $pQuery)->sum('quantity_liters');
+            $pFat = (float) ((clone $pQuery)->avg('fat') ?? 0);
+            $pClr = (float) ((clone $pQuery)->avg('clr') ?? 0);
             $pAmt = (float) (clone $pQuery)->sum('net_amount');
 
-            $morningText = $mLtr > 0 ? number_format($mLtr, 1) . ' L (₹' . number_format($mAmt, 2) . ')' : 'No entry';
-            $eveningText = $eLtr > 0 ? number_format($eLtr, 1) . ' L (₹' . number_format($eAmt, 2) . ')' : 'No entry';
-            $prevShiftText = $pLtr > 0 ? number_format($pLtr, 1) . ' L (₹' . number_format($pAmt, 2) . ')' : 'No entry';
+            $morningText = $mLtr > 0
+                ? number_format($mLtr, 1) . ' L | FAT: ' . number_format($mFat, 1) . '% | CLR: ' . number_format($mClr, 1) . ' (₹' . number_format($mAmt, 2) . ')'
+                : 'No entry';
+            $eveningText = $eLtr > 0
+                ? number_format($eLtr, 1) . ' L | FAT: ' . number_format($eFat, 1) . '% | CLR: ' . number_format($eClr, 1) . ' (₹' . number_format($eAmt, 2) . ')'
+                : 'No entry';
+            $prevShiftText = $pLtr > 0
+                ? number_format($pLtr, 1) . ' L | FAT: ' . number_format($pFat, 1) . '% | CLR: ' . number_format($pClr, 1) . ' (₹' . number_format($pAmt, 2) . ')'
+                : 'No entry';
 
             $avgFat5Days = round((float) (MilkCollection::whereBetween('collection_date', [$fiveDaysStart, $dateStr])
                 ->where('fat', '>', 0)
                 ->avg('fat') ?? 0), 2);
+            $avgClr5Days = round((float) (MilkCollection::whereBetween('collection_date', [$fiveDaysStart, $dateStr])
+                ->where('clr', '>', 0)
+                ->avg('clr') ?? 0), 1);
         }
 
         return [
@@ -452,6 +481,7 @@ class MilkCollectionController extends Controller
                 'prev_shift_type' => $prevShiftType,
                 'prev_shift_text' => $prevShiftText,
                 'avg_fat_5_days' => number_format($avgFat5Days, 2, '.', '') . '%',
+                'avg_clr_5_days' => number_format($avgClr5Days, 1, '.', ''),
             ],
         ];
     }
@@ -461,7 +491,7 @@ class MilkCollectionController extends Controller
      */
     public function index(Request $request)
     {
-        $query = MilkCollection::with(['farmer', 'collectionCenter', 'operator']);
+        $query = MilkCollection::with(['farmer.route', 'collectionCenter', 'operator']);
 
         // Date or Date Range Filter
         if ($request->filled('from_date') && $request->filled('to_date')) {
@@ -485,6 +515,13 @@ class MilkCollectionController extends Controller
         // Center Filter
         if ($request->filled('center_id')) {
             $query->where('collection_center_id', $request->center_id);
+        }
+
+        // Route Filter
+        if ($request->filled('route_id')) {
+            $query->whereHas('farmer', function ($q) use ($request) {
+                $q->where('route_id', $request->route_id);
+            });
         }
 
         // Milk Type Filter
@@ -550,7 +587,8 @@ class MilkCollectionController extends Controller
         if ($centers->isEmpty()) {
             $centers = CollectionCenter::all();
         }
-        $farmers = Farmer::orderBy('farmer_code')->get();
+        $routes = \App\Models\DeliveryRoute::orderBy('name')->get();
+        $farmers = Farmer::with('route')->orderBy('farmer_code')->get();
         $rateCharts = RateChart::where('status', 'active')->get();
         $collectionConfig = $this->getCollectionConfig();
         $currentShift = $collectionConfig['default_shift'];
@@ -575,6 +613,7 @@ class MilkCollectionController extends Controller
             'avgFat',
             'avgSnf',
             'centers',
+            'routes',
             'farmers',
             'rateCharts',
             'currentShift',

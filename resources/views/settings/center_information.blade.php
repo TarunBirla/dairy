@@ -60,9 +60,12 @@
                         <span class="w-1/2 font-semibold text-slate-700">Chilling Center</span>
                         <span class="w-1/2 text-slate-800" x-text="centerDetails.chilling_center || '-'"></span>
                     </div>
-                    <div class="px-3.5 py-2 flex items-start justify-between">
+                    <div class="px-3.5 py-2 flex items-center justify-between">
                         <span class="w-1/2 font-semibold text-slate-700">Vehicle Route</span>
-                        <span class="w-1/2 text-slate-800" x-text="centerDetails.vehicle_route || '-'"></span>
+                        <div class="w-1/2 flex items-center justify-between gap-2">
+                            <span class="text-slate-800 font-medium" x-text="(centerDetails.vehicle_route && centerDetails.vehicle_route !== '-') ? centerDetails.vehicle_route : '{{ isset($routes) && $routes->isNotEmpty() ? $routes->pluck('name')->implode(', ') : '-' }}'"></span>
+                            <a href="{{ route('delivery.routes') }}" class="text-[11px] font-semibold text-blue-600 hover:text-blue-800 shrink-0 underline">+ Routes</a>
+                        </div>
                     </div>
                     <div class="px-3.5 py-2 flex items-start justify-between">
                         <span class="w-1/2 font-semibold text-slate-700">Block</span>
@@ -409,6 +412,19 @@
                     <div class="flex items-center gap-3">
                         <span class="text-xs font-medium text-slate-500" x-text="bonusPenaltyStatus"></span>
                         <button type="button" @click="openModal('bonusPenalty')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 11. Route Wise Collection -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Route Wise Collection</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="routeWiseCollection"></span>
+                        <button type="button" @click="openModal('routeWiseCollection')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
                             <i data-lucide="more-vertical" class="w-4 h-4"></i>
                         </button>
                     </div>
@@ -1019,6 +1035,33 @@
             <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
                 <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
                 <button type="button" @click="saveSetting('offline_collection', selectedOfflineCollection, 'offlineCollection')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 6B: Route Wise Collection -->
+    <div x-show="modal === 'routeWiseCollection'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Route Wise Collection</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="route_wise_col_radio" value="On" x-model="selectedRouteWiseCollection" class="text-[#005c53]">
+                    <span>On</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="route_wise_col_radio" value="Off" x-model="selectedRouteWiseCollection" class="text-[#005c53]">
+                    <span>Off</span>
+                </label>
+                <p class="text-[11px] text-rose-500 font-semibold pt-1">
+                    Set 'On' to display Route selector and route details on the Milk Collection screen. Set 'Off' to hide route details.
+                </p>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('route_wise_collection', selectedRouteWiseCollection, 'routeWiseCollection')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
             </div>
         </div>
     </div>
@@ -2609,8 +2652,18 @@
                         <input type="text" x-model="centerDetailsData.chilling_center" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500" placeholder="-">
                     </div>
                     <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Vehicle Route</label>
-                        <input type="text" x-model="centerDetailsData.vehicle_route" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500" placeholder="-">
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block font-semibold text-slate-700">Vehicle Route</label>
+                            <a href="{{ route('delivery.routes') }}" class="text-[10px] font-bold text-blue-600 hover:underline">+ Add</a>
+                        </div>
+                        <input type="text" list="center_vehicle_routes_list" x-model="centerDetailsData.vehicle_route" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500" placeholder="Select or type route...">
+                        <datalist id="center_vehicle_routes_list">
+                            @if(isset($routes))
+                                @foreach($routes as $rt)
+                                    <option value="{{ $rt->name }}">{{ $rt->code }} - {{ $rt->area_name }}</option>
+                                @endforeach
+                            @endif
+                        </datalist>
                     </div>
                     <div>
                         <label class="block font-semibold text-slate-700 mb-1">Block</label>
@@ -2911,6 +2964,7 @@ function centerInformationApp() {
         showPreviousCollection: {!! json_encode($settings["show_previous_collection"] ?? "Yesterday's both shift") !!},
         collectionInput: {!! json_encode($settings["collection_input"] ?? "Manual + Automatic") !!},
         offlineCollection: {!! json_encode($settings["offline_collection"] ?? "On") !!},
+        routeWiseCollection: {!! json_encode($settings["route_wise_collection"] ?? "On") !!},
         morningShiftTime: {!! json_encode($settings["morning_shift_time"] ?? "Not Available") !!},
         eveningShiftTime: {!! json_encode($settings["evening_shift_time"] ?? "Not Available") !!},
         printFormat: {!! json_encode($printSetting["format"] ?? "Format-2") !!},
@@ -3070,6 +3124,7 @@ function centerInformationApp() {
         selectedPreviousCollection: '{{ $settings["show_previous_collection"] ?? "Yesterday\'s both shift" }}',
         selectedCollectionInput: '{{ $settings["collection_input"] ?? "Manual + Automatic" }}',
         selectedOfflineCollection: '{{ $settings["offline_collection"] ?? "On" }}',
+        selectedRouteWiseCollection: '{{ $settings["route_wise_collection"] ?? "On" }}',
 
         // Shift Time Models
         morningStartHour: '01',
@@ -3172,6 +3227,7 @@ function centerInformationApp() {
                 if (key === 'show_previous_collection') this.showPreviousCollection = val;
                 if (key === 'collection_input') this.collectionInput = val;
                 if (key === 'offline_collection') this.offlineCollection = val;
+                if (key === 'route_wise_collection') this.routeWiseCollection = val;
                 if (key === 'farmer_app_link_in_sms') this.farmerAppLinkInSms = val;
                 if (key === 'total_in_collection_sms') this.totalInCollectionSms = val;
                 if (key === 'center_name_in_sms') this.centerNameInSms = val;
