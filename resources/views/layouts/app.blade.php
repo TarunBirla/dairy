@@ -261,6 +261,43 @@
                 justify-content: center !important;
             }
         }
+
+        /* Universal Table Column Sorting (ASC / DESC) */
+        th.sd-sortable-th {
+            cursor: pointer !important;
+            user-select: none !important;
+            transition: color 0.15s ease, background-color 0.15s ease;
+        }
+        th.sd-sortable-th:hover {
+            color: #002e79 !important;
+            background-color: rgba(0, 46, 121, 0.04) !important;
+        }
+        th.sd-sortable-th[data-sort-dir="asc"],
+        th.sd-sortable-th[data-sort-dir="desc"] {
+            color: #002e79 !important;
+            background-color: rgba(0, 46, 121, 0.06) !important;
+        }
+        .sd-sort-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 4px;
+            font-size: 10px;
+            line-height: 1;
+            opacity: 0.45;
+            vertical-align: middle;
+            transition: opacity 0.15s ease, transform 0.15s ease, color 0.15s ease;
+        }
+        th.sd-sortable-th:hover .sd-sort-icon {
+            opacity: 0.85;
+            color: #002e79;
+        }
+        th.sd-sortable-th[data-sort-dir="asc"] .sd-sort-icon,
+        th.sd-sortable-th[data-sort-dir="desc"] .sd-sort-icon {
+            opacity: 1;
+            color: #002e79;
+            font-weight: 700;
+        }
     </style>
 
     <script>
@@ -981,7 +1018,276 @@
 
         $(document).ready(function() {
             window.initSelect2('.select2');
+            if (typeof window.initSortableTables === 'function') {
+                window.initSortableTables();
+            }
         });
+
+        // Universal Table Column Sorting (ASC / DESC) across all tables
+        (function() {
+            const NON_SORTABLE_HEADERS = new Set([
+                '', 'action', 'actions', 'print', 'slip', 'photo', 'image', 'qr', 'options', 'manage', 'view', 'edit', 'delete'
+            ]);
+
+            function cleanCellText(td) {
+                if (!td) return '';
+                const explicit = td.getAttribute('data-sort-value');
+                if (explicit !== null && explicit !== undefined) {
+                    return explicit.trim();
+                }
+
+                const clone = td.cloneNode(true);
+                clone.querySelectorAll('script, style, template, [x-cloak]').forEach(el => el.remove());
+
+                const fullText = (clone.textContent || '').replace(/\s+/g, ' ').trim();
+                // Strip 1-2 letter avatar initial circles only when accompanied by a name/label
+                clone.querySelectorAll('.rounded-full').forEach(el => {
+                    const txt = (el.textContent || '').trim();
+                    if (/^[A-Za-z]{1,2}$/.test(txt) && fullText.length > txt.length) {
+                        el.remove();
+                    }
+                });
+
+                let raw = (clone.textContent || '').replace(/\s+/g, ' ').trim();
+                // Strip leading emojis/symbols (e.g. ☀️, 🌙, 🐄, 🐃, 🥛, •)
+                raw = raw.replace(/^[^\w\d₹\-\+\(\.]+\s*/u, '').trim();
+                return raw;
+            }
+
+            function parseSortToken(val) {
+                if (!val || val === '—' || val === '-' || val.toLowerCase() === 'n/a') {
+                    return { type: 'empty', value: null };
+                }
+
+                // 1. Check DD/MM/YYYY or DD-MM-YYYY (with optional time)
+                const dmyMatch = val.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{2})(?:\s*(AM|PM))?)?/i);
+                if (dmyMatch) {
+                    const day = parseInt(dmyMatch[1], 10);
+                    const month = parseInt(dmyMatch[2], 10) - 1;
+                    const year = parseInt(dmyMatch[3], 10);
+                    let hours = dmyMatch[4] ? parseInt(dmyMatch[4], 10) : 0;
+                    const mins = dmyMatch[5] ? parseInt(dmyMatch[5], 10) : 0;
+                    const ampm = (dmyMatch[6] || '').toUpperCase();
+                    if (ampm === 'PM' && hours < 12) hours += 12;
+                    if (ampm === 'AM' && hours === 12) hours = 0;
+                    const ts = new Date(year, month, day, hours, mins).getTime();
+                    if (!isNaN(ts)) {
+                        return { type: 'number', value: ts };
+                    }
+                }
+
+                // 2. Check YYYY-MM-DD
+                if (/^\d{4}-\d{2}-\d{2}/.test(val)) {
+                    const ts = Date.parse(val);
+                    if (!isNaN(ts)) {
+                        return { type: 'number', value: ts };
+                    }
+                }
+
+                // 3. Check Date with month name e.g. "12 Oct 2026" or "12 Oct, 2026"
+                if (/^\d{1,2}\s+[A-Za-z]{3},?\s+\d{4}/.test(val)) {
+                    const ts = Date.parse(val);
+                    if (!isNaN(ts)) {
+                        return { type: 'number', value: ts };
+                    }
+                }
+
+                // 4. Check numeric / currency / percentage / quantity (e.g., "₹ 2,746.80", "10.00 L", "4.20%", "-450.00")
+                const numCleaned = val
+                    .replace(/₹|Rs\.?|INR|,/gi, '')
+                    .replace(/\b(ltr\.?|liters?|l|kg|gm|ml|pcs|nos|days?|hrs?|min)\b/gi, '')
+                    .replace(/[%+]/g, '')
+                    .replace(/\/[a-zA-Z]+/g, '')
+                    .trim();
+
+                if (/^-?\d+(\.\d+)?$/.test(numCleaned)) {
+                    const num = parseFloat(numCleaned);
+                    if (!isNaN(num)) {
+                        return { type: 'number', value: num };
+                    }
+                }
+
+                // 5. Fallback to natural string comparison (handles FAR-101, FAR-104, names, etc.)
+                return { type: 'string', value: val.toLowerCase() };
+            }
+
+            function isCompanionDetailRow(tr) {
+                const firstTd = tr.querySelector('td');
+                const hasColspan = firstTd && parseInt(firstTd.getAttribute('colspan') || '1', 10) > 1;
+                if (!hasColspan) return false;
+                return tr.hasAttribute('x-show') ||
+                       tr.hasAttribute('x-cloak') ||
+                       tr.style.display === 'none' ||
+                       (tr.id && (tr.id.includes('detail') || tr.id.includes('edit')));
+            }
+
+            function isPinnedBottomRow(tr) {
+                const firstTd = tr.querySelector('td');
+                if (!firstTd) return true;
+                const colspan = parseInt(firstTd.getAttribute('colspan') || '1', 10);
+                if (colspan > 1 && !isCompanionDetailRow(tr)) {
+                    return true;
+                }
+                const firstText = (firstTd.innerText || firstTd.textContent || '').trim().toLowerCase();
+                if (/^(total|grand total|sub\s*total)\b/.test(firstText)) {
+                    return true;
+                }
+                return false;
+            }
+
+            function sortTableByColumn(table, th, colIndex) {
+                const tbody = table.tBodies && table.tBodies[0];
+                if (!tbody) return;
+
+                const currentDir = th.getAttribute('data-sort-dir');
+                const nextDir = currentDir === 'asc' ? 'desc' : 'asc';
+
+                // Reset all headers in this thead
+                const thead = th.closest('thead');
+                if (thead) {
+                    thead.querySelectorAll('th.sd-sortable-th').forEach(header => {
+                        header.removeAttribute('data-sort-dir');
+                        const icon = header.querySelector('.sd-sort-icon');
+                        if (icon) icon.textContent = '⇅';
+                    });
+                }
+
+                th.setAttribute('data-sort-dir', nextDir);
+                const activeIcon = th.querySelector('.sd-sort-icon');
+                if (activeIcon) {
+                    activeIcon.textContent = nextDir === 'asc' ? '▲' : '▼';
+                }
+
+                // Group rows: keep companion detail rows attached to their main row, and keep pinned rows at the bottom
+                const allRows = Array.from(tbody.querySelectorAll(':scope > tr'));
+                if (allRows.length <= 1) return;
+
+                const sortableGroups = [];
+                const pinnedRows = [];
+
+                for (let i = 0; i < allRows.length; i++) {
+                    const row = allRows[i];
+                    if (isCompanionDetailRow(row)) {
+                        if (sortableGroups.length > 0) {
+                            sortableGroups[sortableGroups.length - 1].rows.push(row);
+                        } else {
+                            pinnedRows.push(row);
+                        }
+                    } else if (isPinnedBottomRow(row)) {
+                        pinnedRows.push(row);
+                    } else {
+                        const cell = row.children[colIndex];
+                        const rawVal = cleanCellText(cell);
+                        const token = parseSortToken(rawVal);
+                        sortableGroups.push({
+                            rows: [row],
+                            token: token,
+                            raw: rawVal,
+                            origIndex: i
+                        });
+                    }
+                }
+
+                if (sortableGroups.length <= 1) return;
+
+                sortableGroups.sort((a, b) => {
+                    // Always push empty cells to the bottom
+                    if (a.token.type === 'empty' && b.token.type === 'empty') return a.origIndex - b.origIndex;
+                    if (a.token.type === 'empty') return 1;
+                    if (b.token.type === 'empty') return -1;
+
+                    let cmp = 0;
+                    if (a.token.type === 'number' && b.token.type === 'number') {
+                        cmp = a.token.value - b.token.value;
+                    } else {
+                        cmp = String(a.raw).localeCompare(String(b.raw), undefined, { numeric: true, sensitivity: 'base' });
+                    }
+
+                    if (cmp === 0) {
+                        return a.origIndex - b.origIndex;
+                    }
+                    return nextDir === 'asc' ? cmp : -cmp;
+                });
+
+                const frag = document.createDocumentFragment();
+                sortableGroups.forEach(group => {
+                    group.rows.forEach(r => frag.appendChild(r));
+                });
+                pinnedRows.forEach(r => frag.appendChild(r));
+                tbody.appendChild(frag);
+            }
+
+            window.initSortableTables = function(root = document) {
+                const tables = root.querySelectorAll('table');
+                tables.forEach(table => {
+                    if (table.getAttribute('data-no-sort') === 'true') return;
+                    const thead = table.querySelector('thead');
+                    const tbody = table.querySelector('tbody');
+                    if (!thead || !tbody) return;
+
+                    const headerRows = thead.querySelectorAll('tr');
+                    if (!headerRows.length) return;
+                    const headerRow = headerRows[headerRows.length - 1];
+                    const ths = Array.from(headerRow.children).filter(el => el.tagName === 'TH');
+
+                    ths.forEach((th, idx) => {
+                        if (th.classList.contains('sd-sortable-th') || th.getAttribute('data-no-sort') === 'true') {
+                            return;
+                        }
+                        if (th.querySelector('input, select, button')) {
+                            return;
+                        }
+                        const label = (th.innerText || th.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+                        if (NON_SORTABLE_HEADERS.has(label)) {
+                            return;
+                        }
+
+                        th.classList.add('sd-sortable-th');
+                        th.setAttribute('data-col-index', idx);
+                        if (!th.getAttribute('title')) {
+                            th.setAttribute('title', 'Click to sort Asc / Desc');
+                        }
+
+                        const icon = document.createElement('span');
+                        icon.className = 'sd-sort-icon';
+                        icon.setAttribute('aria-hidden', 'true');
+                        icon.textContent = '⇅';
+                        th.appendChild(icon);
+                    });
+                });
+            };
+
+            // Delegated click listener for all sortable table headers
+            document.addEventListener('click', function(e) {
+                const th = e.target.closest('th.sd-sortable-th');
+                if (!th) return;
+                if (e.target.closest('a, button, input, select')) return;
+
+                const table = th.closest('table');
+                if (!table) return;
+
+                const tr = th.parentElement;
+                const ths = Array.from(tr.children).filter(el => el.tagName === 'TH');
+                const colIndex = ths.indexOf(th);
+                if (colIndex === -1) return;
+
+                sortTableByColumn(table, th, colIndex);
+            });
+
+            // Observe DOM changes so dynamically added tables also become sortable
+            document.addEventListener('DOMContentLoaded', function() {
+                window.initSortableTables();
+                const mainContent = document.getElementById('app-main-content') || document.body;
+                if (window.MutationObserver && mainContent) {
+                    let timer = null;
+                    const observer = new MutationObserver(() => {
+                        if (timer) clearTimeout(timer);
+                        timer = setTimeout(() => window.initSortableTables(mainContent), 150);
+                    });
+                    observer.observe(mainContent, { childList: true, subtree: true });
+                }
+            });
+        })();
     </script>
     @stack('scripts')
 </body>
