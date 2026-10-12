@@ -697,6 +697,7 @@ Route::middleware('auth')->group(function () {
     // Sales Products (Product Sales to Farmers)
     Route::resource('product-sales', ProductSaleController::class);
     Route::get('product-sales/{product_sale}/print', [ProductSaleController::class, 'printSlip'])->name('product-sales.print');
+    Route::post('product-sales/{product_sale}/mark-paid', [ProductSaleController::class, 'markPaid'])->name('product-sales.mark-paid');
 
     // Inventory Ledger & Bottle Management
     Route::prefix('inventory')->name('inventory.')->group(function () {

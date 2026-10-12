@@ -216,7 +216,52 @@ class FarmerController extends Controller
         $totalMilkLiters = MilkCollection::where('farmer_id', $farmer->id)->sum('quantity_liters');
         $totalGrossEarned = MilkCollection::where('farmer_id', $farmer->id)->sum('net_amount');
 
-        return view('farmers.show', compact('farmer', 'collections', 'ledgers', 'advances', 'totalMilkLiters', 'totalGrossEarned'));
+        // Farmer Product Purchases (All, Paid, Unpaid)
+        $farmerPurchases = collect();
+        $products = collect();
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('product_sales')) {
+                $farmerPurchases = \App\Models\ProductSale::with('product')
+                    ->where(function ($q) use ($farmer) {
+                        $q->where('farmer_id', $farmer->id);
+                        if (!empty($farmer->farmer_code)) {
+                            $q->orWhere('farmer_code', $farmer->farmer_code);
+                        }
+                    })
+                    ->orderByDesc('sale_date')
+                    ->orderByDesc('id')
+                    ->get();
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('products')) {
+                $products = \App\Models\Product::orderBy('name')->get();
+            }
+        } catch (\Throwable $e) {
+            // Safe fallback
+        }
+
+        $totalPurchaseQty = (float) $farmerPurchases->sum('quantity');
+        $totalPurchaseAmount = (float) $farmerPurchases->sum('total_amount');
+        $totalPurchasePaid = (float) $farmerPurchases->sum('paid_amount');
+        $totalPurchaseUnpaid = (float) $farmerPurchases->sum('remaining_amount');
+        $paidPurchasesCount = $farmerPurchases->filter(fn($s) => $s->is_paid && (float) $s->remaining_amount <= 0)->count();
+        $unpaidPurchasesCount = $farmerPurchases->filter(fn($s) => !$s->is_paid || (float) $s->remaining_amount > 0)->count();
+
+        return view('farmers.show', compact(
+            'farmer',
+            'collections',
+            'ledgers',
+            'advances',
+            'totalMilkLiters',
+            'totalGrossEarned',
+            'farmerPurchases',
+            'products',
+            'totalPurchaseQty',
+            'totalPurchaseAmount',
+            'totalPurchasePaid',
+            'totalPurchaseUnpaid',
+            'paidPurchasesCount',
+            'unpaidPurchasesCount'
+        ));
     }
 
     /**

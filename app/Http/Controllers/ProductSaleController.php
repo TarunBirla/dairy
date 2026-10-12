@@ -216,6 +216,11 @@ class ProductSaleController extends Controller
             'total' => $totalAmount,
         ]);
 
+        if ($request->filled('redirect_to_farmer')) {
+            return redirect()->route('farmers.show', ['farmer' => $request->redirect_to_farmer, 'tab' => 'purchases'])
+                             ->with('success', "Purchase #{$saleNumber} for {$product->name} (₹{$totalAmount}) recorded successfully!");
+        }
+
         return redirect()->route('product-sales.index')
                          ->with('success', "Sale #{$saleNumber} for {$product->name} (₹{$totalAmount}) recorded successfully!");
     }
@@ -368,5 +373,31 @@ class ProductSaleController extends Controller
     {
         $productSale->load(['product', 'farmer', 'recorder']);
         return view('product_sales.print', ['sale' => $productSale]);
+    }
+
+    /**
+     * Quick-mark an unpaid or partially paid purchase as fully Paid.
+     */
+    public function markPaid(Request $request, ProductSale $productSale)
+    {
+        $productSale->update([
+            'is_paid' => true,
+            'paid_amount' => $productSale->total_amount,
+            'remaining_amount' => 0,
+            'payment_mode' => $request->input('payment_mode', $productSale->payment_mode ?: 'Cash'),
+        ]);
+
+        AuditLog::log('Marked Product Purchase as Paid', 'ProductSale', $productSale->id, [
+            'sale_number' => $productSale->sale_number,
+            'farmer' => $productSale->farmer_name,
+            'total_amount' => $productSale->total_amount,
+        ]);
+
+        if ($request->filled('farmer_id')) {
+            return redirect()->route('farmers.show', ['farmer' => $request->farmer_id, 'tab' => 'purchases'])
+                             ->with('success', "Purchase Bill #{$productSale->sale_number} marked as Paid!");
+        }
+
+        return back()->with('success', "Purchase Bill #{$productSale->sale_number} marked as Paid!");
     }
 }

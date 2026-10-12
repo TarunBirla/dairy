@@ -12,7 +12,29 @@
 @endsection
 
 @section('content')
-<div class="space-y-6" x-data="{ tab: 'collections', advanceModal: false }">
+<div class="space-y-6" x-data="{
+    tab: '{{ request('tab', 'collections') }}',
+    advanceModal: false,
+    purchaseModal: false,
+    purchaseFilter: 'all',
+    purchaseSearch: '',
+    selectedProductId: '',
+    purchaseUnit: 'Bag',
+    purchaseQty: 1,
+    purchaseRate: 0,
+    purchaseIsPaid: '0',
+    purchasePaymentMode: 'Ledger',
+    get purchaseTotal() {
+        return ((parseFloat(this.purchaseQty) || 0) * (parseFloat(this.purchaseRate) || 0)).toFixed(2);
+    },
+    onSelectProduct(e) {
+        const opt = e.target.selectedOptions[0];
+        if (opt && opt.value) {
+            this.purchaseRate = parseFloat(opt.dataset.price || 0);
+            this.purchaseUnit = opt.dataset.unit || 'Bag';
+        }
+    }
+}">
 
     <!-- Top Profile & Balance Card -->
     <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
@@ -53,9 +75,12 @@
                     <span class="text-2xl font-black text-slate-900">₹ {{ number_format($farmer->current_balance, 2) }}</span>
                     <span class="text-[10px] text-emerald-700 font-semibold block">Payable by Dairy</span>
                 </div>
-                <div class="flex flex-col gap-2">
-                    <button type="button" @click="advanceModal = true" class="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-2xs">
+                <div class="flex flex-col gap-1.5">
+                    <button type="button" @click="advanceModal = true" class="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-2xs transition">
                         + Issue Advance
+                    </button>
+                    <button type="button" @click="tab = 'purchases'; purchaseModal = true" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition">
+                        + Add Purchase
                     </button>
                 </div>
             </div>
@@ -92,15 +117,24 @@
     </div>
 
     <!-- Navigation Tabs -->
-    <div class="flex border-b border-slate-200 space-x-6 text-xs font-semibold">
-        <button @click="tab = 'collections'" :class="tab === 'collections' ? 'border-b-2 border-emerald-600 text-emerald-700' : 'text-slate-500 hover:text-slate-700'" class="pb-3 transition">
+    <div class="flex flex-wrap border-b border-slate-200 gap-x-6 gap-y-2 text-xs font-semibold">
+        <button @click="tab = 'collections'" :class="tab === 'collections' ? 'border-b-2 border-emerald-600 text-emerald-700' : 'text-slate-500 hover:text-slate-700'" class="pb-3 transition cursor-pointer">
             Milk Supply History ({{ $collections->count() }})
         </button>
-        <button @click="tab = 'ledger'" :class="tab === 'ledger' ? 'border-b-2 border-emerald-600 text-emerald-700' : 'text-slate-500 hover:text-slate-700'" class="pb-3 transition">
+        <button @click="tab = 'ledger'" :class="tab === 'ledger' ? 'border-b-2 border-emerald-600 text-emerald-700' : 'text-slate-500 hover:text-slate-700'" class="pb-3 transition cursor-pointer">
             Passbook Ledger ({{ $ledgers->count() }})
         </button>
-        <button @click="tab = 'advances'" :class="tab === 'advances' ? 'border-b-2 border-emerald-600 text-emerald-700' : 'text-slate-500 hover:text-slate-700'" class="pb-3 transition">
+        <button @click="tab = 'advances'" :class="tab === 'advances' ? 'border-b-2 border-emerald-600 text-emerald-700' : 'text-slate-500 hover:text-slate-700'" class="pb-3 transition cursor-pointer">
             Advances & Loans ({{ $advances->count() }})
+        </button>
+        <button @click="tab = 'purchases'" :class="tab === 'purchases' ? 'border-b-2 border-emerald-600 text-emerald-700' : 'text-slate-500 hover:text-slate-700'" class="pb-3 transition flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i>
+            <span>Farmer Purchases ({{ $farmerPurchases->count() }})</span>
+            @if($totalPurchaseUnpaid > 0)
+                <span class="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+                    Unpaid: ₹{{ number_format($totalPurchaseUnpaid, 0) }}
+                </span>
+            @endif
         </button>
     </div>
 
@@ -233,6 +267,184 @@
         </div>
     </div>
 
+    <!-- TAB 4: Farmer Purchases (All / Paid / Unpaid) -->
+    <div x-show="tab === 'purchases'" x-cloak class="space-y-4">
+        <!-- Summary KPI Strip -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+                <span class="text-[10px] font-bold text-slate-400 uppercase block">Total Purchases</span>
+                <div class="mt-1 flex items-baseline justify-between">
+                    <span class="text-xl font-black text-slate-900">{{ $farmerPurchases->count() }} Bills</span>
+                    <span class="text-xs font-bold text-slate-500">Qty: {{ number_format($totalPurchaseQty, 2) }}</span>
+                </div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+                <span class="text-[10px] font-bold text-slate-400 uppercase block">Total Purchase Value</span>
+                <span class="text-xl font-black text-slate-900 mt-1 block">₹ {{ number_format($totalPurchaseAmount, 2) }}</span>
+            </div>
+            <div class="bg-emerald-50/60 p-4 rounded-2xl border border-emerald-200/80 shadow-xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold text-emerald-700 uppercase">Total Paid</span>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">{{ $paidPurchasesCount }} Paid</span>
+                </div>
+                <span class="text-xl font-black text-emerald-800 mt-1 block">₹ {{ number_format($totalPurchasePaid, 2) }}</span>
+            </div>
+            <div class="bg-rose-50/60 p-4 rounded-2xl border border-rose-200/80 shadow-xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold text-rose-700 uppercase">Unpaid / Balance Due</span>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-800">{{ $unpaidPurchasesCount }} Unpaid</span>
+                </div>
+                <span class="text-xl font-black text-rose-700 mt-1 block">₹ {{ number_format($totalPurchaseUnpaid, 2) }}</span>
+            </div>
+        </div>
+
+        <!-- Purchases Listing Card -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <h4 class="text-xs font-bold text-slate-800 mr-2">Farmer Product Purchases (Cattle Feed / Ghee / Store Items)</h4>
+                    <!-- Filter Pills: All / Paid / Unpaid -->
+                    <div class="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200/70 text-[11px] font-bold">
+                        <button type="button" @click="purchaseFilter = 'all'"
+                                :class="purchaseFilter === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+                                class="px-2.5 py-1 rounded-md transition cursor-pointer">
+                            All ({{ $farmerPurchases->count() }})
+                        </button>
+                        <button type="button" @click="purchaseFilter = 'paid'"
+                                :class="purchaseFilter === 'paid' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+                                class="px-2.5 py-1 rounded-md transition cursor-pointer">
+                            Paid ({{ $paidPurchasesCount }})
+                        </button>
+                        <button type="button" @click="purchaseFilter = 'unpaid'"
+                                :class="purchaseFilter === 'unpaid' ? 'bg-rose-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+                                class="px-2.5 py-1 rounded-md transition cursor-pointer">
+                            Unpaid ({{ $unpaidPurchasesCount }})
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <div class="relative">
+                        <input type="text" x-model="purchaseSearch" placeholder="Search bill or product..."
+                               class="w-48 pl-7 pr-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2"></i>
+                    </div>
+                    <button type="button" @click="purchaseModal = true"
+                            class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-2xs transition cursor-pointer">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        <span>New Purchase</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-600">
+                    <thead class="bg-slate-50 text-[10px] uppercase font-bold text-slate-400">
+                        <tr>
+                            <th class="py-2.5 px-4">Bill #</th>
+                            <th class="py-2.5 px-4">Date</th>
+                            <th class="py-2.5 px-4">Product / Item</th>
+                            <th class="py-2.5 px-4 text-right">Qty</th>
+                            <th class="py-2.5 px-4 text-right">Rate (₹)</th>
+                            <th class="py-2.5 px-4 text-right">Total (₹)</th>
+                            <th class="py-2.5 px-4 text-right">Paid (₹)</th>
+                            <th class="py-2.5 px-4 text-right">Balance Due (₹)</th>
+                            <th class="py-2.5 px-4 text-center">Payment Mode</th>
+                            <th class="py-2.5 px-4 text-center">Status</th>
+                            <th class="py-2.5 px-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @forelse($farmerPurchases as $sale)
+                            @php
+                                $isFullyPaid = $sale->is_paid && (float) $sale->remaining_amount <= 0;
+                                $isPartial = (float) $sale->paid_amount > 0 && (float) $sale->remaining_amount > 0;
+                                $filterType = $isFullyPaid ? 'paid' : 'unpaid';
+                                $searchBlob = strtolower($sale->sale_number . ' ' . $sale->product_name . ' ' . $sale->payment_mode . ' ' . ($sale->remarks ?? ''));
+                            @endphp
+                            <tr x-show="(purchaseFilter === 'all' || purchaseFilter === '{{ $filterType }}') && (!purchaseSearch || {{ json_encode($searchBlob) }}.includes(purchaseSearch.toLowerCase()))"
+                                class="hover:bg-slate-50/70 transition">
+                                <td class="py-3 px-4 font-mono font-bold text-slate-800">{{ $sale->sale_number }}</td>
+                                <td class="py-3 px-4 font-mono text-slate-600">{{ $sale->sale_date ? $sale->sale_date->format('d M Y') : '—' }}</td>
+                                <td class="py-3 px-4">
+                                    <span class="font-bold text-slate-900 block">{{ $sale->product_name }}</span>
+                                    @if($sale->remarks)
+                                        <span class="text-[10px] text-slate-400 block">{{ $sale->remarks }}</span>
+                                    @endif
+                                </td>
+                                <td class="py-3 px-4 text-right font-bold text-slate-800">
+                                    {{ number_format((float) $sale->quantity, 2) }} <span class="text-[10px] font-semibold text-slate-400">{{ $sale->unit }}</span>
+                                </td>
+                                <td class="py-3 px-4 text-right font-mono">₹ {{ number_format((float) $sale->rate, 2) }}</td>
+                                <td class="py-3 px-4 text-right font-extrabold text-slate-900">₹ {{ number_format((float) $sale->total_amount, 2) }}</td>
+                                <td class="py-3 px-4 text-right font-bold text-emerald-700">₹ {{ number_format((float) $sale->paid_amount, 2) }}</td>
+                                <td class="py-3 px-4 text-right font-bold {{ (float) $sale->remaining_amount > 0 ? 'text-rose-600' : 'text-slate-400' }}">
+                                    ₹ {{ number_format((float) $sale->remaining_amount, 2) }}
+                                </td>
+                                <td class="py-3 px-4 text-center">
+                                    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold text-[10px] border border-slate-200">
+                                        {{ $sale->payment_mode ?? 'Ledger' }}
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4 text-center">
+                                    @if($isFullyPaid)
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Paid
+                                        </span>
+                                    @elseif($isPartial)
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span> Partial Due
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span> Unpaid
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="py-3 px-4 text-right">
+                                    <div class="inline-flex items-center justify-end gap-1.5">
+                                        @if(!$isFullyPaid)
+                                            <form action="{{ route('product-sales.mark-paid', $sale->id) }}" method="POST" class="inline" onsubmit="return confirm('Mark Bill #{{ $sale->sale_number }} (₹{{ number_format((float) $sale->remaining_amount, 2) }}) as Paid?');">
+                                                @csrf
+                                                <input type="hidden" name="farmer_id" value="{{ $farmer->id }}">
+                                                <button type="submit" class="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold shadow-2xs transition cursor-pointer" title="Mark Paid">
+                                                    Mark Paid
+                                                </button>
+                                            </form>
+                                        @endif
+                                        <a href="{{ route('product-sales.print', $sale->id) }}" target="_blank"
+                                           class="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition" title="Print Receipt">
+                                            <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="11" class="py-10 text-center text-slate-400">
+                                    No product purchases recorded for this farmer yet.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                    @if($farmerPurchases->count() > 0)
+                        <tfoot class="bg-slate-50/90 border-t border-slate-200 text-xs font-extrabold text-slate-900">
+                            <tr>
+                                <td colspan="3" class="py-2.5 px-4 text-right uppercase text-[10px] text-slate-500">Grand Total</td>
+                                <td class="py-2.5 px-4 text-right">{{ number_format($totalPurchaseQty, 2) }}</td>
+                                <td class="py-2.5 px-4"></td>
+                                <td class="py-2.5 px-4 text-right">₹ {{ number_format($totalPurchaseAmount, 2) }}</td>
+                                <td class="py-2.5 px-4 text-right text-emerald-700">₹ {{ number_format($totalPurchasePaid, 2) }}</td>
+                                <td class="py-2.5 px-4 text-right text-rose-700">₹ {{ number_format($totalPurchaseUnpaid, 2) }}</td>
+                                <td colspan="3"></td>
+                            </tr>
+                        </tfoot>
+                    @endif
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- Issue Advance Modal -->
     <div x-show="advanceModal" x-cloak class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
         <div @click.away="advanceModal = false" class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-100">
@@ -257,6 +469,93 @@
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" @click="advanceModal = false" class="px-3 py-1.5 text-xs text-slate-600">Cancel</button>
                     <button type="submit" class="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg">Issue Advance</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- New Farmer Purchase Modal -->
+    <div x-show="purchaseModal" x-cloak class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div @click.away="purchaseModal = false" class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800">Record Farmer Product Purchase</h3>
+                    <p class="text-[11px] text-slate-500">{{ $farmer->farmer_code }} — {{ $farmer->name }}</p>
+                </div>
+                <button @click="purchaseModal = false" class="text-slate-400 hover:text-slate-600 text-lg leading-none">&times;</button>
+            </div>
+            <form action="{{ route('product-sales.store') }}" method="POST" class="mt-4 space-y-3.5">
+                @csrf
+                <input type="hidden" name="farmer_id" value="{{ $farmer->id }}">
+                <input type="hidden" name="farmer_code" value="{{ $farmer->farmer_code }}">
+                <input type="hidden" name="farmer_name" value="{{ $farmer->name }}">
+                <input type="hidden" name="redirect_to_farmer" value="{{ $farmer->id }}">
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Purchase Date *</label>
+                        <input type="date" name="sale_date" value="{{ date('Y-m-d') }}" required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Payment Status *</label>
+                        <select name="is_paid" x-model="purchaseIsPaid" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg font-bold">
+                            <option value="0">Unpaid (Credit / Due)</option>
+                            <option value="1">Paid Immediately</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Select Product / Feed *</label>
+                    <select name="product_id" x-model="selectedProductId" @change="onSelectProduct($event)" required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg">
+                        <option value="">-- Choose Product --</option>
+                        @foreach($products as $prod)
+                            <option value="{{ $prod->id }}" data-price="{{ $prod->selling_price ?? $prod->price ?? 0 }}" data-unit="{{ $prod->unit ?? 'Bag' }}">
+                                {{ $prod->name }} (Stock: {{ $prod->current_stock }} {{ $prod->unit ?? '' }} • ₹{{ number_format((float)($prod->selling_price ?? $prod->price ?? 0), 2) }})
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2.5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Quantity *</label>
+                        <input type="number" step="0.01" min="0.01" name="quantity" x-model="purchaseQty" required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Unit *</label>
+                        <input type="text" name="unit" x-model="purchaseUnit" required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Rate (₹) *</label>
+                        <input type="number" step="0.01" min="0" name="rate" x-model="purchaseRate" required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg font-bold">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 items-center bg-slate-50 p-3 rounded-xl border border-slate-200/70">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase text-slate-400 block">Total Bill Amount</span>
+                        <span class="text-lg font-black text-slate-900">₹ <span x-text="purchaseTotal">0.00</span></span>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Payment Mode</label>
+                        <select name="payment_mode" x-model="purchasePaymentMode" class="w-full px-2.5 py-1.5 text-xs border border-slate-200 bg-white rounded-lg font-semibold">
+                            <option value="Ledger">Farmer Ledger</option>
+                            <option value="Cash">Cash</option>
+                            <option value="UPI">UPI</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Remarks</label>
+                    <input type="text" name="remarks" placeholder="Optional note..." class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg">
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" @click="purchaseModal = false" class="px-3 py-1.5 text-xs text-slate-600">Cancel</button>
+                    <button type="submit" class="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs">Save Purchase</button>
                 </div>
             </form>
         </div>

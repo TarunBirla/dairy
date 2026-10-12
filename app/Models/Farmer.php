@@ -130,4 +130,9 @@ class Farmer extends Model
     {
         return $this->hasMany(FarmerLedger::class);
     }
+
+    public function productSales()
+    {
+        return $this->hasMany(ProductSale::class);
+    }
 }
