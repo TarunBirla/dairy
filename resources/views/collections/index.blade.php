@@ -165,7 +165,7 @@
                     <!-- ROW 2 (MIDDLE ROW): FARMER CODE | FARMER NAME | SAMPLE NO. (AUTO) -->
                     <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end" id="farmer_select_col" @click.away="farmerDropdownOpen = false">
                         <!-- Farmer Code (4 cols) -->
-                        <div class="sm:col-span-2">
+                        <div class="sm:col-span-3">
                             <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Farmer Code *</label>
                             <div class="flex items-stretch h-7">
                                 <input type="text" 
