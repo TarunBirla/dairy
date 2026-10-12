@@ -24,6 +24,7 @@ class MilkCollectionController extends Controller
         $collectionType = SystemSetting::get('collection_type', 'FAT only');
         $milkTypeSetting = SystemSetting::get('milk_type', 'Cow, Buffalo');
         $shiftSetting = SystemSetting::get('collection_shift', 'Morning + Evening');
+        $showPreviousCollection = SystemSetting::get('show_previous_collection', "Yesterday's both shift");
         $rateChartStatus = SystemSetting::get('rate_chart_status', 'On');
         $farmerWiseRate = SystemSetting::get('farmer_wise_rate', 'As per Rate Chart');
         $shiftMorningBonus = (float) SystemSetting::get('shift_wise_morning', '0.00');
@@ -104,6 +105,7 @@ class MilkCollectionController extends Controller
             'collection_shift_setting' => $shiftSetting,
             'allowed_shifts' => $allowedShifts,
             'default_shift' => $defaultShift,
+            'show_previous_collection' => $showPreviousCollection,
             'rate_chart_status' => $rateChartStatus,
             'farmer_wise_rate' => $farmerWiseRate,
             'shift_wise_morning' => $shiftMorningBonus,
@@ -353,10 +355,15 @@ class MilkCollectionController extends Controller
         $totalAmount = round((float) (clone $shiftBase)->sum('net_amount'), 2);
         $sampleNo = (clone $shiftBase)->count() + 1;
 
-        // 2. Previous Collection (Yesterday Morning, Yesterday Evening, 5-Day Avg Fat)
+        // 2. Previous Collection (Yesterday Morning, Yesterday Evening, Previous Shift, 5-Day Avg Fat)
+        $showPrevSetting = SystemSetting::get('show_previous_collection', "Yesterday's both shift");
         $yesterday = $targetDate->copy()->subDay();
         $yesterdayStr = $yesterday->format('Y-m-d');
         $fiveDaysStart = $targetDate->copy()->subDays(5)->format('Y-m-d');
+
+        $prevShiftDateObj = ($shift === 'evening') ? $targetDate->copy() : $yesterday->copy();
+        $prevShiftDateStr = $prevShiftDateObj->format('Y-m-d');
+        $prevShiftType = ($shift === 'evening') ? 'morning' : 'evening';
 
         if ($farmerId) {
             $mCol = MilkCollection::where('farmer_id', $farmerId)
@@ -369,12 +376,20 @@ class MilkCollectionController extends Controller
                 ->where('shift', 'evening')
                 ->latest('id')
                 ->first();
+            $pCol = MilkCollection::where('farmer_id', $farmerId)
+                ->whereDate('collection_date', $prevShiftDateStr)
+                ->where('shift', $prevShiftType)
+                ->latest('id')
+                ->first();
 
             $morningText = $mCol
                 ? number_format((float) $mCol->quantity_liters, 1) . ' L (' . number_format((float) $mCol->fat, 1) . '% F • ₹' . number_format((float) $mCol->net_amount, 2) . ')'
                 : 'No entry';
             $eveningText = $eCol
                 ? number_format((float) $eCol->quantity_liters, 1) . ' L (' . number_format((float) $eCol->fat, 1) . '% F • ₹' . number_format((float) $eCol->net_amount, 2) . ')'
+                : 'No entry';
+            $prevShiftText = $pCol
+                ? number_format((float) $pCol->quantity_liters, 1) . ' L (' . number_format((float) $pCol->fat, 1) . '% F • ₹' . number_format((float) $pCol->net_amount, 2) . ')'
                 : 'No entry';
 
             $avgFat5Days = round((float) (MilkCollection::where('farmer_id', $farmerId)
@@ -384,13 +399,18 @@ class MilkCollectionController extends Controller
         } else {
             $mQuery = MilkCollection::whereDate('collection_date', $yesterdayStr)->where('shift', 'morning');
             $eQuery = MilkCollection::whereDate('collection_date', $yesterdayStr)->where('shift', 'evening');
+            $pQuery = MilkCollection::whereDate('collection_date', $prevShiftDateStr)->where('shift', $prevShiftType);
+
             $mLtr = (float) (clone $mQuery)->sum('quantity_liters');
             $mAmt = (float) (clone $mQuery)->sum('net_amount');
             $eLtr = (float) (clone $eQuery)->sum('quantity_liters');
             $eAmt = (float) (clone $eQuery)->sum('net_amount');
+            $pLtr = (float) (clone $pQuery)->sum('quantity_liters');
+            $pAmt = (float) (clone $pQuery)->sum('net_amount');
 
             $morningText = $mLtr > 0 ? number_format($mLtr, 1) . ' L (₹' . number_format($mAmt, 2) . ')' : 'No entry';
             $eveningText = $eLtr > 0 ? number_format($eLtr, 1) . ' L (₹' . number_format($eAmt, 2) . ')' : 'No entry';
+            $prevShiftText = $pLtr > 0 ? number_format($pLtr, 1) . ' L (₹' . number_format($pAmt, 2) . ')' : 'No entry';
 
             $avgFat5Days = round((float) (MilkCollection::whereBetween('collection_date', [$fiveDaysStart, $dateStr])
                 ->where('fat', '>', 0)
@@ -424,9 +444,13 @@ class MilkCollectionController extends Controller
                 ],
             ],
             'previous_collection' => [
+                'mode' => $showPrevSetting,
                 'yesterday_date' => $yesterday->format('d/m/Y'),
                 'morning' => $morningText,
                 'evening' => $eveningText,
+                'prev_shift_date' => $prevShiftDateObj->format('d/m/Y'),
+                'prev_shift_type' => $prevShiftType,
+                'prev_shift_text' => $prevShiftText,
                 'avg_fat_5_days' => number_format($avgFat5Days, 2, '.', '') . '%',
             ],
         ];
