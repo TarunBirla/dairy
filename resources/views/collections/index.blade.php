@@ -45,506 +45,479 @@
     </div> -->
 
     <!-- ========================================================================= -->
-    <!-- MAIN 2-COLUMN WORKSPACE: LEFT INTAKE FORM + RIGHT SHIFT SUMMARY & CHART    -->
+    <!-- MAIN 2-COLUMN WORKSPACE: COMPACT LEFT INTAKE FORM + UNIFIED RIGHT SUMMARY  -->
     <!-- ========================================================================= -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-stretch">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-2 items-stretch">
 
-        <!-- LEFT COLUMN (8 cols): MILK COLLECTION ENTRY CARD -->
+        <!-- LEFT COLUMN (8 cols): COMPACT MILK COLLECTION ENTRY CARD -->
         <div id="collection-entry-section" 
              class="lg:col-span-8 bg-white rounded-xl border shadow-xs overflow-visible transition-all duration-200 flex flex-col justify-between"
              :class="isEditMode ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-slate-200/80'">
 
-            <div>
-                <!-- Sub-Header Bar: Mode Badge, Center & Notes Toggle -->
-                <div class="px-3.5 py-1.5 bg-slate-50/70 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs rounded-t-xl">
-                    <div class="flex flex-wrap items-center gap-1.5">
-                        <span class="px-2 py-0.5 rounded font-mono text-[10px] font-bold border shrink-0"
-                              :class="isEditMode ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-100 text-slate-800 border-slate-200'"
-                              x-text="form.receipt_number || '{{ $nextReceipt }}'"></span>
+            <!-- Slim Sub-Header Bar: Receipt, Mode Badge, Center, + Add Can & Notes Toggle -->
+            <div class="px-2.5 py-1 bg-slate-50/80 border-b border-slate-100 flex flex-wrap items-center justify-between gap-1.5 text-[11px] rounded-t-xl">
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <span class="px-1.5 py-0.5 rounded font-mono text-[10px] font-bold border shrink-0"
+                          :class="isEditMode ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-100 text-slate-800 border-slate-200'"
+                          x-text="form.receipt_number || '{{ $nextReceipt }}'"></span>
 
-                        <a href="{{ route('settings.center-information') }}"
-                           title="Click to change Collection Type in Center Information Settings"
-                           class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold hover:bg-emerald-100 transition">
-                            <i data-lucide="settings-2" class="w-3 h-3 text-emerald-600"></i>
-                            <span>Mode: {{ $collectionConfig['collection_type'] }}</span>
-                        </a>
+                    <a href="{{ route('settings.center-information') }}"
+                       title="Click to change Collection Type in Center Information Settings"
+                       class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold hover:bg-emerald-100 transition">
+                        <i data-lucide="settings-2" class="w-2.5 h-2.5 text-emerald-600"></i>
+                        <span>Mode: {{ $collectionConfig['collection_type'] }}</span>
+                    </a>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <div class="flex items-center gap-1 w-36 sm:w-40 relative" id="center_select_col">
+                        <span class="text-[10px] font-semibold text-slate-500 shrink-0">Center:</span>
+                        <select id="collection_center_select" x-model="form.collection_center_id" @change="triggerRateCalculation()" class="text-[10px] border border-slate-200 rounded bg-white w-full py-0.5 px-1.5 font-semibold text-slate-800 focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+                            @foreach($centers as $c)
+                                <option value="{{ $c->id }}">{{ $c->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        <div class="flex items-center gap-1 w-36 sm:w-44 relative" id="center_select_col">
-                            <span class="text-[10px] font-semibold text-slate-500 shrink-0">Center:</span>
-                            <select id="collection_center_select" x-model="form.collection_center_id" @change="triggerRateCalculation()" class="text-[11px] border border-slate-200 rounded-md bg-slate-50 focus:bg-white w-full py-0.5 px-1.5 font-medium text-slate-800 focus:ring-1 focus:ring-emerald-500 focus:outline-none">
-                                @foreach($centers as $c)
-                                    <option value="{{ $c->id }}">{{ $c->name }}</option>
-                                @endforeach
-                            </select>
+                    <button type="button" 
+                            @click="addCan()"
+                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-bold transition">
+                        <i data-lucide="plus" class="w-2.5 h-2.5 text-emerald-600"></i>
+                        <span>+ Add Can</span>
+                        <span x-show="cans.length > 0" x-cloak class="px-1 rounded-full bg-emerald-600 text-white text-[9px]" x-text="cans.length"></span>
+                    </button>
+
+                    <button type="button" 
+                            @click="showAdvanced = !showAdvanced" 
+                            :class="showAdvanced ? 'bg-slate-200 text-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'"
+                            class="px-1.5 py-0.5 text-[10px] font-semibold rounded transition flex items-center gap-1 border border-transparent">
+                        <i data-lucide="sliders" class="w-2.5 h-2.5"></i>
+                        <span>Notes</span>
+                    </button>
+
+                    <template x-if="isEditMode">
+                        <button type="button" @click="cancelEdit()" class="px-1.5 py-0.5 text-[10px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded transition">
+                            Cancel Edit
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Main Form Body (2 Ultra-Compact Rows) -->
+            <form @submit.prevent="submitCollection(false)" class="px-2.5 py-2 space-y-1.5">
+
+                <!-- ROW 1: DATE | SHIFT | MILK TYPE | FARMER CODE | FARMER NAME | SAMPLE NO -->
+                <div class="grid grid-cols-2 sm:grid-cols-12 gap-1.5 items-end" id="farmer_select_col" @click.away="farmerDropdownOpen = false">
+                    <!-- Collection Date (2 cols) -->
+                    <div class="col-span-1 sm:col-span-2">
+                        <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Date</label>
+                        <input type="date" 
+                               x-model="form.collection_date" 
+                               @change="triggerRateCalculation()"
+                               required
+                               class="w-full h-7 px-1.5 text-[11px] font-bold text-slate-800 border border-slate-200 rounded-md bg-slate-50 focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition">
+                    </div>
+
+                    <!-- Shift (2 cols) -->
+                    <div class="col-span-1 sm:col-span-2">
+                        <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Shift</label>
+                        <div class="flex items-center h-7 rounded-md border border-slate-200 overflow-hidden bg-slate-50 p-0.5 gap-0.5">
+                            @if(in_array('morning', $collectionConfig['allowed_shifts']))
+                            <button type="button" 
+                                    @click="form.shift = 'morning'; triggerRateCalculation();"
+                                    :class="form.shift === 'morning' ? 'bg-amber-50 text-amber-900 border border-amber-300 font-bold shadow-2xs' : 'text-slate-600 hover:bg-white border border-transparent'"
+                                    class="flex-1 h-full px-1 text-[10px] rounded transition flex items-center justify-center gap-0.5 whitespace-nowrap">
+                                <span>☀️</span>
+                                <span>Morn</span>
+                            </button>
+                            @endif
+                            @if(in_array('evening', $collectionConfig['allowed_shifts']))
+                            <button type="button" 
+                                    @click="form.shift = 'evening'; triggerRateCalculation();"
+                                    :class="form.shift === 'evening' ? 'bg-indigo-50 text-indigo-900 border border-indigo-300 font-bold shadow-2xs' : 'text-slate-600 hover:bg-white border border-transparent'"
+                                    class="flex-1 h-full px-1 text-[10px] rounded transition flex items-center justify-center gap-0.5 whitespace-nowrap">
+                                <span>🌙</span>
+                                <span>Eve</span>
+                            </button>
+                            @endif
+                        </div>
+                    </div>
+
+                    <!-- Milk Type (2 cols) -->
+                    <div class="col-span-1 sm:col-span-2">
+                        <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Milk Type</label>
+                        <div class="flex items-center h-7 rounded-md border border-slate-200 overflow-hidden bg-slate-50 p-0.5 gap-0.5">
+                            @if(in_array('cow', $collectionConfig['allowed_milk_types']))
+                            <button type="button" 
+                                    @click="form.milk_type = 'cow'; triggerRateCalculation();"
+                                    :class="form.milk_type === 'cow' ? 'bg-amber-50 text-amber-800 border border-amber-300 font-bold shadow-2xs' : 'text-slate-600 hover:bg-white border border-transparent'"
+                                    class="flex-1 h-full px-1 text-[10px] rounded transition flex items-center justify-center gap-0.5 whitespace-nowrap">
+                                <span>🐄</span>
+                                <span>Cow</span>
+                            </button>
+                            @endif
+                            @if(in_array('buffalo', $collectionConfig['allowed_milk_types']))
+                            <button type="button" 
+                                    @click="form.milk_type = 'buffalo'; triggerRateCalculation();"
+                                    :class="form.milk_type === 'buffalo' ? 'bg-indigo-50 text-indigo-800 border border-indigo-300 font-bold shadow-2xs' : 'text-slate-600 hover:bg-white border border-transparent'"
+                                    class="flex-1 h-full px-1 text-[10px] rounded transition flex items-center justify-center gap-0.5 whitespace-nowrap">
+                                <span>🐃</span>
+                                <span>Buffalo</span>
+                            </button>
+                            @endif
+                        </div>
+                    </div>
+
+                    <!-- Farmer Code (2 cols) -->
+                    <div class="col-span-1 sm:col-span-2">
+                        <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Farmer Code *</label>
+                        <div class="flex items-stretch h-7">
+                            <input type="text" 
+                                   id="quick_farmer_code_input" 
+                                   placeholder="Code (001)" 
+                                   x-model="quickFarmerCode" 
+                                   @keydown.enter.prevent="lookupFarmerByCode()" 
+                                   @blur="lookupFarmerByCode()" 
+                                   class="w-full px-2 text-[11px] font-bold text-slate-900 bg-slate-50 focus:bg-white border border-r-0 border-slate-200 rounded-l-md focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition">
+                            <button type="button"
+                                    @click="lookupFarmerByCode()"
+                                    title="Search Farmer Code"
+                                    class="px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-r-md flex items-center justify-center transition shrink-0">
+                                <i data-lucide="search" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Farmer Name (Searchable Dropdown, 3 cols) -->
+                    <div class="col-span-2 sm:col-span-3 relative">
+                        <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Farmer Name *</label>
+                        <div class="flex items-stretch h-7 relative">
+                            <input type="text" 
+                                   id="farmer_search_input"
+                                   placeholder="Search Name, Code, Phone..."
+                                   x-model="farmerSearchText"
+                                   @focus="farmerDropdownOpen = true"
+                                   @click="farmerDropdownOpen = true"
+                                   @input="farmerDropdownOpen = true; highlightedIndex = 0;"
+                                   @keydown.arrow-down.prevent="highlightNextFarmer()"
+                                   @keydown.arrow-up.prevent="highlightPrevFarmer()"
+                                   @keydown.enter.prevent="selectHighlightedFarmer()"
+                                   @keydown.escape="farmerDropdownOpen = false"
+                                   autocomplete="off"
+                                   class="w-full px-2 text-[11px] font-bold text-slate-800 border border-r-0 border-slate-200 rounded-l-md bg-slate-50 focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition">
+                            <button type="button" 
+                                    @click="farmerDropdownOpen = !farmerDropdownOpen; if (farmerDropdownOpen) document.getElementById('farmer_search_input').focus();"
+                                    class="px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-r-md flex items-center justify-center transition shrink-0">
+                                <i data-lucide="search" class="w-3 h-3"></i>
+                            </button>
                         </div>
 
-                        <button type="button" 
-                                @click="showAdvanced = !showAdvanced" 
-                                :class="showAdvanced ? 'bg-slate-200 text-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'"
-                                class="px-2 py-0.5 text-[10px] font-medium rounded-md transition flex items-center gap-1">
-                            <i data-lucide="sliders" class="w-3 h-3"></i>
-                            <span>Notes</span>
-                        </button>
+                        <!-- Live Dropdown List of Farmers -->
+                        <div x-show="farmerDropdownOpen" 
+                             x-cloak
+                             class="absolute left-0 right-0 top-full mt-1 z-[999999] bg-white border border-slate-200 rounded-xl shadow-xl max-h-56 overflow-y-auto divide-y divide-slate-100">
+                            <template x-for="(farmer, idx) in filteredFarmers" :key="farmer.id">
+                                <div @click="chooseFarmer(farmer)"
+                                     @mouseenter="highlightedIndex = idx"
+                                     :class="highlightedIndex === idx ? 'bg-emerald-50 text-emerald-950 font-semibold' : 'hover:bg-slate-50 text-slate-800'"
+                                     class="px-3 py-1.5 cursor-pointer transition flex items-center justify-between text-xs">
+                                    <div class="min-w-0 pr-2">
+                                        <div class="truncate flex items-center gap-1.5">
+                                            <span class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded font-mono text-[10px] text-slate-800 font-bold" x-text="farmer.farmer_code || ('FAR-' + farmer.id)"></span>
+                                            <span class="font-bold text-slate-900" x-text="farmer.name"></span>
+                                        </div>
+                                        <div class="text-[10px] text-slate-400 truncate flex items-center gap-2">
+                                            <span x-show="farmer.phone" x-text="farmer.phone"></span>
+                                            <span x-show="farmer.village" x-text="'• ' + farmer.village"></span>
+                                        </div>
+                                    </div>
+                                    <span class="text-[10px] px-2 py-0.5 rounded font-bold shrink-0 border whitespace-nowrap" 
+                                          :class="farmer.animal_type === 'buffalo' ? 'bg-indigo-50 text-indigo-800 border-indigo-200' : 'bg-amber-50 text-amber-800 border-amber-200'"
+                                          x-text="farmer.animal_type === 'buffalo' ? '🐃 Buffalo' : '🐄 Cow (CM)'"></span>
+                                </div>
+                            </template>
+                            <div x-show="filteredFarmers.length === 0" class="p-3 text-center text-xs text-slate-400">
+                                No farmer matches "<span class="font-semibold text-slate-600" x-text="farmerSearchText"></span>"
+                            </div>
+                        </div>
 
-                        <template x-if="isEditMode">
-                            <button type="button" @click="cancelEdit()" class="px-2 py-0.5 text-[10px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-md transition">
-                                Cancel Edit
-                            </button>
-                        </template>
+                        <input type="hidden" name="farmer_id" :value="form.farmer_id">
+                    </div>
+
+                    <!-- Sample No. (1 col) -->
+                    <div class="col-span-1 sm:col-span-1">
+                        <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Sample</label>
+                        <div class="h-7 px-1.5 bg-slate-100 border border-slate-200 rounded-md flex items-center justify-center font-mono font-bold text-[11px] text-slate-800" x-text="sampleNo"></div>
                     </div>
                 </div>
 
-                <!-- Main Form Body (Compact Vertical Spacing) -->
-                <form @submit.prevent="submitCollection(false)" class="p-3 space-y-2.5">
+                <!-- ROW 2: MILK QTY | FAT | CLR | SNF | RATE | TOTAL AMOUNT | ACTION BUTTONS -->
+                <div class="flex flex-wrap sm:flex-nowrap items-end gap-1.5 pt-1 border-t border-slate-100">
+                    <!-- Milk Qty (Ltr.) -->
+                    <div class="w-[31%] sm:flex-1 min-w-[75px]">
+                        <label class="block text-[9px] font-bold text-slate-500 mb-0.5 uppercase tracking-wider">Milk Qty (L) *</label>
+                        <input type="number" 
+                               id="collection_quantity_input"
+                               step="0.01" 
+                               min="0.1"
+                               x-model.number="form.quantity_liters" 
+                               @input="onQuantityChange()" 
+                               required 
+                               placeholder="0.00"
+                               class="w-full h-7 px-2 text-[11px] font-bold text-slate-900 border border-slate-200 rounded-md bg-slate-50 focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
+                    </div>
 
-                    <!-- ROW 1: COLLECTION DATE | SHIFT | MILK TYPE -->
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pb-2 border-b border-slate-100">
-                        <!-- Collection Date -->
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5">Collection Date</label>
-                            <input type="date" 
-                                   x-model="form.collection_date" 
-                                   @change="triggerRateCalculation()"
-                                   required
-                                   class="w-full px-2.5 py-1 text-xs font-bold text-slate-800 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition">
-                        </div>
+                    <!-- FAT (%) -->
+                    <div x-show="config.show_fat" class="w-[31%] sm:flex-1 min-w-[65px]">
+                        <label class="block text-[9px] font-bold text-slate-500 mb-0.5 uppercase tracking-wider">FAT (%) *</label>
+                        <input type="number" 
+                               id="collection_fat_input"
+                               step="0.1" 
+                               min="0.5" 
+                               max="20"
+                               x-model.number="form.fat" 
+                               @input="onFatChange()" 
+                               :required="config.show_fat"
+                               placeholder="4.0"
+                               class="w-full h-7 px-2 text-[11px] font-bold text-slate-900 border border-slate-200 rounded-md bg-slate-50 focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
+                    </div>
 
-                        <!-- Shift -->
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5">Shift</label>
-                            <div class="flex items-center rounded-lg border border-slate-200 overflow-hidden bg-slate-50 p-0.5 gap-1">
-                                @if(in_array('morning', $collectionConfig['allowed_shifts']))
-                                <button type="button" 
-                                        @click="form.shift = 'morning'; triggerRateCalculation();"
-                                        :class="form.shift === 'morning' ? 'bg-amber-50 text-amber-900 border border-amber-300 font-bold shadow-2xs' : 'text-slate-600 hover:bg-white border border-transparent'"
-                                        class="flex-1 py-0.5 px-2 text-xs rounded-md transition flex items-center justify-center gap-1">
-                                    <span>☀️</span>
-                                    <span>Morning</span>
-                                </button>
-                                @endif
-                                @if(in_array('evening', $collectionConfig['allowed_shifts']))
-                                <button type="button" 
-                                        @click="form.shift = 'evening'; triggerRateCalculation();"
-                                        :class="form.shift === 'evening' ? 'bg-indigo-50 text-indigo-900 border border-indigo-300 font-bold shadow-2xs' : 'text-slate-600 hover:bg-white border border-transparent'"
-                                        class="flex-1 py-0.5 px-2 text-xs rounded-md transition flex items-center justify-center gap-1">
-                                    <span>🌙</span>
-                                    <span>Evening</span>
-                                </button>
-                                @endif
-                            </div>
-                        </div>
+                    <!-- CLR -->
+                    <div x-show="config.show_clr" class="w-[31%] sm:flex-1 min-w-[65px]">
+                        <label class="block text-[9px] font-bold text-slate-500 mb-0.5 uppercase tracking-wider"
+                               x-text="config.auto_clr ? 'CLR (Auto)' : 'CLR *'"></label>
+                        <input type="number" 
+                               id="collection_clr_input"
+                               step="0.5" 
+                               min="5" 
+                               max="50"
+                               x-model.number="form.clr" 
+                               @input="onClrChange()" 
+                               :readonly="config.auto_clr"
+                               :required="config.show_clr && !config.auto_clr"
+                               placeholder="28"
+                               :class="config.auto_clr ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : 'bg-slate-50 focus:bg-white text-slate-900'"
+                               class="w-full h-7 px-2 text-[11px] font-bold border border-slate-200 rounded-md focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
+                    </div>
 
-                        <!-- Milk Type -->
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5">Milk Type</label>
-                            <div class="flex items-center rounded-lg border border-slate-200 overflow-hidden bg-slate-50 p-0.5 gap-1">
-                                @if(in_array('cow', $collectionConfig['allowed_milk_types']))
-                                <button type="button" 
-                                        @click="form.milk_type = 'cow'; triggerRateCalculation();"
-                                        :class="form.milk_type === 'cow' ? 'bg-amber-50 text-amber-800 border border-amber-300 font-bold shadow-2xs' : 'text-slate-600 hover:bg-white border border-transparent'"
-                                        class="flex-1 py-0.5 px-2 text-xs rounded-md transition flex items-center justify-center gap-1 whitespace-nowrap">
-                                    <span>🐄</span>
-                                    <span>Cow (CM)</span>
-                                </button>
-                                @endif
-                                @if(in_array('buffalo', $collectionConfig['allowed_milk_types']))
-                                <button type="button" 
-                                        @click="form.milk_type = 'buffalo'; triggerRateCalculation();"
-                                        :class="form.milk_type === 'buffalo' ? 'bg-indigo-50 text-indigo-800 border border-indigo-300 font-bold shadow-2xs' : 'text-slate-600 hover:bg-white border border-transparent'"
-                                        class="flex-1 py-0.5 px-2 text-xs rounded-md transition flex items-center justify-center gap-1 whitespace-nowrap">
-                                    <span>🐃</span>
-                                    <span>Buffalo</span>
-                                </button>
-                                @endif
-                            </div>
+                    <!-- SNF (%) -->
+                    <div x-show="config.show_snf" class="w-[31%] sm:flex-1 min-w-[65px]">
+                        <label class="block text-[9px] font-bold text-slate-500 mb-0.5 uppercase tracking-wider"
+                               x-text="config.auto_snf ? 'SNF (Auto)' : 'SNF (%) *'"></label>
+                        <input type="number" 
+                               id="collection_snf_input"
+                               step="0.01" 
+                               min="2" 
+                               max="20"
+                               x-model.number="form.snf" 
+                               @input="onSnfChange()" 
+                               :readonly="config.auto_snf"
+                               :required="config.show_snf && !config.auto_snf"
+                               placeholder="8.5"
+                               :class="config.auto_snf ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : 'bg-slate-50 focus:bg-white text-slate-900'"
+                               class="w-full h-7 px-2 text-[11px] font-bold border border-slate-200 rounded-md focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
+                    </div>
+
+                    <!-- RATE (₹/LTR.) -->
+                    <div class="w-[45%] sm:flex-1 min-w-[75px]">
+                        <label class="block text-[9px] font-bold text-slate-500 mb-0.5 uppercase tracking-wider">Rate (₹/L)</label>
+                        <input type="number" 
+                               step="0.01" 
+                               min="0"
+                               x-model.number="form.applied_rate" 
+                               @input="recalculateTotals()" 
+                               required
+                               class="w-full h-7 px-2 text-[11px] font-bold text-slate-900 border border-slate-200 rounded-md bg-slate-100 focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
+                    </div>
+
+                    <!-- Total Amount Badge -->
+                    <div class="w-[50%] sm:w-auto sm:min-w-[105px]">
+                        <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Total Amount</label>
+                        <div class="h-7 px-2.5 rounded-md bg-emerald-50/70 border border-emerald-200 flex items-center text-sm font-extrabold text-emerald-700 leading-none whitespace-nowrap">
+                            ₹&nbsp;<span x-text="netAmountFormatted">0.00</span>
                         </div>
                     </div>
 
-                    <!-- ROW 2: FARMER CODE | FARMER NAME | SAMPLE NO. (AUTO) -->
-                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-start" id="farmer_select_col" @click.away="farmerDropdownOpen = false">
-                        <!-- Farmer Code -->
-                        <div class="sm:col-span-4">
-                            <label class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5">Farmer Code *</label>
-                            <div class="flex items-stretch">
-                                <input type="text" 
-                                       id="quick_farmer_code_input" 
-                                       placeholder="e.g. 001 or 101" 
-                                       x-model="quickFarmerCode" 
-                                       @keydown.enter.prevent="lookupFarmerByCode()" 
-                                       @blur="lookupFarmerByCode()" 
-                                       class="w-full px-2.5 py-1 text-xs font-bold text-slate-900 bg-slate-50 focus:bg-white border border-r-0 border-slate-200 rounded-l-lg focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition">
-                                <button type="button"
-                                        @click="lookupFarmerByCode()"
-                                        title="Search Farmer Code"
-                                        class="px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-r-lg flex items-center justify-center transition shrink-0">
-                                    <i data-lucide="search" class="w-3.5 h-3.5"></i>
-                                </button>
-                            </div>
-                        </div>
+                    <!-- Action Buttons Inline (Reset, Save & Print, Save) -->
+                    <div class="flex items-center gap-1 ml-auto shrink-0">
+                        <button type="button" 
+                                @click="resetForm()" 
+                                class="h-7 px-2.5 text-[11px] font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-md transition">
+                            Reset
+                        </button>
 
-                        <!-- Farmer Name (Searchable Dropdown) -->
-                        <div class="sm:col-span-5 relative">
-                            <label class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5">Farmer Name *</label>
-                            <div class="flex items-stretch relative">
-                                <input type="text" 
-                                       id="farmer_search_input"
-                                       placeholder="Search Name, Code, Phone..."
-                                       x-model="farmerSearchText"
-                                       @focus="farmerDropdownOpen = true"
-                                       @click="farmerDropdownOpen = true"
-                                       @input="farmerDropdownOpen = true; highlightedIndex = 0;"
-                                       @keydown.arrow-down.prevent="highlightNextFarmer()"
-                                       @keydown.arrow-up.prevent="highlightPrevFarmer()"
-                                       @keydown.enter.prevent="selectHighlightedFarmer()"
-                                       @keydown.escape="farmerDropdownOpen = false"
-                                       autocomplete="off"
-                                       class="w-full px-2.5 py-1 text-xs font-bold text-slate-800 border border-r-0 border-slate-200 rounded-l-lg bg-slate-50 focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition">
-                                <button type="button" 
-                                        @click="farmerDropdownOpen = !farmerDropdownOpen; if (farmerDropdownOpen) document.getElementById('farmer_search_input').focus();"
-                                        class="px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-r-lg flex items-center justify-center transition shrink-0">
-                                    <i data-lucide="search" class="w-3.5 h-3.5"></i>
-                                </button>
-                            </div>
+                        <button type="button" 
+                                @click="submitCollection(true)" 
+                                :disabled="isSubmitting"
+                                title="Save & Print Slip"
+                                class="h-7 px-2.5 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 disabled:opacity-50 rounded-md transition flex items-center gap-1 whitespace-nowrap">
+                            <i data-lucide="printer" class="w-3 h-3 text-emerald-600"></i>
+                            <span>Save & Print</span>
+                        </button>
 
-                            <!-- Live Dropdown List of Farmers -->
-                            <div x-show="farmerDropdownOpen" 
-                                 x-cloak
-                                 class="absolute left-0 right-0 top-full mt-1 z-[999999] bg-white border border-slate-200 rounded-xl shadow-xl max-h-56 overflow-y-auto divide-y divide-slate-100">
-                                <template x-for="(farmer, idx) in filteredFarmers" :key="farmer.id">
-                                    <div @click="chooseFarmer(farmer)"
-                                         @mouseenter="highlightedIndex = idx"
-                                         :class="highlightedIndex === idx ? 'bg-emerald-50 text-emerald-950 font-semibold' : 'hover:bg-slate-50 text-slate-800'"
-                                         class="px-3 py-1.5 cursor-pointer transition flex items-center justify-between text-xs">
-                                        <div class="min-w-0 pr-2">
-                                            <div class="truncate flex items-center gap-1.5">
-                                                <span class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded font-mono text-[10px] text-slate-800 font-bold" x-text="farmer.farmer_code || ('FAR-' + farmer.id)"></span>
-                                                <span class="font-bold text-slate-900" x-text="farmer.name"></span>
-                                            </div>
-                                            <div class="text-[10px] text-slate-400 truncate flex items-center gap-2">
-                                                <span x-show="farmer.phone" x-text="farmer.phone"></span>
-                                                <span x-show="farmer.village" x-text="'• ' + farmer.village"></span>
-                                            </div>
-                                        </div>
-                                        <span class="text-[10px] px-2 py-0.5 rounded font-bold shrink-0 border whitespace-nowrap" 
-                                              :class="farmer.animal_type === 'buffalo' ? 'bg-indigo-50 text-indigo-800 border-indigo-200' : 'bg-amber-50 text-amber-800 border-amber-200'"
-                                              x-text="farmer.animal_type === 'buffalo' ? '🐃 Buffalo' : '🐄 Cow (CM)'"></span>
-                                    </div>
-                                </template>
-                                <div x-show="filteredFarmers.length === 0" class="p-3 text-center text-xs text-slate-400">
-                                    No farmer matches "<span class="font-semibold text-slate-600" x-text="farmerSearchText"></span>"
-                                </div>
-                            </div>
-
-                            <input type="hidden" name="farmer_id" :value="form.farmer_id">
-                        </div>
-
-                        <!-- Sample No. (Auto) -->
-                        <div class="sm:col-span-3">
-                            <label class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5">Sample No. (Auto)</label>
-                            <div class="px-3 py-1 bg-slate-100 border border-slate-200 rounded-lg text-center font-mono font-bold text-xs text-slate-800" x-text="sampleNo"></div>
-                        </div>
+                        <button type="button" 
+                                @click="submitCollection(false)" 
+                                :disabled="isSubmitting"
+                                class="h-7 px-3 text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-md shadow-2xs transition flex items-center gap-1 whitespace-nowrap">
+                            <i data-lucide="check" class="w-3 h-3" x-show="!isSubmitting"></i>
+                            <span x-show="!isSubmitting" x-text="isEditMode ? 'Update' : 'Save Entry'"></span>
+                            <span x-show="isSubmitting" x-cloak>Saving...</span>
+                        </button>
                     </div>
+                </div>
 
-                    <!-- ROW 3: MILK QTY (LTR.) | FAT (%) | CLR | SNF (%) | RATE (₹/LTR.) | TOTAL AMOUNT -->
-                    <div class="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
-                        <!-- Milk Qty (Ltr.) -->
-                        <div class="w-[47%] sm:flex-1 min-w-[90px]">
-                            <label class="block text-[10px] font-bold text-slate-600 mb-0.5 uppercase tracking-wider">Milk Qty (Ltr.) *</label>
-                            <input type="number" 
-                                   id="collection_quantity_input"
-                                   step="0.01" 
-                                   min="0.1"
-                                   x-model.number="form.quantity_liters" 
-                                   @input="onQuantityChange()" 
-                                   required 
-                                   placeholder="0.00"
-                                   class="w-full px-2.5 py-1 text-xs font-bold text-slate-900 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
+                <!-- Inline Can Details (Only takes space when Cans are added) -->
+                <div x-show="cans.length > 0" x-cloak class="pt-1 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
+                    <span class="text-[10px] font-bold text-slate-500">Cans:</span>
+                    <template x-for="(can, cIdx) in cans" :key="cIdx">
+                        <div class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200 text-[11px]">
+                            <span class="font-bold text-slate-700" x-text="'#' + (cIdx + 1) + ':'"></span>
+                            <input type="number" step="0.1" min="0.1" x-model.number="can.liters" @input="syncCansToQuantity()" placeholder="Ltr" class="w-12 px-1 py-0.5 text-[11px] font-bold bg-white border border-slate-300 rounded focus:outline-none">
+                            <span class="text-[10px] text-slate-500">L</span>
+                            <button type="button" @click="removeCan(cIdx)" class="text-rose-500 hover:text-rose-700 font-bold px-0.5">×</button>
                         </div>
+                    </template>
+                </div>
 
-                        <!-- FAT (%) -->
-                        <div x-show="config.show_fat" class="w-[47%] sm:flex-1 min-w-[80px]">
-                            <label class="block text-[10px] font-bold text-slate-600 mb-0.5 uppercase tracking-wider">FAT (%) *</label>
-                            <input type="number" 
-                                   id="collection_fat_input"
-                                   step="0.1" 
-                                   min="0.5" 
-                                   max="20"
-                                   x-model.number="form.fat" 
-                                   @input="onFatChange()" 
-                                   :required="config.show_fat"
-                                   placeholder="4.0"
-                                   class="w-full px-2.5 py-1 text-xs font-bold text-slate-900 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
-                        </div>
-
-                        <!-- CLR -->
-                        <div x-show="config.show_clr" class="w-[47%] sm:flex-1 min-w-[80px]">
-                            <label class="block text-[10px] font-bold text-slate-600 mb-0.5 uppercase tracking-wider"
-                                   x-text="config.auto_clr ? 'CLR (Auto)' : 'CLR *'"></label>
-                            <input type="number" 
-                                   id="collection_clr_input"
-                                   step="0.5" 
-                                   min="5" 
-                                   max="50"
-                                   x-model.number="form.clr" 
-                                   @input="onClrChange()" 
-                                   :readonly="config.auto_clr"
-                                   :required="config.show_clr && !config.auto_clr"
-                                   placeholder="28"
-                                   :class="config.auto_clr ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : 'bg-slate-50 focus:bg-white text-slate-900'"
-                                   class="w-full px-2.5 py-1 text-xs font-bold border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
-                        </div>
-
-                        <!-- SNF (%) -->
-                        <div x-show="config.show_snf" class="w-[47%] sm:flex-1 min-w-[80px]">
-                            <label class="block text-[10px] font-bold text-slate-600 mb-0.5 uppercase tracking-wider"
-                                   x-text="config.auto_snf ? 'SNF (%) (Auto)' : 'SNF (%) *'"></label>
-                            <input type="number" 
-                                   id="collection_snf_input"
-                                   step="0.01" 
-                                   min="2" 
-                                   max="20"
-                                   x-model.number="form.snf" 
-                                   @input="onSnfChange()" 
-                                   :readonly="config.auto_snf"
-                                   :required="config.show_snf && !config.auto_snf"
-                                   placeholder="8.5"
-                                   :class="config.auto_snf ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : 'bg-slate-50 focus:bg-white text-slate-900'"
-                                   class="w-full px-2.5 py-1 text-xs font-bold border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
-                        </div>
-
-                        <!-- RATE (₹/LTR.) -->
-                        <div class="w-[47%] sm:flex-1 min-w-[95px]">
-                            <label class="block text-[10px] font-bold text-slate-600 mb-0.5 uppercase tracking-wider">Rate (₹/Ltr.) <span class="text-[9px] text-slate-400 font-normal">(Auto)</span></label>
-                            <input type="number" 
-                                   step="0.01" 
-                                   min="0"
-                                   x-model.number="form.applied_rate" 
-                                   @input="recalculateTotals()" 
-                                   required
-                                   class="w-full px-2.5 py-1 text-xs font-bold text-slate-900 border border-slate-200 rounded-lg bg-slate-100 focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
-                        </div>
-
-                        <!-- Total Amount -->
-                        <div class="w-full sm:w-auto sm:min-w-[120px] pl-1">
-                            <label class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5">Total Amount</label>
-                            <div class="text-lg font-extrabold text-emerald-700 leading-tight">
-                                ₹ <span x-text="netAmountFormatted">0.00</span>
-                            </div>
-                        </div>
+                <!-- Collapsible Optional Notes & Adjustments -->
+                <div x-show="showAdvanced" x-cloak class="pt-1.5 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-[9px] font-semibold text-slate-600 mb-0.5">
+                            Bonus / Additions (₹)
+                            <span x-show="config.per_liter_addition > 0" class="text-emerald-600 font-bold" x-text="'(+₹' + config.per_liter_addition + '/L)'"></span>
+                        </label>
+                        <input type="number" step="0.5" x-model.number="form.bonus" @input="recalculateTotals()" placeholder="0.00"
+                               class="w-full h-7 px-2 text-[11px] border border-slate-200 rounded-md bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
                     </div>
-
-                    <!-- Collapsible Optional Notes & Adjustments -->
-                    <div x-show="showAdvanced" x-cloak class="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                        <div>
-                            <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">
-                                Bonus / Additions (₹)
-                                <span x-show="config.per_liter_addition > 0" class="text-emerald-600 font-bold" x-text="'(+₹' + config.per_liter_addition + '/L)'"></span>
-                            </label>
-                            <input type="number" step="0.5" x-model.number="form.bonus" @input="recalculateTotals()" placeholder="0.00"
-                                   class="w-full px-2.5 py-1 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">
-                                Deduction / Charges (₹)
-                                <span x-show="config.per_liter_deduction > 0" class="text-rose-600 font-bold" x-text="'(-₹' + config.per_liter_deduction + '/L)'"></span>
-                            </label>
-                            <input type="number" step="0.5" x-model.number="form.deduction" @input="recalculateTotals()" placeholder="0.00"
-                                   class="w-full px-2.5 py-1 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Remarks</label>
-                            <input type="text" x-model="form.notes" placeholder="Sample quality note..."
-                                   class="w-full px-2.5 py-1 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                        </div>
+                    <div>
+                        <label class="block text-[9px] font-semibold text-slate-600 mb-0.5">
+                            Deduction / Charges (₹)
+                            <span x-show="config.per_liter_deduction > 0" class="text-rose-600 font-bold" x-text="'(-₹' + config.per_liter_deduction + '/L)'"></span>
+                        </label>
+                        <input type="number" step="0.5" x-model.number="form.deduction" @input="recalculateTotals()" placeholder="0.00"
+                               class="w-full h-7 px-2 text-[11px] border border-slate-200 rounded-md bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
                     </div>
-
-                    <!-- ROW 4: + ADD CAN (LEFT) & SAVE / RESET / PRINT BUTTONS (RIGHT) -->
-                    <div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-                        <!-- Left: + Add Can & Can Details Inline -->
-                        <div class="flex flex-wrap items-center gap-2">
-                            <button type="button" 
-                                    @click="addCan()"
-                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold shadow-2xs transition">
-                                <i data-lucide="plus" class="w-3.5 h-3.5 text-emerald-600"></i>
-                                <span>+ Add Can</span>
-                            </button>
-
-                            <span x-show="cans.length === 0" class="text-[11px] text-slate-400">
-                                Can Details: <span class="text-slate-500">No cans added.</span>
-                            </span>
-
-                            <div x-show="cans.length > 0" x-cloak class="flex flex-wrap items-center gap-1.5">
-                                <template x-for="(can, cIdx) in cans" :key="cIdx">
-                                    <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-50 border border-slate-200 text-xs">
-                                        <span class="font-bold text-slate-700" x-text="'Can #' + (cIdx + 1) + ':'"></span>
-                                        <input type="number" step="0.1" min="0.1" x-model.number="can.liters" @input="syncCansToQuantity()" placeholder="Ltr" class="w-14 px-1.5 py-0.5 text-xs font-bold bg-white border border-slate-300 rounded focus:outline-none">
-                                        <span class="text-[10px] text-slate-500">L</span>
-                                        <button type="button" @click="removeCan(cIdx)" class="text-rose-500 hover:text-rose-700 font-bold px-0.5">×</button>
-                                    </div>
-                                </template>
-                            </div>
-                        </div>
-
-                        <!-- Right: Reset, Save & Print, Save -->
-                        <div class="flex items-center gap-1.5 ml-auto">
-                            <button type="button" 
-                                    @click="resetForm()" 
-                                    class="px-3 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition">
-                                Reset
-                            </button>
-
-                            <button type="button" 
-                                    @click="submitCollection(true)" 
-                                    :disabled="isSubmitting"
-                                    title="Save & Print Slip"
-                                    class="px-3 py-1 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 disabled:opacity-50 rounded-lg transition flex items-center gap-1">
-                                <i data-lucide="printer" class="w-3.5 h-3.5 text-emerald-600"></i>
-                                <span>Save & Print</span>
-                            </button>
-
-                            <button type="button" 
-                                    @click="submitCollection(false)" 
-                                    :disabled="isSubmitting"
-                                    class="px-3.5 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg shadow-xs transition flex items-center gap-1">
-                                <i data-lucide="check" class="w-3.5 h-3.5" x-show="!isSubmitting"></i>
-                                <span x-show="!isSubmitting" x-text="isEditMode ? 'Update Entry' : 'Save Entry'"></span>
-                                <span x-show="isSubmitting" x-cloak>Saving...</span>
-                            </button>
-                        </div>
+                    <div>
+                        <label class="block text-[9px] font-semibold text-slate-600 mb-0.5">Remarks</label>
+                        <input type="text" x-model="form.notes" placeholder="Sample quality note..."
+                               class="w-full h-7 px-2 text-[11px] border border-slate-200 rounded-md bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
                     </div>
-                </form>
+                </div>
+            </form>
+
+            <!-- Integrated Footer Bar: Previous Collection (Yesterday Morning/Evening + 5-Day Avg Fat) -->
+            <div class="px-2.5 py-1 bg-slate-50/80 border-t border-slate-100 rounded-b-xl flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
+                <div class="flex items-center gap-1.5">
+                    <span class="font-bold text-slate-700">Previous Collection:</span>
+                    <span class="text-slate-500">Yesterday (<span class="font-bold text-slate-800 font-mono" x-text="previousCollection.yesterday_date"></span>)</span>
+                    <span x-show="selectedFarmer.name" x-cloak class="px-1.5 py-0.5 rounded bg-white text-slate-800 border border-slate-200 text-[10px] font-mono font-bold"
+                          x-text="selectedFarmer.code + ' • ' + selectedFarmer.name"></span>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-1.5 text-[10px]">
+                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200/80 text-amber-900">
+                        <span>☀️</span>
+                        <span class="font-bold">Morning:</span>
+                        <span class="font-semibold" x-text="previousCollection.morning">No entry</span>
+                    </span>
+                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 border border-indigo-200/80 text-indigo-900">
+                        <span>🌙</span>
+                        <span class="font-bold">Evening:</span>
+                        <span class="font-semibold" x-text="previousCollection.evening">No entry</span>
+                    </span>
+                    <span class="px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
+                        Avg Fat (5d): <span class="font-bold text-slate-900" x-text="previousCollection.avg_fat_5_days">0.00%</span>
+                    </span>
+                </div>
             </div>
         </div>
 
-        <!-- RIGHT COLUMN (4 cols): SHIFT SUMMARY CARD + ACTIVE RATE CHART CARD -->
-        <div class="lg:col-span-4 flex flex-col gap-2.5 justify-between">
-
-            <!-- CARD 1: SHIFT SUMMARY (DATE - SHIFT) -->
-            <div class="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
-                <div class="px-3.5 py-2 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                    <h4 class="text-xs font-bold text-slate-900" x-text="'Shift Summary (' + shiftSummary.date_label + ')'">
+        <!-- RIGHT COLUMN (4 cols): UNIFIED SHIFT SUMMARY + ACTIVE RATE CHART CARD -->
+        <div class="lg:col-span-4 bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col justify-between">
+            <div>
+                <div class="px-2.5 py-1 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+                    <h4 class="text-[11px] font-bold text-slate-900" x-text="'Shift Summary (' + shiftSummary.date_label + ')'">
                         Shift Summary ({{ $liveStats['shift_summary']['date_label'] }})
                     </h4>
-                    <i data-lucide="bar-chart-3" class="w-3.5 h-3.5 text-slate-400"></i>
+                    <i data-lucide="bar-chart-3" class="w-3 h-3 text-slate-400"></i>
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs text-slate-600">
-                        <thead class="bg-slate-50 border-b border-slate-200/80 text-[10px] font-bold text-slate-600 tracking-wider">
+                    <table class="w-full text-left text-[11px] text-slate-600">
+                        <thead class="bg-slate-50/60 border-b border-slate-200/80 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
                             <tr>
-                                <th class="py-1.5 px-2.5">Type</th>
-                                <th class="py-1.5 px-1.5 text-center">Members</th>
-                                <th class="py-1.5 px-1.5 text-right">Milk (Ltr.)</th>
-                                <th class="py-1.5 px-1.5 text-center">Avg Fat</th>
-                                <th class="py-1.5 px-1.5 text-center">Avg SNF</th>
-                                <th class="py-1.5 px-2.5 text-right">Amount (₹)</th>
+                                <th class="py-1 px-2">Type</th>
+                                <th class="py-1 px-1 text-center">Mem</th>
+                                <th class="py-1 px-1 text-right">Milk (L)</th>
+                                <th class="py-1 px-1 text-center">Fat</th>
+                                <th class="py-1 px-1 text-center">SNF</th>
+                                <th class="py-1 px-2 text-right">Amt (₹)</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100 text-xs">
+                        <tbody class="divide-y divide-slate-100 text-[11px]">
                             <!-- Cow Row -->
                             <tr class="hover:bg-slate-50/70 transition">
-                                <td class="py-1.5 px-2.5">
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">
-                                        🐄 Cow (CM)
+                                <td class="py-1 px-2">
+                                    <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">
+                                        🐄 Cow
                                     </span>
                                 </td>
-                                <td class="py-1.5 px-1.5 text-center font-semibold text-slate-700" x-text="shiftSummary.cow.members">0</td>
-                                <td class="py-1.5 px-1.5 text-right font-semibold text-slate-800" x-text="shiftSummary.cow.milk">0.00</td>
-                                <td class="py-1.5 px-1.5 text-center text-slate-600" x-text="shiftSummary.cow.avg_fat + '%'">0.0%</td>
-                                <td class="py-1.5 px-1.5 text-center text-slate-600" x-text="shiftSummary.cow.avg_snf + '%'">0.0%</td>
-                                <td class="py-1.5 px-2.5 text-right font-bold text-slate-900" x-text="shiftSummary.cow.amount">0.00</td>
+                                <td class="py-1 px-1 text-center font-semibold text-slate-700" x-text="shiftSummary.cow.members">0</td>
+                                <td class="py-1 px-1 text-right font-semibold text-slate-800" x-text="shiftSummary.cow.milk">0.00</td>
+                                <td class="py-1 px-1 text-center text-slate-600" x-text="shiftSummary.cow.avg_fat + '%'">0.0%</td>
+                                <td class="py-1 px-1 text-center text-slate-600" x-text="shiftSummary.cow.avg_snf + '%'">0.0%</td>
+                                <td class="py-1 px-2 text-right font-bold text-slate-900" x-text="shiftSummary.cow.amount">0.00</td>
                             </tr>
                             <!-- Buffalo Row -->
                             <tr class="hover:bg-slate-50/70 transition">
-                                <td class="py-1.5 px-2.5">
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 whitespace-nowrap">
-                                        🐃 Buffalo
+                                <td class="py-1 px-2">
+                                    <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 whitespace-nowrap">
+                                        🐃 Buff
                                     </span>
                                 </td>
-                                <td class="py-1.5 px-1.5 text-center font-semibold text-slate-700" x-text="shiftSummary.buffalo.members">0</td>
-                                <td class="py-1.5 px-1.5 text-right font-semibold text-slate-800" x-text="shiftSummary.buffalo.milk">0.00</td>
-                                <td class="py-1.5 px-1.5 text-center text-slate-600" x-text="shiftSummary.buffalo.avg_fat + '%'">0.0%</td>
-                                <td class="py-1.5 px-1.5 text-center text-slate-600" x-text="shiftSummary.buffalo.avg_snf + '%'">0.0%</td>
-                                <td class="py-1.5 px-2.5 text-right font-bold text-slate-900" x-text="shiftSummary.buffalo.amount">0.00</td>
+                                <td class="py-1 px-1 text-center font-semibold text-slate-700" x-text="shiftSummary.buffalo.members">0</td>
+                                <td class="py-1 px-1 text-right font-semibold text-slate-800" x-text="shiftSummary.buffalo.milk">0.00</td>
+                                <td class="py-1 px-1 text-center text-slate-600" x-text="shiftSummary.buffalo.avg_fat + '%'">0.0%</td>
+                                <td class="py-1 px-1 text-center text-slate-600" x-text="shiftSummary.buffalo.avg_snf + '%'">0.0%</td>
+                                <td class="py-1 px-2 text-right font-bold text-slate-900" x-text="shiftSummary.buffalo.amount">0.00</td>
                             </tr>
                             <!-- Total (B+C) Row -->
                             <tr class="bg-slate-50/90 font-bold">
-                                <td class="py-1.5 px-2.5 text-slate-900 whitespace-nowrap">
-                                    Total <span class="text-[10px] font-semibold text-slate-500">(B+C)</span>
+                                <td class="py-1 px-2 text-slate-900 whitespace-nowrap">
+                                    Total <span class="text-[9px] font-semibold text-slate-500">(B+C)</span>
                                 </td>
-                                <td class="py-1.5 px-1.5 text-center text-slate-900" x-text="shiftSummary.total.members">0</td>
-                                <td class="py-1.5 px-1.5 text-right text-emerald-700 font-extrabold" x-text="shiftSummary.total.milk">0.00</td>
-                                <td class="py-1.5 px-1.5 text-center text-slate-700" x-text="shiftSummary.total.avg_fat + '%'">0.0%</td>
-                                <td class="py-1.5 px-1.5 text-center text-slate-700" x-text="shiftSummary.total.avg_snf + '%'">0.0%</td>
-                                <td class="py-1.5 px-2.5 text-right text-emerald-700 font-extrabold" x-text="shiftSummary.total.amount">0.00</td>
+                                <td class="py-1 px-1 text-center text-slate-900" x-text="shiftSummary.total.members">0</td>
+                                <td class="py-1 px-1 text-right text-emerald-700 font-extrabold" x-text="shiftSummary.total.milk">0.00</td>
+                                <td class="py-1 px-1 text-center text-slate-700" x-text="shiftSummary.total.avg_fat + '%'">0.0%</td>
+                                <td class="py-1 px-1 text-center text-slate-700" x-text="shiftSummary.total.avg_snf + '%'">0.0%</td>
+                                <td class="py-1 px-2 text-right text-emerald-700 font-extrabold" x-text="shiftSummary.total.amount">0.00</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- CARD 2: ACTIVE RATE CHART -->
-            <div class="bg-white rounded-xl border border-slate-200/80 shadow-xs p-3">
-                <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span>
-                        <h4 class="text-xs font-bold text-slate-900">Active Rate Chart</h4>
+            <!-- Integrated Active Rate Chart Strip -->
+            <div class="px-2.5 py-1.5 bg-slate-50/90 border-t border-slate-200/80 flex items-center justify-between gap-2 text-[10px]">
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-1 truncate">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0"></span>
+                        <span class="text-slate-500 font-semibold shrink-0">Rate Chart:</span>
+                        <span class="font-bold text-slate-900 truncate" x-text="activeChart.name"></span>
                     </div>
-                    <button type="button"
-                            @click="rateChartModalOpen = true"
-                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-semibold transition">
-                        <i data-lucide="eye" class="w-3 h-3 text-emerald-600"></i>
-                        <span>View Rate Chart</span>
-                    </button>
-                </div>
-
-                <div class="space-y-1 text-[11px]">
-                    <div class="flex items-center justify-between gap-2">
-                        <span class="text-slate-500">Rate Chart Name</span>
-                        <span class="font-bold text-slate-900 text-right truncate" x-text="activeChart.name"></span>
-                    </div>
-                    <div class="flex items-center justify-between gap-2">
-                        <span class="text-slate-500">Effective From</span>
-                        <span class="font-semibold text-slate-800 text-right font-mono" x-text="activeChart.effective_date"></span>
-                    </div>
-                    <div class="flex items-center justify-between gap-2">
-                        <span class="text-slate-500">Rate Structure</span>
-                        <span class="font-bold text-emerald-700 text-right truncate" x-text="activeChart.rate_structure"></span>
+                    <div class="flex items-center gap-2 text-[9px] text-slate-500 truncate pl-2.5">
+                        <span>Structure: <strong class="text-emerald-700" x-text="activeChart.rate_structure"></strong></span>
+                        <span>•</span>
+                        <span>From: <strong class="text-slate-700 font-mono" x-text="activeChart.effective_date"></strong></span>
                     </div>
                 </div>
+                <button type="button"
+                        @click="rateChartModalOpen = true"
+                        class="inline-flex items-center gap-1 px-2 py-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-bold shrink-0 transition">
+                    <i data-lucide="eye" class="w-3 h-3 text-emerald-600"></i>
+                    <span>View Chart</span>
+                </button>
             </div>
-
-        </div>
-    </div>
-
-    <!-- ========================================================================= -->
-    <!-- PREVIOUS COLLECTION BAR (YESTERDAY MORNING/EVENING + 5-DAY AVG FAT)       -->
-    <!-- ========================================================================= -->
-    <div class="bg-white rounded-xl border border-slate-200/80 shadow-2xs px-4 py-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div class="flex items-center gap-2">
-            <span class="font-bold text-slate-800">Previous Collection</span>
-            <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400" title="Shows Yesterday's Morning & Evening collection and 5-Day Average Fat"></i>
-            <span x-show="selectedFarmer.name" x-cloak class="px-2 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200 text-[10px] font-mono font-bold"
-                  x-text="selectedFarmer.code + ' • ' + selectedFarmer.name"></span>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-            <span>Yesterday (<span class="font-bold text-slate-900 font-mono" x-text="previousCollection.yesterday_date"></span>)</span>
-            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 border border-amber-200/80 text-amber-900">
-                <span>☀️</span>
-                <span class="font-bold">Morning:</span>
-                <span class="font-semibold" x-text="previousCollection.morning">No entry</span>
-            </span>
-            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-50 border border-indigo-200/80 text-indigo-900">
-                <span>🌙</span>
-                <span class="font-bold">Evening:</span>
-                <span class="font-semibold" x-text="previousCollection.evening">No entry</span>
-            </span>
-            <span class="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700">
-                Avg Fat (5 Days): <span class="font-bold text-slate-900" x-text="previousCollection.avg_fat_5_days">0.00%</span>
-            </span>
         </div>
     </div>
 
@@ -554,7 +527,7 @@
     <div class="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden w-full max-w-full">
         
         <!-- White Card Header with Integrated Compact Filters (Matching Farmer List Theme) -->
-        <div class="px-4 py-2.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+        <div class="px-3 py-1.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2 shrink-0">
                 <h3 class="text-xs font-bold text-slate-900">
                     Milk Details / दूध संकलन सूची
@@ -563,54 +536,54 @@
             </div>
 
             <!-- Compact Inline Filters inside Card Header -->
-            <form method="GET" action="{{ route('collections.index') }}" class="flex flex-wrap items-center gap-1.5 text-xs">
+            <form method="GET" action="{{ route('collections.index') }}" class="flex flex-wrap items-center gap-1 text-xs">
                 <div class="relative">
-                    <i data-lucide="search" class="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+                    <i data-lucide="search" class="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2"></i>
                     <input type="text"
                            name="search"
                            value="{{ request('search') }}"
                            placeholder="Search farmer, code..."
-                           class="pl-7 pr-2.5 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 w-36 sm:w-44 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:bg-white transition">
+                           class="h-7 pl-6 pr-2 text-[11px] bg-slate-50 border border-slate-200 rounded-md text-slate-700 placeholder-slate-400 w-36 sm:w-40 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:bg-white transition">
                 </div>
 
                 <input type="date"
                        name="from_date"
                        value="{{ request('from_date') }}"
                        title="From Date"
-                       class="px-2 py-1 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition">
+                       class="h-7 px-1.5 text-[11px] border border-slate-200 rounded-md bg-slate-50 focus:bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition">
 
                 <input type="date"
                        name="to_date"
                        value="{{ request('to_date') }}"
                        title="To Date"
-                       class="px-2 py-1 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition">
+                       class="h-7 px-1.5 text-[11px] border border-slate-200 rounded-md bg-slate-50 focus:bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition">
 
-                <select name="shift" class="px-2 py-1 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition">
+                <select name="shift" class="h-7 px-1.5 text-[11px] border border-slate-200 rounded-md bg-slate-50 focus:bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition">
                     <option value="">All Shifts</option>
                     <option value="morning" {{ request('shift') === 'morning' ? 'selected' : '' }}>☀️ Morning</option>
                     <option value="evening" {{ request('shift') === 'evening' ? 'selected' : '' }}>🌙 Evening</option>
                 </select>
 
-                <select name="milk_type" class="px-2 py-1 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition">
+                <select name="milk_type" class="h-7 px-1.5 text-[11px] border border-slate-200 rounded-md bg-slate-50 focus:bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition">
                     <option value="">All Milk Types</option>
                     <option value="cow" {{ request('milk_type') === 'cow' ? 'selected' : '' }}>🐄 Cow (CM)</option>
                     <option value="buffalo" {{ request('milk_type') === 'buffalo' ? 'selected' : '' }}>🐃 Buffalo</option>
                 </select>
 
-                <button type="submit" class="px-3 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-2xs transition flex items-center gap-1">
+                <button type="submit" class="h-7 px-2.5 text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md shadow-2xs transition flex items-center gap-1">
                     <i data-lucide="filter" class="w-3 h-3"></i>
-                    <span>Apply Filters</span>
+                    <span>Apply</span>
                 </button>
 
                 @if(request()->anyFilled(['search', 'shift', 'milk_type', 'center_id', 'from_date', 'to_date']))
-                    <a href="{{ route('collections.index') }}" class="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition">
+                    <a href="{{ route('collections.index') }}" class="h-7 px-2 text-[11px] font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-md flex items-center transition">
                         Reset
                     </a>
                 @endif
 
-                <button type="submit" name="export" value="csv" class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold rounded-lg transition">
+                <button type="submit" name="export" value="csv" class="h-7 inline-flex items-center gap-1 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-semibold rounded-md transition">
                     <i data-lucide="download" class="w-3 h-3 text-emerald-600"></i>
-                    <span>Export CSV</span>
+                    <span>CSV</span>
                 </button>
             </form>
         </div>
@@ -620,40 +593,40 @@
             <table class="w-full text-left text-xs text-slate-600" id="collections-table">
                 <thead class="bg-slate-50 border-b border-slate-200/80 text-[11px] font-bold text-slate-600 tracking-wider">
                     <tr>
-                        <th class="py-2 px-3 w-16 text-center">Sample No.</th>
-                        <th class="py-2 px-3">Farmer Code</th>
-                        <th class="py-2 px-3">Farmer Name (English)</th>
-                        <th class="py-2 px-3">Shift</th>
-                        <th class="py-2 px-3">Milk Type</th>
-                        <th class="py-2 px-3 text-right">Milk (Ltr.)</th>
-                        <th class="py-2 px-3 text-center">FAT (%)</th>
-                        <th class="py-2 px-3 text-center">CLR</th>
-                        <th class="py-2 px-3 text-center">SNF (%)</th>
-                        <th class="py-2 px-3 text-right">Rate (₹)</th>
-                        <th class="py-2 px-3 text-right">Amount (₹)</th>
-                        <th class="py-2 px-3 text-center pr-4 w-28">Action</th>
+                        <th class="py-1.5 px-2.5 w-16 text-center">Sample No.</th>
+                        <th class="py-1.5 px-2.5">Farmer Code</th>
+                        <th class="py-1.5 px-2.5">Farmer Name (English)</th>
+                        <th class="py-1.5 px-2.5">Shift</th>
+                        <th class="py-1.5 px-2.5">Milk Type</th>
+                        <th class="py-1.5 px-2.5 text-right">Milk (Ltr.)</th>
+                        <th class="py-1.5 px-2.5 text-center">FAT (%)</th>
+                        <th class="py-1.5 px-2.5 text-center">CLR</th>
+                        <th class="py-1.5 px-2.5 text-center">SNF (%)</th>
+                        <th class="py-1.5 px-2.5 text-right">Rate (₹)</th>
+                        <th class="py-1.5 px-2.5 text-right">Amount (₹)</th>
+                        <th class="py-1.5 px-2.5 text-center pr-3 w-24">Action</th>
                     </tr>
                 </thead>
                 <tbody id="collections-table-body" class="divide-y divide-slate-100">
                     @forelse($collections as $idx => $col)
                         <tr id="row-col-{{ $col->id }}" class="hover:bg-slate-50/70 transition group">
                             <!-- Sample No -->
-                            <td class="py-2 px-3 text-center text-slate-500 font-medium" title="{{ $col->receipt_number }}">
+                            <td class="py-1.5 px-2.5 text-center text-slate-500 font-medium" title="{{ $col->receipt_number }}">
                                 {{ $collections->total() - (($collections->currentPage() - 1) * $collections->perPage()) - $idx }}
                             </td>
 
                             <!-- Farmer Code -->
-                            <td class="py-2 px-3 font-mono font-bold text-slate-900">
-                                <span class="px-2 py-0.5 bg-slate-100 rounded text-slate-800 text-[11px] font-mono border border-slate-200">
+                            <td class="py-1.5 px-2.5 font-mono font-bold text-slate-900">
+                                <span class="px-1.5 py-0.5 bg-slate-100 rounded text-slate-800 text-[11px] font-mono border border-slate-200">
                                     {{ $col->farmer->farmer_code ?? '—' }}
                                 </span>
                             </td>
 
                             <!-- Farmer Name -->
-                            <td class="py-2 px-3">
+                            <td class="py-1.5 px-2.5">
                                 <div class="flex items-center gap-2">
                                     @if($col->farmer && $col->farmer->photo_url)
-                                        <img src="{{ $col->farmer->photo_url }}" alt="{{ $col->farmer->name }}" class="w-6 h-6 rounded-full object-cover border border-slate-200 shadow-2xs shrink-0">
+                                        <img src="{{ $col->farmer->photo_url }}" alt="{{ $col->farmer->name }}" class="w-5 h-5 rounded-full object-cover border border-slate-200 shadow-2xs shrink-0">
                                     @endif
                                     <div class="truncate">
                                         <a href="{{ $col->farmer ? route('farmers.show', $col->farmer) : '#' }}" class="font-bold text-slate-900 hover:text-emerald-700 transition">
@@ -664,14 +637,14 @@
                             </td>
 
                             <!-- Shift -->
-                            <td class="py-2 px-3 whitespace-nowrap">
+                            <td class="py-1.5 px-2.5 whitespace-nowrap">
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold {{ $col->shift === 'morning' ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-indigo-50 text-indigo-800 border border-indigo-200' }}">
                                     {{ $col->shift === 'morning' ? '☀️ Morning' : '🌙 Evening' }}
                                 </span>
                             </td>
 
                             <!-- Milk Type (With Cow & Buffalo Icons matching Farmer List!) -->
-                            <td class="py-2 px-3 whitespace-nowrap">
+                            <td class="py-1.5 px-2.5 whitespace-nowrap">
                                 @if($col->milk_type === 'cow')
                                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
                                         🐄 Cow (CM)
@@ -688,37 +661,37 @@
                             </td>
 
                             <!-- Quantity (Ltr.) -->
-                            <td class="py-2 px-3 text-right font-bold text-slate-900 font-mono">
+                            <td class="py-1.5 px-2.5 text-right font-bold text-slate-900 font-mono">
                                 {{ number_format($col->quantity_liters, 2) }}
                             </td>
 
                             <!-- FAT (%) -->
-                            <td class="py-2 px-3 text-center font-mono text-slate-700">
+                            <td class="py-1.5 px-2.5 text-center font-mono text-slate-700">
                                 {{ number_format($col->fat, 2) }}
                             </td>
 
                             <!-- CLR -->
-                            <td class="py-2 px-3 text-center font-mono text-slate-700">
+                            <td class="py-1.5 px-2.5 text-center font-mono text-slate-700">
                                 {{ $col->clr ? number_format($col->clr, 2) : '0.00' }}
                             </td>
 
                             <!-- SNF (%) -->
-                            <td class="py-2 px-3 text-center font-mono text-slate-700">
+                            <td class="py-1.5 px-2.5 text-center font-mono text-slate-700">
                                 {{ number_format($col->snf, 2) }}
                             </td>
 
                             <!-- Rate (₹) -->
-                            <td class="py-2 px-3 text-right font-mono font-semibold text-slate-800">
+                            <td class="py-1.5 px-2.5 text-right font-mono font-semibold text-slate-800">
                                 {{ number_format($col->applied_rate, 2) }}
                             </td>
 
                             <!-- Amount (₹) -->
-                            <td class="py-2 px-3 text-right font-mono font-bold text-slate-900">
+                            <td class="py-1.5 px-2.5 text-right font-mono font-bold text-slate-900">
                                 {{ number_format($col->net_amount, 2) }}
                             </td>
 
                             <!-- Action Buttons (Matching Farmer List soft pastel rounded-lg buttons) -->
-                            <td class="py-2 px-3 text-center pr-4">
+                            <td class="py-1.5 px-2.5 text-center pr-3">
                                 <div class="flex items-center justify-center gap-1">
                                     <!-- View / Print Slip Button -->
                                     <a href="{{ route('collections.slip', $col) }}" 
@@ -1581,27 +1554,27 @@ function milkCollectionManager() {
             const rowCount = document.querySelectorAll('#collections-table-body tr:not(#no-collections-row)').length + 1;
 
             return `
-                <td class="py-2 px-3 text-center text-slate-500 font-medium">${rowCount}</td>
-                <td class="py-2 px-3 font-mono font-bold text-slate-900">
-                    <span class="px-2 py-0.5 bg-slate-100 rounded text-slate-800 text-[11px] font-mono border border-slate-200">${farmerCode}</span>
+                <td class="py-1.5 px-2.5 text-center text-slate-500 font-medium">${rowCount}</td>
+                <td class="py-1.5 px-2.5 font-mono font-bold text-slate-900">
+                    <span class="px-1.5 py-0.5 bg-slate-100 rounded text-slate-800 text-[11px] font-mono border border-slate-200">${farmerCode}</span>
                 </td>
-                <td class="py-2 px-3">
+                <td class="py-1.5 px-2.5">
                     <div class="flex items-center gap-2">
-                        <img src="${photoUrl}" alt="${farmerName}" class="w-6 h-6 rounded-full object-cover border border-slate-200 shadow-2xs shrink-0">
+                        <img src="${photoUrl}" alt="${farmerName}" class="w-5 h-5 rounded-full object-cover border border-slate-200 shadow-2xs shrink-0">
                         <div class="truncate">
                             <a href="/farmers/${col.farmer_id}" class="font-bold text-slate-900 hover:text-emerald-700 transition">${farmerName}</a>
                         </div>
                     </div>
                 </td>
-                <td class="py-2 px-3 whitespace-nowrap">${shiftBadge}</td>
-                <td class="py-2 px-3 whitespace-nowrap">${milkTypeBadge}</td>
-                <td class="py-2 px-3 text-right font-bold text-slate-900 font-mono">${parseFloat(col.quantity_liters).toFixed(2)}</td>
-                <td class="py-2 px-3 text-center font-mono text-slate-700">${parseFloat(col.fat).toFixed(2)}</td>
-                <td class="py-2 px-3 text-center font-mono text-slate-700">${parseFloat(col.clr || 0).toFixed(2)}</td>
-                <td class="py-2 px-3 text-center font-mono text-slate-700">${parseFloat(col.snf).toFixed(2)}</td>
-                <td class="py-2 px-3 text-right font-mono font-semibold text-slate-800">${parseFloat(col.applied_rate).toFixed(2)}</td>
-                <td class="py-2 px-3 text-right font-mono font-bold text-slate-900">${parseFloat(col.net_amount).toFixed(2)}</td>
-                <td class="py-2 px-3 text-center pr-4">
+                <td class="py-1.5 px-2.5 whitespace-nowrap">${shiftBadge}</td>
+                <td class="py-1.5 px-2.5 whitespace-nowrap">${milkTypeBadge}</td>
+                <td class="py-1.5 px-2.5 text-right font-bold text-slate-900 font-mono">${parseFloat(col.quantity_liters).toFixed(2)}</td>
+                <td class="py-1.5 px-2.5 text-center font-mono text-slate-700">${parseFloat(col.fat).toFixed(2)}</td>
+                <td class="py-1.5 px-2.5 text-center font-mono text-slate-700">${parseFloat(col.clr || 0).toFixed(2)}</td>
+                <td class="py-1.5 px-2.5 text-center font-mono text-slate-700">${parseFloat(col.snf).toFixed(2)}</td>
+                <td class="py-1.5 px-2.5 text-right font-mono font-semibold text-slate-800">${parseFloat(col.applied_rate).toFixed(2)}</td>
+                <td class="py-1.5 px-2.5 text-right font-mono font-bold text-slate-900">${parseFloat(col.net_amount).toFixed(2)}</td>
+                <td class="py-1.5 px-2.5 text-center pr-3">
                     <div class="flex items-center justify-center gap-1">
                         <a href="/collections/slip/${col.id}" target="_blank" title="View / Print Slip" class="w-6 h-6 flex items-center justify-center rounded-lg bg-sky-50 text-sky-600 hover:bg-sky-100 border border-sky-200 transition">
                             <i data-lucide="eye" class="w-3.5 h-3.5"></i>
