@@ -172,41 +172,257 @@
             color: #047857 !important;
             font-weight: 600 !important;
         }
+
+        /* Smart Sidebar Collapse & Expand (Desktop >= 1024px) */
+        @media (min-width: 1024px) {
+            #app-sidebar {
+                width: 16rem; /* 256px expanded */
+                transition: width 200ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 200ms ease;
+            }
+            #app-main-content {
+                padding-left: 16rem; /* 256px expanded */
+                transition: padding-left 200ms cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            #app-sidebar nav#sidebarNav a,
+            #app-sidebar nav#sidebarNav button {
+                white-space: nowrap;
+                overflow: hidden;
+            }
+            #app-sidebar nav#sidebarNav svg,
+            #app-sidebar nav#sidebarNav i[data-lucide] {
+                flex-shrink: 0;
+            }
+
+            /* Collapsed & Not Hovered State (72px = 4.5rem) */
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar {
+                width: 4.5rem !important;
+            }
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-main-content {
+                padding-left: 4.5rem !important;
+            }
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar .sidebar-brand-link,
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar .sidebar-ext-link {
+                display: none !important;
+            }
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar .sidebar-header {
+                justify-content: center !important;
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
+            }
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar .sidebar-search-container {
+                padding-left: 0.75rem !important;
+                padding-right: 0.75rem !important;
+            }
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar #sidebarSearch {
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+                color: transparent !important;
+                cursor: pointer;
+            }
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar #sidebarSearch::placeholder {
+                color: transparent !important;
+            }
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar .sidebar-search-icon {
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+            }
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar #sidebarNav {
+                padding-left: 0.625rem !important;
+                padding-right: 0.625rem !important;
+            }
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar .menu-group > p {
+                display: none !important;
+            }
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar .menu-group + .menu-group {
+                border-top: 1px solid #f1f5f9;
+                padding-top: 0.5rem;
+                margin-top: 0.5rem !important;
+            }
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar #sidebarNav .menu-group a,
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar #sidebarNav .menu-group button {
+                justify-content: center !important;
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
+            }
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar #sidebarNav .menu-group a > span,
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar #sidebarNav .menu-group button > div > span,
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar #sidebarNav .menu-group button > svg,
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar #sidebarNav .menu-group button > i[data-lucide="chevron-down"] {
+                display: none !important;
+            }
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar #sidebarNav .menu-group [x-data] > div[x-show] {
+                display: none !important;
+            }
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar .sidebar-user-details,
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar .sidebar-logout-form {
+                display: none !important;
+            }
+            html.sidebar-collapsed:not(.sidebar-hovered) #app-sidebar .sidebar-user-footer > div {
+                justify-content: center !important;
+            }
+        }
     </style>
+
+    <script>
+        // Restore saved sidebar preference before body renders to prevent flickering
+        (function() {
+            try {
+                if (localStorage.getItem('smartdairy_sidebar_collapsed') === 'true') {
+                    document.documentElement.classList.add('sidebar-collapsed');
+                }
+            } catch (e) {}
+        })();
+
+        window.smartSidebarState = function() {
+            let initialCollapsed = false;
+            try {
+                initialCollapsed = localStorage.getItem('smartdairy_sidebar_collapsed') === 'true';
+            } catch (e) {}
+
+            return {
+                isSidebarCollapsed: initialCollapsed,
+                isSidebarHovered: false,
+                mobileMenuOpen: false,
+
+                get isSidebarExpanded() {
+                    return !this.isSidebarCollapsed || this.isSidebarHovered;
+                },
+
+                get sidebarOpen() {
+                    return this.isSidebarExpanded;
+                },
+
+                initSidebar() {
+                    this.syncHtmlClasses();
+                    this.applyAccessibleLabels();
+                },
+
+                toggleSidebar() {
+                    this.isSidebarCollapsed = !this.isSidebarCollapsed;
+                    this.isSidebarHovered = false;
+                    try {
+                        localStorage.setItem('smartdairy_sidebar_collapsed', this.isSidebarCollapsed ? 'true' : 'false');
+                    } catch (e) {}
+                    this.syncHtmlClasses();
+                    this.updateCollapsedTooltips();
+                },
+
+                handleSidebarMouseEnter() {
+                    if (window.innerWidth >= 1024 && this.isSidebarCollapsed) {
+                        this.isSidebarHovered = true;
+                        this.syncHtmlClasses();
+                        this.updateCollapsedTooltips();
+                    }
+                },
+
+                handleSidebarMouseLeave() {
+                    if (this.isSidebarHovered) {
+                        this.isSidebarHovered = false;
+                        this.syncHtmlClasses();
+                        this.updateCollapsedTooltips();
+                    }
+                },
+
+                syncHtmlClasses() {
+                    const root = document.documentElement;
+                    root.classList.toggle('sidebar-collapsed', this.isSidebarCollapsed);
+                    root.classList.toggle('sidebar-hovered', this.isSidebarCollapsed && this.isSidebarHovered);
+                },
+
+                applyAccessibleLabels() {
+                    const items = document.querySelectorAll('#sidebarNav a, #sidebarNav button');
+                    items.forEach(el => {
+                        const labelEl = el.querySelector('span');
+                        const labelText = labelEl ? labelEl.textContent.trim() : el.textContent.trim();
+                        if (labelText) {
+                            el.setAttribute('aria-label', labelText);
+                            el.dataset.menuLabel = labelText;
+                        }
+                    });
+                    this.updateCollapsedTooltips();
+                },
+
+                updateCollapsedTooltips() {
+                    const showNativeTooltip = this.isSidebarCollapsed && !this.isSidebarHovered;
+                    const items = document.querySelectorAll('#sidebarNav a, #sidebarNav button');
+                    items.forEach(el => {
+                        const label = el.dataset.menuLabel;
+                        if (!label) return;
+                        if (showNativeTooltip) {
+                            el.setAttribute('title', label);
+                        } else {
+                            el.removeAttribute('title');
+                        }
+                    });
+                }
+            };
+        };
+    </script>
 </head>
-<body class="bg-[#F8FAFC] text-slate-800 antialiased min-h-screen flex overflow-x-hidden w-full max-w-full" style="font-family: 'Plus Jakarta Sans', sans-serif;" x-data="{ sidebarOpen: true, mobileMenuOpen: false }">
+<body class="bg-[#F8FAFC] text-slate-800 antialiased min-h-screen flex overflow-x-hidden w-full max-w-full"
+      style="font-family: 'Plus Jakarta Sans', sans-serif;"
+      x-data="smartSidebarState()"
+      x-init="initSidebar()">
 
     <!-- Sidebar -->
     <aside 
-        class="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 flex flex-col transition-transform duration-200 lg:translate-x-0"
-        :class="mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
+        id="app-sidebar"
+        @mouseenter="handleSidebarMouseEnter()"
+        @mouseleave="handleSidebarMouseLeave()"
+        class="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 flex flex-col transition-all duration-200 lg:translate-x-0"
+        :class="[
+            mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+            isSidebarExpanded ? 'lg:w-64' : 'lg:w-[72px]',
+            (isSidebarCollapsed && isSidebarHovered) ? 'lg:shadow-xl' : ''
+        ]"
     >
         <!-- Brand / User Header matching screenshot -->
-        <div class="p-3.5 border-b border-slate-100 flex items-center justify-between">
-            <a href="{{ route('dashboard') }}" class="flex items-center space-x-2.5">
-                <img src="{{ asset('logo.PNG') }}" alt="Gopal Dairy" class="h-9 w-auto object-contain max-w-[130px]">
+        <div class="sidebar-header p-3.5 border-b border-slate-100 flex items-center justify-between gap-1">
+            <a href="{{ route('dashboard') }}" class="sidebar-brand-link flex items-center space-x-2.5 min-w-0">
+                <img src="{{ asset('logo.PNG') }}" alt="Gopal Dairy" class="h-9 w-auto object-contain max-w-[130px] shrink-0">
                 <div class="truncate">
                     <span class="text-[10px] text-[#002e79] font-black block uppercase tracking-wider truncate">
                         {{ auth()->user()->role ? ucfirst(str_replace('_', ' ', auth()->user()->role)) : 'Owner' }}
                     </span>
                 </div>
             </a>
-            <a href="{{ route('home') }}" target="_blank" title="View Public Website" class="text-slate-400 hover:text-[#002e79] p-1">
-                <i data-lucide="external-link" class="w-4 h-4"></i>
-            </a>
-            <button @click="mobileMenuOpen = false" class="lg:hidden text-slate-400 hover:text-slate-600">
-                <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
+
+            <div class="flex items-center gap-1 shrink-0">
+                <a href="{{ route('home') }}" target="_blank" title="View Public Website" aria-label="View Public Website" class="sidebar-ext-link text-slate-400 hover:text-[#002e79] p-1.5 rounded-lg hover:bg-slate-100 transition">
+                    <i data-lucide="external-link" class="w-4 h-4"></i>
+                </a>
+
+                <!-- Desktop Collapse / Expand Toggle Button -->
+                <button type="button"
+                        @click.stop="toggleSidebar()"
+                        :title="isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+                        :aria-label="isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+                        :aria-expanded="isSidebarExpanded ? 'true' : 'false'"
+                        class="hidden lg:inline-flex items-center justify-center w-7 h-7 rounded-lg border transition cursor-pointer"
+                        :class="isSidebarCollapsed ? 'bg-emerald-50 text-[#002e79] border-emerald-200 hover:bg-emerald-100' : 'text-slate-400 hover:text-[#002e79] border-transparent hover:border-slate-200 hover:bg-slate-100'">
+                    <span x-show="!isSidebarCollapsed" class="inline-flex items-center justify-center">
+                        <i data-lucide="panel-left-close" class="w-4 h-4"></i>
+                    </span>
+                    <span x-show="isSidebarCollapsed" x-cloak class="inline-flex items-center justify-center">
+                        <i data-lucide="panel-left-open" class="w-4 h-4"></i>
+                    </span>
+                </button>
+
+                <button type="button" @click="mobileMenuOpen = false" aria-label="Close mobile menu" class="lg:hidden text-slate-400 hover:text-slate-600 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
         </div>
 
         <!-- Search menu box -->
-        <div class="px-3 pt-3">
+        <div class="sidebar-search-container px-3 pt-3">
             <div class="relative">
-                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+                <i data-lucide="search" class="sidebar-search-icon w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none transition-all duration-150"></i>
                 <input 
                     type="text" 
                     id="sidebarSearch"
                     placeholder="Search menu..." 
+                    aria-label="Search menu"
                     class="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-600 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:bg-white transition"
                     onkeyup="filterSidebar(this.value)"
                 >
@@ -574,20 +790,21 @@
         </nav>
 
         <!-- Current User Footer & Logout -->
-        <div class="p-3 border-t border-slate-200 bg-slate-50/50">
+        <div class="sidebar-user-footer p-3 border-t border-slate-200 bg-slate-50/50">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-2 truncate">
-                    <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs">
+                    <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs shrink-0"
+                         title="{{ auth()->user()->name }} ({{ ucfirst(str_replace('_', ' ', auth()->user()->role)) }})">
                         {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
                     </div>
-                    <div class="truncate">
+                    <div class="sidebar-user-details truncate">
                         <p class="text-xs font-semibold text-slate-800 truncate leading-tight">{{ auth()->user()->name }}</p>
                         <p class="text-[10px] text-slate-500 capitalize">{{ str_replace('_', ' ', auth()->user()->role) }}</p>
                     </div>
                 </div>
-                <form action="{{ route('logout') }}" method="POST">
+                <form action="{{ route('logout') }}" method="POST" class="sidebar-logout-form shrink-0">
                     @csrf
-                    <button type="submit" title="Sign out" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-md hover:bg-rose-50 transition">
+                    <button type="submit" title="Sign out" aria-label="Sign out" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-md hover:bg-rose-50 transition">
                         <i data-lucide="log-out" class="w-4 h-4"></i>
                     </button>
                 </form>
@@ -595,13 +812,21 @@
         </div>
     </aside>
 
+    <!-- Mobile Backdrop Overlay -->
+    <div x-show="mobileMenuOpen" 
+         x-cloak 
+         @click="mobileMenuOpen = false" 
+         class="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-2xs lg:hidden transition-opacity"></div>
+
     <!-- Main Content Area -->
-    <div class="flex-1 lg:pl-64 flex flex-col min-w-0 max-w-full min-h-screen overflow-x-hidden">
+    <div id="app-main-content"
+         class="flex-1 lg:pl-64 flex flex-col min-w-0 max-w-full min-h-screen overflow-x-hidden transition-[padding] duration-200"
+         :class="isSidebarExpanded ? 'lg:pl-64' : 'lg:pl-[72px]'">
         
         <!-- Top Navigation Bar -->
         <header class="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200 px-4 sm:px-6 py-2.5 flex items-center justify-between">
             <div class="flex items-center space-x-3">
-                <button @click="mobileMenuOpen = true" class="lg:hidden text-slate-500 hover:text-slate-700 p-1">
+                <button type="button" @click="mobileMenuOpen = true" aria-label="Open mobile menu" class="lg:hidden text-slate-500 hover:text-slate-700 p-1">
                     <i data-lucide="menu" class="w-5 h-5"></i>
                 </button>
                 <div>
