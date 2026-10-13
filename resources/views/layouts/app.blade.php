@@ -531,8 +531,8 @@
             <div class="menu-group">
                 <p class="px-2 pb-1 text-[10px] font-bold tracking-wider uppercase text-slate-400">Milk Sales & Buyers</p>
                 <div class="space-y-0.5">
-                    <a href="{{ route('milk-sales.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('milk-sales.*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
-                        <i data-lucide="shopping-cart" class="w-4 h-4 {{ request()->routeIs('milk-sales.*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
+                    <a href="{{ route('milk-sales.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ (request()->routeIs('milk-sales.index') || request()->routeIs('milk-sales.slip')) ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                        <i data-lucide="shopping-cart" class="w-4 h-4 {{ (request()->routeIs('milk-sales.index') || request()->routeIs('milk-sales.slip')) ? 'text-emerald-600' : 'text-slate-400' }}"></i>
                         <span>Milk Sale</span>
                     </a>
                     <a href="{{ route('buyers.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('buyers.index') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
@@ -542,6 +542,14 @@
                     <a href="{{ route('buyers.khata') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('buyers.khata*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                         <i data-lucide="book-open" class="w-4 h-4 {{ request()->routeIs('buyers.khata*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
                         <span>Buyer Khata</span>
+                    </a>
+                    <a href="{{ route('milk-sales.invoices') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('milk-sales.invoices*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                        <i data-lucide="receipt" class="w-4 h-4 {{ request()->routeIs('milk-sales.invoices*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
+                        <span>Customer Bill</span>
+                    </a>
+                    <a href="{{ route('milk-sales.rate-chart') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('milk-sales.rate-chart*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                        <i data-lucide="table-properties" class="w-4 h-4 {{ request()->routeIs('milk-sales.rate-chart*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
+                        <span>Rate Chart</span>
                     </a>
                 </div>
             </div>

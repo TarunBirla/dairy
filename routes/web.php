@@ -534,9 +534,23 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{milkSale}', [MilkSaleController::class, 'destroy'])->name('destroy');
         Route::get('/{milkSale}/slip', [MilkSaleController::class, 'slip'])->name('slip');
         Route::get('/buyer-rates/{buyer}', [MilkSaleController::class, 'getBuyerRates'])->name('buyer-rates');
+        Route::get('/calculate-rate', [MilkSaleController::class, 'calculateRateApi'])->name('calculate-rate');
+
+        // Customer Bill (Milk Sale Invoices - Matching Image 1)
+        Route::get('/invoices', [MilkSaleController::class, 'invoices'])->name('invoices');
+
+        // Milk Sale Rate Chart (Matching Image 2)
+        Route::get('/rate-chart', [MilkSaleController::class, 'rateChart'])->name('rate-chart');
+        Route::post('/rate-chart/set-default', [MilkSaleController::class, 'setDefaultRateChart'])->name('rate-chart.set-default');
     });
     Route::get('/milk_sale', function () {
         return redirect()->route('milk-sales.index');
+    });
+    Route::get('/customer-bill', function () {
+        return redirect()->route('milk-sales.invoices');
+    });
+    Route::get('/milk-sale-ratechart', function () {
+        return redirect()->route('milk-sales.rate-chart');
     });
 
     // Buyers (Commercial Customers & Khata - Matching media_1791389622008.png & media_1791389718502.png)

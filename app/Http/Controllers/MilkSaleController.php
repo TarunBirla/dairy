@@ -304,4 +304,260 @@ class MilkSaleController extends Controller
             'current_balance' => (float) $buyer->current_balance,
         ]);
     }
+
+    /**
+     * Customer Bill (Milk Sale Invoices - Matching Image 1)
+     */
+    public function invoices(Request $request)
+    {
+        $today = Carbon::today();
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
+
+        // Cycle Range string parameter if provided e.g. "21 Aug 2026 - 31 Aug 2026"
+        $cycleRange = $request->get('cycle_range');
+        if ($cycleRange) {
+            $parts = explode(' - ', $cycleRange);
+            if (count($parts) === 2) {
+                try {
+                    $startDate = Carbon::parse($parts[0])->format('Y-m-d');
+                    $endDate = Carbon::parse($parts[1])->format('Y-m-d');
+                } catch (\Throwable $e) {}
+            }
+        }
+
+        // If no range selected, default to current 10-day cycle
+        if (empty($startDate) || empty($endDate)) {
+            $day = $today->day;
+            if ($day <= 10) {
+                $startDate = $today->copy()->startOfMonth()->format('Y-m-d');
+                $endDate = $today->copy()->day(min(10, $today->daysInMonth))->format('Y-m-d');
+            } elseif ($day <= 20) {
+                $startDate = $today->copy()->day(11)->format('Y-m-d');
+                $endDate = $today->copy()->day(min(20, $today->daysInMonth))->format('Y-m-d');
+            } else {
+                $startDate = $today->copy()->day(21)->format('Y-m-d');
+                $endDate = $today->copy()->endOfMonth()->format('Y-m-d');
+            }
+        }
+
+        $search = $request->get('search');
+
+        // Build list of 10-day cycle presets
+        $cycles = [];
+        for ($m = 0; $m < 4; $m++) {
+            $mo = Carbon::today()->subMonths($m);
+            $c3_start = $mo->copy()->day(21)->format('d M Y');
+            $c3_end = $mo->copy()->endOfMonth()->format('d M Y');
+            $c2_start = $mo->copy()->day(11)->format('d M Y');
+            $c2_end = $mo->copy()->day(min(20, $mo->daysInMonth))->format('d M Y');
+            $c1_start = $mo->copy()->startOfMonth()->format('d M Y');
+            $c1_end = $mo->copy()->day(min(10, $mo->daysInMonth))->format('d M Y');
+
+            $cycles["{$c3_start} - {$c3_end}"] = "{$c3_start} - {$c3_end}";
+            $cycles["{$c2_start} - {$c2_end}"] = "{$c2_start} - {$c2_end}";
+            $cycles["{$c1_start} - {$c1_end}"] = "{$c1_start} - {$c1_end}";
+        }
+
+        $activeCycleKey = Carbon::parse($startDate)->format('d M Y') . ' - ' . Carbon::parse($endDate)->format('d M Y');
+        if (!isset($cycles[$activeCycleKey])) {
+            $cycles[$activeCycleKey] = $activeCycleKey . " (Custom)";
+        }
+
+        $buyersQuery = Buyer::query();
+        if (!empty($search)) {
+            $buyersQuery->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('buyer_code', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
+            });
+        }
+        $buyers = $buyersQuery->orderBy('buyer_code')->get();
+
+        $invoices = collect();
+        foreach ($buyers as $b) {
+            $salesPeriod = MilkSale::where('buyer_id', $b->id)
+                ->whereBetween('sale_date', [$startDate, $endDate])
+                ->get();
+            $liters = (float) $salesPeriod->sum('quantity_liters');
+            $amount = (float) $salesPeriod->sum('total_amount');
+            $directPaid = (float) $salesPeriod->sum('paid_amount');
+
+            $khataReceived = (float) BuyerPayment::where('buyer_id', $b->id)
+                ->where('type', 'received')
+                ->whereBetween('payment_date', [$startDate, $endDate])
+                ->sum('amount');
+            $cashReceived = $directPaid + $khataReceived;
+
+            // Opening Balance before startDate
+            $salesBefore = (float) MilkSale::where('buyer_id', $b->id)
+                ->where('sale_date', '<', $startDate)
+                ->sum('total_amount');
+            $paidBefore = (float) MilkSale::where('buyer_id', $b->id)
+                ->where('sale_date', '<', $startDate)
+                ->sum('paid_amount');
+            $khataBefore = (float) BuyerPayment::where('buyer_id', $b->id)
+                ->where('type', 'received')
+                ->where('payment_date', '<', $startDate)
+                ->sum('amount');
+            $refundsBefore = (float) BuyerPayment::where('buyer_id', $b->id)
+                ->where('type', 'paid')
+                ->where('payment_date', '<', $startDate)
+                ->sum('amount');
+
+            $prevAmount = ($salesBefore - ($paidBefore + $khataBefore)) + $refundsBefore;
+            $closingBalance = ($prevAmount + $amount) - $cashReceived;
+
+            // Include if there's any activity or non-zero balance
+            if ($liters > 0 || abs($prevAmount) > 0.01 || $cashReceived > 0 || !empty($search)) {
+                $invoices->push((object) [
+                    'buyer' => $b,
+                    'code' => $b->buyer_code,
+                    'name' => $b->name,
+                    'liters' => $liters,
+                    'amount' => $amount,
+                    'cash_received' => $cashReceived,
+                    'prev_amount' => $prevAmount,
+                    'total_amount' => max(0, $closingBalance),
+                    'closing_balance' => $closingBalance,
+                ]);
+            }
+        }
+
+        $totals = (object) [
+            'liters' => (float) $invoices->sum('liters'),
+            'amount' => (float) $invoices->sum('amount'),
+            'cash_received' => (float) $invoices->sum('cash_received'),
+            'prev_amount' => (float) $invoices->sum('prev_amount'),
+            'total_amount' => (float) $invoices->sum('total_amount'),
+        ];
+
+        return view('milk_sales.invoices', compact(
+            'invoices',
+            'totals',
+            'startDate',
+            'endDate',
+            'activeCycleKey',
+            'cycles',
+            'search'
+        ));
+    }
+
+    /**
+     * Milk Sale Rate Chart (Matching Image 2)
+     */
+    public function rateChart(Request $request)
+    {
+        $milkType = $request->get('milk_type', 'cow');
+        if (!in_array($milkType, ['cow', 'buffalo', 'mixed'])) {
+            $milkType = 'cow';
+        }
+
+        // 1. Try to find rate chart specifically configured for milk_sale
+        $chart = RateChart::where('milk_type', $milkType)
+            ->where('category', 'milk_sale')
+            ->where('status', 'active')
+            ->first();
+
+        // 2. Fallback: check if there is an active chart marked default for this milk_type
+        if (!$chart) {
+            $chart = RateChart::where('milk_type', $milkType)
+                ->where('status', 'active')
+                ->where('is_default', true)
+                ->first();
+        }
+
+        // 3. Fallback: any active rate chart for this milk_type
+        if (!$chart) {
+            $chart = RateChart::where('milk_type', $milkType)
+                ->where('status', 'active')
+                ->latest('id')
+                ->first();
+        }
+
+        $allCharts = RateChart::where('status', 'active')->orderBy('name')->get();
+
+        return view('milk_sales.rate_chart', compact(
+            'chart',
+            'milkType',
+            'allCharts'
+        ));
+    }
+
+    /**
+     * Set / Assign default Rate Chart for Milk Sale
+     */
+    public function setDefaultRateChart(Request $request)
+    {
+        $validated = $request->validate([
+            'rate_chart_id' => 'required|exists:rate_charts,id',
+            'milk_type' => 'required|in:cow,buffalo,mixed',
+        ]);
+
+        $chart = RateChart::findOrFail($validated['rate_chart_id']);
+
+        RateChart::where('milk_type', $validated['milk_type'])
+            ->where('category', 'milk_sale')
+            ->update(['is_default' => false]);
+
+        $chart->update([
+            'category' => 'milk_sale',
+            'is_default' => true,
+        ]);
+
+        AuditLog::log("Set Rate Chart {$chart->name} as active for Milk Sale ({$validated['milk_type']})", 'RateChart', $chart->id);
+
+        return redirect()->route('milk-sales.rate-chart', ['milk_type' => $validated['milk_type']])
+            ->with('success', "Rate Chart '{$chart->name}' applied successfully for " . ucfirst($validated['milk_type']) . " Milk Sale!");
+    }
+
+    /**
+     * Dynamic Rate Calculation API for Milk Sale Entry Form
+     */
+    public function calculateRateApi(Request $request)
+    {
+        $buyerId = $request->get('buyer_id');
+        $milkType = $request->get('milk_type', 'cow');
+        $fat = (float) $request->get('fat', 0);
+        $clr = (float) $request->get('clr', 0);
+        $snf = (float) $request->get('snf', 0);
+
+        if ($snf <= 0 && $clr > 0) {
+            $snf = round(($clr / 4) + (0.21 * $fat) + 0.36, 2);
+        }
+
+        // Check if buyer has fixed rate
+        if ($buyerId) {
+            $buyer = Buyer::find($buyerId);
+            if ($buyer) {
+                if ($milkType === 'cow' && $buyer->cow_fixed_rate > 0) {
+                    return response()->json(['rate' => (float) $buyer->cow_fixed_rate, 'source' => 'buyer_fixed']);
+                }
+                if ($milkType === 'buffalo' && $buyer->buffalo_fixed_rate > 0) {
+                    return response()->json(['rate' => (float) $buyer->buffalo_fixed_rate, 'source' => 'buyer_fixed']);
+                }
+            }
+        }
+
+        // Check Milk Sale Rate Chart
+        $chart = RateChart::where('milk_type', $milkType)
+            ->where('category', 'milk_sale')
+            ->where('status', 'active')
+            ->first();
+
+        if (!$chart) {
+            $chart = RateChart::where('milk_type', $milkType)
+                ->where('status', 'active')
+                ->where('is_default', true)
+                ->first();
+        }
+
+        if ($chart) {
+            $secondary = ($chart->format === 'fat_clr') ? $clr : $snf;
+            $rate = $chart->calculateRate($fat, $secondary);
+            return response()->json(['rate' => $rate, 'source' => 'rate_chart', 'chart_name' => $chart->name]);
+        }
+
+        return response()->json(['rate' => 0.00, 'source' => 'none']);
+    }
 }
