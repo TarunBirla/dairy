@@ -93,9 +93,12 @@ class ProcurementApiController extends Controller
         $avgFat = 0.0;
         $avgSnf = 0.0;
         try {
-            $avgFat = round((float) ((clone $shiftQuery)->avg('fat') ?? (clone $shiftQuery)->avg('fat_percentage') ?? 0), 2);
-            $avgSnf = round((float) ((clone $shiftQuery)->avg('snf') ?? (clone $shiftQuery)->avg('snf_percentage') ?? 0), 2);
-        } catch (\Throwable $e) {}
+            $avgFat = round((float) ((clone $shiftQuery)->avg('fat') ?? 0), 2);
+            $avgSnf = round((float) ((clone $shiftQuery)->avg('snf') ?? 0), 2);
+        } catch (\Throwable $e) {
+            $avgFat = 0.0;
+            $avgSnf = 0.0;
+        }
 
         $shiftStats = [
             'date' => $today,
@@ -121,11 +124,11 @@ class ProcurementApiController extends Controller
             'farmer_name' => $previousCollectionRecord->farmer->name ?? null,
             'milk_type' => $previousCollectionRecord->milk_type,
             'quantity_liters' => (float) $previousCollectionRecord->quantity_liters,
-            'fat' => (float) ($previousCollectionRecord->fat ?? $previousCollectionRecord->fat_percentage ?? 0),
-            'fat_percentage' => (float) ($previousCollectionRecord->fat ?? $previousCollectionRecord->fat_percentage ?? 0),
+            'fat' => (float) ($previousCollectionRecord->fat ?? 0),
+            'fat_percentage' => (float) ($previousCollectionRecord->fat ?? 0),
             'clr' => (float) $previousCollectionRecord->clr,
-            'snf' => (float) ($previousCollectionRecord->snf ?? $previousCollectionRecord->snf_percentage ?? 0),
-            'snf_percentage' => (float) ($previousCollectionRecord->snf ?? $previousCollectionRecord->snf_percentage ?? 0),
+            'snf' => (float) ($previousCollectionRecord->snf ?? 0),
+            'snf_percentage' => (float) ($previousCollectionRecord->snf ?? 0),
             'applied_rate' => (float) $previousCollectionRecord->applied_rate,
             'net_amount' => (float) $previousCollectionRecord->net_amount,
         ] : null;
@@ -151,12 +154,9 @@ class ProcurementApiController extends Controller
      */
     public function collectionsMeta()
     {
-        $farmers = Farmer::where('status', 'active')
-            ->orderBy('farmer_code')
-            ->get(['id', 'farmer_code', 'name', 'name_hi', 'phone', 'animal_type', 'collection_center_id', 'route_id', 'rate_chart_id', 'cow_milk_rate', 'buffalo_milk_rate', 'current_balance']);
-
-        $routes = DeliveryRoute::orderBy('name')->get(['id', 'route_code', 'name', 'center_id', 'status']);
-        $centers = CollectionCenter::where('status', 'active')->orderBy('name')->get(['id', 'code', 'name']);
+        $farmers = Farmer::where('status', 'active')->orderBy('farmer_code')->get();
+        $routes = DeliveryRoute::orderBy('name')->get();
+        $centers = CollectionCenter::where('status', 'active')->orderBy('name')->get();
         $rateCharts = RateChart::where('status', 'active')->orderBy('name')->get();
 
         return response()->json([

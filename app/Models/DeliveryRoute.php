@@ -19,6 +19,15 @@ class DeliveryRoute extends Model
         'status',
     ];
 
+    protected $appends = [
+        'route_code',
+    ];
+
+    public function getRouteCodeAttribute()
+    {
+        return $this->attributes['code'] ?? null;
+    }
+
     public function branch()
     {
         return $this->belongsTo(Branch::class);
