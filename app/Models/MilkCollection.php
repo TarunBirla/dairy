@@ -45,6 +45,14 @@ class MilkCollection extends Model
         'net_amount' => 'decimal:2',
     ];
 
+    protected $appends = [
+        'slip_number',
+        'fat_percentage',
+        'snf_percentage',
+        'bonus_amount',
+        'deduction_amount',
+    ];
+
     public function farmer()
     {
         return $this->belongsTo(Farmer::class);
@@ -58,5 +66,69 @@ class MilkCollection extends Model
     public function operator()
     {
         return $this->belongsTo(User::class, 'operator_id');
+    }
+
+    /**
+     * Backward-compatible alias for operator relationship
+     */
+    public function collector()
+    {
+        return $this->belongsTo(User::class, 'operator_id');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Compatibility Accessors & Mutators
+    |--------------------------------------------------------------------------
+    */
+
+    public function getSlipNumberAttribute()
+    {
+        return $this->attributes['receipt_number'] ?? null;
+    }
+
+    public function setSlipNumberAttribute($value)
+    {
+        $this->attributes['receipt_number'] = $value;
+    }
+
+    public function getFatPercentageAttribute()
+    {
+        return $this->attributes['fat'] ?? null;
+    }
+
+    public function setFatPercentageAttribute($value)
+    {
+        $this->attributes['fat'] = $value;
+    }
+
+    public function getSnfPercentageAttribute()
+    {
+        return $this->attributes['snf'] ?? null;
+    }
+
+    public function setSnfPercentageAttribute($value)
+    {
+        $this->attributes['snf'] = $value;
+    }
+
+    public function getBonusAmountAttribute()
+    {
+        return $this->attributes['bonus'] ?? 0;
+    }
+
+    public function setBonusAmountAttribute($value)
+    {
+        $this->attributes['bonus'] = $value;
+    }
+
+    public function getDeductionAmountAttribute()
+    {
+        return $this->attributes['deduction'] ?? 0;
+    }
+
+    public function setDeductionAmountAttribute($value)
+    {
+        $this->attributes['deduction'] = $value;
     }
 }

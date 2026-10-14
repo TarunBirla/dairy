@@ -1,1708 +1,1953 @@
 {
-  "info": {
-    "_postman_id": "a7f90218-8c54-4b23-9f11-8d2e11009988",
-    "name": "SmartDairy - Procurement & Farmers API (Dairy Admin)",
-    "description": "Complete REST API Collection for the SmartDairy **Procurement & Farmers** module section using **Bearer Token (Laravel Sanctum)** authentication.\n\n### Modules Included:\n0. **Authentication (Bearer Token)** - Login, Admin Profile (`/me`), Logout\n1. **Collection History** - List, Meta, Calculate Rate, Create, Show, Update, Delete\n2. **Farmers Master** - List, Create, Show Profile, Passbook Statement, Update, Delete\n3. **Rate Charts (Fat/SNF)** - List, Create, Show, Update, Assign to Farmers/Centers, Apply Historical Rate Correction, Delete\n4. **Farmer Settlements** - List, Preview Period Calculation, Create/Settle, Show, Delete\n5. **Advance & Loans** - List, Issue Advance, Show, Update, Receive Repayment, Farmer Advance Ledger, Delete\n6. **Deductions** - List, Create Deduction/Credit, Show, Update, Farmer Deduction History, Delete\n7. **Farmer Invoices** - List (Pending/Generated), Generate Period Invoices, Show Breakdown, Preview, Verify & Save Adjustments, Bulk Approve, Bulk Delete, Delete",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "auth": {
-    "type": "bearer",
-    "bearer": [
-      {
-        "key": "token",
-        "value": "{{bearer_token}}",
-        "type": "string"
-      }
-    ]
-  },
-  "variable": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:8000",
-      "type": "string"
+    "info": {
+        "_postman_id": "a7f90218-8c54-4b23-9f11-8d2e11009988",
+        "name": "SmartDairy - Procurement & Farmers API (Dairy Admin)",
+        "description": "Complete REST API Collection for the SmartDairy **Procurement & Farmers** module section using **Bearer Token (Laravel Sanctum)** authentication.\n\n### Modules Included:\n0. **Authentication (Bearer Token)** - Login, Admin Profile (`/me`), Logout\n1. **Collection History** - List, Meta, Calculate Rate, Create, Show, Update, Delete\n2. **Farmers Master** - List, Create, Show Profile, Passbook Statement, Update, Delete\n3. **Rate Charts (Fat/SNF)** - List, Create, Show, Update, Assign to Farmers/Centers, Apply Historical Rate Correction, Delete\n4. **Farmer Settlements** - List, Preview Period Calculation, Create/Settle, Show, Delete\n5. **Advance & Loans** - List, Issue Advance, Show, Update, Receive Repayment, Farmer Advance Ledger, Delete\n6. **Deductions** - List, Create Deduction/Credit, Show, Update, Farmer Deduction History, Delete\n7. **Farmer Invoices** - List (Pending/Generated), Generate Period Invoices, Show Breakdown, Preview, Verify & Save Adjustments, Bulk Approve, Bulk Delete, Delete",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
-    {
-      "key": "bearer_token",
-      "value": "PASTE_YOUR_BEARER_TOKEN_OR_RUN_LOGIN_REQUEST",
-      "type": "string"
-    }
-  ],
-  "item": [
-    {
-      "name": "0. Authentication (Bearer Token)",
-      "description": "Authenticate as Dairy Admin to obtain a Sanctum Bearer Token (`access_token`). Running **Login** automatically saves the token into `{{bearer_token}}`.",
-      "item": [
-        {
-          "name": "Dairy Admin Login (Get Bearer Token)",
-          "event": [
+    "auth": {
+        "type": "bearer",
+        "bearer": [
             {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    var jsonData = pm.response.json();",
-                  "    if (jsonData.access_token) {",
-                  "        pm.collectionVariables.set('bearer_token', jsonData.access_token);",
-                  "        console.log('Bearer token saved to collection variable!');",
-                  "    }",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
+                "key": "token",
+                "value": "{{bearer_token}}",
+                "type": "string"
             }
-          ],
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@smartdairy.com\",\n  \"password\": \"password\",\n  \"device_name\": \"DairyAdminPostman\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/auth/login",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login"
-              ]
-            },
-            "description": "Authenticate using `email` (or `phone` / `login`) and `password`. Automatically stores the returned `access_token` in `{{bearer_token}}`."
-          }
-        },
-        {
-          "name": "Get Current Dairy Admin Profile (/me)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/auth/me",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "me"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Logout (Revoke Bearer Token)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"all_devices\": false\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/auth/logout",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "logout"
-              ]
-            }
-          }
-        }
-      ]
+        ]
     },
-    {
-      "name": "1. Collection History",
-      "description": "APIs for Milk Collection History, Daily Intake, Shift Summary, Rate Calculation, and Slip Management.",
-      "item": [
+    "variable": [
         {
-          "name": "List Collections (with Filters & Shift Summary)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/collections?date=2026-10-13&shift=morning&per_page=25",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "collections"
-              ],
-              "query": [
-                {
-                  "key": "date",
-                  "value": "2026-10-13",
-                  "description": "Filter by exact collection_date (YYYY-MM-DD)"
-                },
-                {
-                  "key": "start_date",
-                  "value": "2026-10-01",
-                  "disabled": true
-                },
-                {
-                  "key": "end_date",
-                  "value": "2026-10-13",
-                  "disabled": true
-                },
-                {
-                  "key": "shift",
-                  "value": "morning",
-                  "description": "morning | evening | all"
-                },
-                {
-                  "key": "milk_type",
-                  "value": "cow",
-                  "description": "cow | buffalo | mixed",
-                  "disabled": true
-                },
-                {
-                  "key": "farmer_id",
-                  "value": "1",
-                  "disabled": true
-                },
-                {
-                  "key": "route_id",
-                  "value": "1",
-                  "disabled": true
-                },
-                {
-                  "key": "search",
-                  "value": "",
-                  "description": "Search slip number, farmer name, or code",
-                  "disabled": true
-                },
-                {
-                  "key": "per_page",
-                  "value": "25"
-                }
-              ]
-            }
-          }
+            "key": "base_url",
+            "value": "http://localhost:8000",
+            "type": "string"
         },
         {
-          "name": "Get Collection Intake Metadata (Farmers, Routes, Centers, Settings)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/collections/meta",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "collections",
-                "meta"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Calculate Milk Rate (Fat / CLR / SNF)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"farmer_id\": 1,\n  \"milk_type\": \"cow\",\n  \"fat\": 4.2,\n  \"clr\": 28.0,\n  \"snf\": 8.5,\n  \"quantity_liters\": 12.5\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/collections/calculate-rate",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "collections",
-                "calculate-rate"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Milk Collection Entry",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"collection_date\": \"2026-10-13\",\n  \"shift\": \"morning\",\n  \"farmer_id\": 1,\n  \"collection_center_id\": 1,\n  \"milk_type\": \"cow\",\n  \"quantity_liters\": 15.5,\n  \"fat_percentage\": 4.2,\n  \"clr\": 28.0,\n  \"snf_percentage\": 8.5,\n  \"applied_rate\": 42.50,\n  \"bonus_amount\": 0,\n  \"deduction_amount\": 0,\n  \"sample_no\": \"SMP-01\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/collections",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "collections"
-              ]
-            }
-          }
-        },
-        {
-          "name": "View Single Collection Slip",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/collections/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "collections",
-                "1"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Update Milk Collection Entry",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"collection_date\": \"2026-10-13\",\n  \"shift\": \"morning\",\n  \"milk_type\": \"cow\",\n  \"quantity_liters\": 16.0,\n  \"fat_percentage\": 4.4,\n  \"clr\": 28.5,\n  \"snf_percentage\": 8.6,\n  \"applied_rate\": 43.20,\n  \"bonus_amount\": 0,\n  \"deduction_amount\": 0\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/collections/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "collections",
-                "1"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Delete Milk Collection Entry",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/collections/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "collections",
-                "1"
-              ]
-            }
-          }
+            "key": "bearer_token",
+            "value": "PASTE_YOUR_BEARER_TOKEN_OR_RUN_LOGIN_REQUEST",
+            "type": "string"
         }
-      ]
-    },
-    {
-      "name": "2. Farmers Master",
-      "description": "APIs for Farmers Master Directory, Registration, Profile, Passbook Statement, and Updates.",
-      "item": [
+    ],
+    "item": [
         {
-          "name": "List Farmers (with Filters & KPIs)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/farmers?status=active&sort=code_asc&per_page=25",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "farmers"
-              ],
-              "query": [
+            "name": "0. Authentication (Bearer Token)",
+            "description": "Authenticate as Dairy Admin to obtain a Sanctum Bearer Token (`access_token`). Running **Login** automatically saves the token into `{{bearer_token}}`.",
+            "item": [
                 {
-                  "key": "search",
-                  "value": "",
-                  "description": "Name, farmer_code, phone, village",
-                  "disabled": true
+                    "name": "Dairy Admin Login (Get Bearer Token)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.access_token) {",
+                                    "        pm.collectionVariables.set('bearer_token', jsonData.access_token);",
+                                    "        console.log('Bearer token saved to collection variable!');",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"admin@smartdairy.com\",\n  \"password\": \"password\",\n  \"device_name\": \"DairyAdminPostman\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/auth/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "auth",
+                                "login"
+                            ]
+                        },
+                        "description": "Authenticate using `email` (or `phone` / `login`) and `password`. Automatically stores the returned `access_token` in `{{bearer_token}}`."
+                    }
                 },
                 {
-                  "key": "animal_type",
-                  "value": "cow",
-                  "description": "cow | buffalo | mixed",
-                  "disabled": true
+                    "name": "Get Current Dairy Admin Profile (/me)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/auth/me",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "auth",
+                                "me"
+                            ]
+                        }
+                    }
                 },
                 {
-                  "key": "route_id",
-                  "value": "1",
-                  "disabled": true
-                },
-                {
-                  "key": "center_id",
-                  "value": "1",
-                  "disabled": true
-                },
-                {
-                  "key": "status",
-                  "value": "active",
-                  "description": "active | inactive | blocked"
-                },
-                {
-                  "key": "balance_status",
-                  "value": "due",
-                  "description": "due | advance | zero",
-                  "disabled": true
-                },
-                {
-                  "key": "sort",
-                  "value": "code_asc",
-                  "description": "latest | code_asc | code_desc | name_asc | name_desc | balance_desc | balance_asc"
-                },
-                {
-                  "key": "per_page",
-                  "value": "25"
+                    "name": "Logout (Revoke Bearer Token)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"all_devices\": false\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/auth/logout",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "auth",
+                                "logout"
+                            ]
+                        }
+                    }
                 }
-              ]
-            }
-          }
+            ]
         },
         {
-          "name": "Create / Register Farmer",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"farmer_code\": \"FMR0099\",\n  \"name\": \"Rameshwar Patel\",\n  \"name_hi\": \"रामेश्वर पटेल\",\n  \"phone\": \"9876543210\",\n  \"village\": \"Rampur\",\n  \"address\": \"Main Road, Rampur\",\n  \"animal_type\": \"cow\",\n  \"route_id\": 1,\n  \"collection_center_id\": 1,\n  \"rate_chart_id\": 1,\n  \"cow_milk_rate\": 0,\n  \"buffalo_milk_rate\": 0,\n  \"bank_name\": \"State Bank of India\",\n  \"branch_name\": \"Rampur Branch\",\n  \"account_number\": \"123456789012\",\n  \"ifsc_code\": \"SBIN0001234\",\n  \"upi_id\": \"rameshwar@sbi\",\n  \"status\": \"active\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/farmers",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "farmers"
-              ]
-            }
-          }
-        },
-        {
-          "name": "View Farmer Profile & Recent Activity",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/farmers/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "farmers",
-                "1"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Farmer Passbook Statement",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/farmers/1/passbook?start_date=2026-10-01&end_date=2026-10-31",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "farmers",
-                "1",
-                "passbook"
-              ],
-              "query": [
+            "name": "1. Collection History",
+            "description": "APIs for Milk Collection History, Daily Intake, Shift Summary, Rate Calculation, and Slip Management.",
+            "item": [
                 {
-                  "key": "start_date",
-                  "value": "2026-10-01"
+                    "name": "List Collections (with Filters & Shift Summary)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/collections?date=2026-10-13&shift=morning&per_page=25",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "collections"
+                            ],
+                            "query": [
+                                {
+                                    "key": "date",
+                                    "value": "2026-10-13",
+                                    "description": "Filter by exact collection_date (YYYY-MM-DD)"
+                                },
+                                {
+                                    "key": "start_date",
+                                    "value": "2026-10-01",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "end_date",
+                                    "value": "2026-10-13",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "shift",
+                                    "value": "morning",
+                                    "description": "morning | evening | all"
+                                },
+                                {
+                                    "key": "milk_type",
+                                    "value": "cow",
+                                    "description": "cow | buffalo | mixed",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "farmer_id",
+                                    "value": "1",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "route_id",
+                                    "value": "1",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "search",
+                                    "value": "",
+                                    "description": "Search slip number, farmer name, or code",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "25"
+                                }
+                            ]
+                        }
+                    }
                 },
                 {
-                  "key": "end_date",
-                  "value": "2026-10-31"
+                    "name": "Get Collection Intake Metadata (Farmers, Routes, Centers, Settings)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/collections/meta",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "collections",
+                                "meta"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Calculate Milk Rate (Fat / CLR / SNF)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"farmer_id\": 1,\n  \"milk_type\": \"cow\",\n  \"fat\": 4.2,\n  \"clr\": 28.0,\n  \"snf\": 8.5,\n  \"quantity_liters\": 12.5\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/collections/calculate-rate",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "collections",
+                                "calculate-rate"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Milk Collection Entry",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"collection_date\": \"2026-10-14\",\n    \"shift\": \"morning\",\n    \"farmer_id\": 1,\n    \"collection_center_id\": 1,\n    \"milk_type\": \"cow\",\n    \"quantity_liters\": 15.5,\n    \"fat\": 4.2,\n    \"clr\": 28,\n    \"snf\": 8.5,\n    \"applied_rate\": 42.5,\n    \"bonus\": 0,\n    \"deduction\": 0,\n    \"receipt_number\": \"COL-1001\",\n    \"sample_no\": \"SMP-01\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/collections",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "collections"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "View Single Collection Slip",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/collections/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "collections",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Milk Collection Entry",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"collection_date\": \"2026-10-13\",\n  \"shift\": \"morning\",\n  \"milk_type\": \"cow\",\n  \"quantity_liters\": 16.0,\n  \"fat_percentage\": 4.4,\n  \"clr\": 28.5,\n  \"snf_percentage\": 8.6,\n  \"applied_rate\": 43.20,\n  \"bonus_amount\": 0,\n  \"deduction_amount\": 0\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/collections/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "collections",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Milk Collection Entry",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/collections/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "collections",
+                                "1"
+                            ]
+                        }
+                    }
                 }
-              ]
-            }
-          }
+            ]
         },
         {
-          "name": "Update Farmer Profile",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Rameshwar Patel\",\n  \"phone\": \"9876543210\",\n  \"village\": \"Rampur\",\n  \"animal_type\": \"mixed\",\n  \"route_id\": 1,\n  \"status\": \"active\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/farmers/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "farmers",
-                "1"
-              ]
-            }
-          }
+            "name": "2. Farmers Master",
+            "description": "APIs for Farmers Master Directory, Registration, Profile, Passbook Statement, and Updates.",
+            "item": [
+                {
+                    "name": "List Farmers (with Filters & KPIs)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/farmers?status=active&sort=code_asc&per_page=25",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "farmers"
+                            ],
+                            "query": [
+                                {
+                                    "key": "search",
+                                    "value": "",
+                                    "description": "Name, farmer_code, phone, village",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "animal_type",
+                                    "value": "cow",
+                                    "description": "cow | buffalo | mixed",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "route_id",
+                                    "value": "1",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "center_id",
+                                    "value": "1",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "status",
+                                    "value": "active",
+                                    "description": "active | inactive | blocked"
+                                },
+                                {
+                                    "key": "balance_status",
+                                    "value": "due",
+                                    "description": "due | advance | zero",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "sort",
+                                    "value": "code_asc",
+                                    "description": "latest | code_asc | code_desc | name_asc | name_desc | balance_desc | balance_asc"
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "25"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create / Register Farmer",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"farmer_code\": \"FMR0099\",\n  \"name\": \"Rameshwar Patel\",\n  \"name_hi\": \"\u0930\u093e\u092e\u0947\u0936\u094d\u0935\u0930 \u092a\u091f\u0947\u0932\",\n  \"phone\": \"9876543210\",\n  \"village\": \"Rampur\",\n  \"address\": \"Main Road, Rampur\",\n  \"animal_type\": \"cow\",\n  \"route_id\": 1,\n  \"collection_center_id\": 1,\n  \"rate_chart_id\": 1,\n  \"cow_milk_rate\": 0,\n  \"buffalo_milk_rate\": 0,\n  \"bank_name\": \"State Bank of India\",\n  \"branch_name\": \"Rampur Branch\",\n  \"account_number\": \"123456789012\",\n  \"ifsc_code\": \"SBIN0001234\",\n  \"upi_id\": \"rameshwar@sbi\",\n  \"status\": \"active\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/farmers",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "farmers"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "View Farmer Profile & Recent Activity",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/farmers/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "farmers",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Farmer Passbook Statement",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/farmers/1/passbook?start_date=2026-10-01&end_date=2026-10-31",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "farmers",
+                                "1",
+                                "passbook"
+                            ],
+                            "query": [
+                                {
+                                    "key": "start_date",
+                                    "value": "2026-10-01"
+                                },
+                                {
+                                    "key": "end_date",
+                                    "value": "2026-10-31"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Farmer Profile",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Rameshwar Patel\",\n  \"phone\": \"9876543210\",\n  \"village\": \"Rampur\",\n  \"animal_type\": \"mixed\",\n  \"route_id\": 1,\n  \"status\": \"active\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/farmers/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "farmers",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Farmer",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/farmers/99",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "farmers",
+                                "99"
+                            ]
+                        }
+                    }
+                }
+            ]
         },
         {
-          "name": "Delete Farmer",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/farmers/99",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "farmers",
-                "99"
-              ]
-            }
-          }
+            "name": "3. Rate Charts (Fat/SNF)",
+            "description": "APIs for managing Fat/SNF/CLR Rate Charts, Farmer/Center Assignment, and Historical Rate Corrections.",
+            "item": [
+                {
+                    "name": "List Rate Charts",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/rate-charts?status=active&category=collection",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "rate-charts"
+                            ],
+                            "query": [
+                                {
+                                    "key": "status",
+                                    "value": "active",
+                                    "description": "active | inactive | all"
+                                },
+                                {
+                                    "key": "category",
+                                    "value": "collection",
+                                    "description": "collection | milk_sale | chilling_center | all"
+                                },
+                                {
+                                    "key": "milk_type",
+                                    "value": "cow",
+                                    "description": "cow | buffalo | mixed",
+                                    "disabled": true
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Rate Chart",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Cow Standard Collection Chart 2026\",\n  \"category\": \"collection\",\n  \"milk_type\": \"cow\",\n  \"format\": \"fat_snf\",\n  \"type\": \"rate_per_kg\",\n  \"base_rate\": 36.00,\n  \"fat_factor\": 6.50,\n  \"snf_factor\": 4.20,\n  \"min_fat\": 3.0,\n  \"max_fat\": 8.0,\n  \"min_snf\": 8.0,\n  \"max_snf\": 9.5,\n  \"effective_date\": \"2026-10-01\",\n  \"is_default\": false,\n  \"status\": \"active\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/rate-charts",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "rate-charts"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "View Single Rate Chart",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/rate-charts/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "rate-charts",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Rate Chart",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Cow Standard Collection Chart 2026 (Updated)\",\n  \"category\": \"collection\",\n  \"milk_type\": \"cow\",\n  \"format\": \"fat_snf\",\n  \"type\": \"rate_per_kg\",\n  \"base_rate\": 38.00,\n  \"fat_factor\": 6.60,\n  \"snf_factor\": 4.30,\n  \"status\": \"active\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/rate-charts/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "rate-charts",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Assign Rate Chart to Farmers & Centers",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"farmer_ids\": [1, 2],\n  \"center_ids\": [1]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/rate-charts/1/assign",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "rate-charts",
+                                "1",
+                                "assign"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Apply Historical Rate Correction",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"rate_chart_id\": 1,\n  \"category\": \"collection\",\n  \"milk_type\": \"cow\",\n  \"start_date\": \"2026-10-01\",\n  \"end_date\": \"2026-10-13\",\n  \"start_shift\": \"morning\",\n  \"end_shift\": \"evening\",\n  \"farmer_ids\": [1]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/rate-charts/apply-correction",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "rate-charts",
+                                "apply-correction"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Rate Chart",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/rate-charts/99",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "rate-charts",
+                                "99"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "4. Farmer Settlements",
+            "description": "APIs for Farmer Payment Settlements, Period Preview Calculation, and Settlement Vouchers.",
+            "item": [
+                {
+                    "name": "List Farmer Settlements",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/settlements?per_page=25",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "settlements"
+                            ],
+                            "query": [
+                                {
+                                    "key": "farmer_id",
+                                    "value": "1",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "status",
+                                    "value": "paid",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "25"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Preview Farmer Settlement Calculation",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/settlements/preview?farmer_id=1&period_start=2026-10-01&period_end=2026-10-13",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "settlements",
+                                "preview"
+                            ],
+                            "query": [
+                                {
+                                    "key": "farmer_id",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "period_start",
+                                    "value": "2026-10-01"
+                                },
+                                {
+                                    "key": "period_end",
+                                    "value": "2026-10-13"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create / Process Farmer Settlement",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"farmer_id\": 1,\n  \"period_start\": \"2026-10-01\",\n  \"period_end\": \"2026-10-13\",\n  \"advance_recovered\": 0,\n  \"bonus_amount\": 0,\n  \"deduction_amount\": 0,\n  \"payment_mode\": \"Bank Transfer\",\n  \"payment_reference\": \"UTR987654321\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/settlements",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "settlements"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "View Single Settlement",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/settlements/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "settlements",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Settlement",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/settlements/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "settlements",
+                                "1"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "5. Advance & Loans",
+            "description": "APIs for Farmer Advances, Loans, Repayments, and Farmer Advance Ledgers.",
+            "item": [
+                {
+                    "name": "List Advances & Loans",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/advances?per_page=25",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "advances"
+                            ],
+                            "query": [
+                                {
+                                    "key": "farmer_id",
+                                    "value": "1",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "status",
+                                    "value": "pending",
+                                    "description": "pending | partial | recovered",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "search",
+                                    "value": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "25"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Issue New Farmer Advance",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"farmer_id\": 1,\n  \"advance_date\": \"2026-10-13\",\n  \"amount\": 5000,\n  \"voucher_no\": \"010\",\n  \"interest_rate\": 0,\n  \"payment_mode\": \"Cash\",\n  \"purpose\": \"Festival Advance\",\n  \"notes\": \"Paid in cash\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/advances",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "advances"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "View Single Advance Details",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/advances/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "advances",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Farmer Advance",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"advance_date\": \"2026-10-13\",\n  \"voucher_no\": \"010\",\n  \"amount\": 5000,\n  \"interest_rate\": 2.0,\n  \"paid_amount\": 1000,\n  \"payment_mode\": \"Cash\",\n  \"notes\": \"Updated advance note\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/advances/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "advances",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Receive Advance Repayment",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"farmer_advance_id\": 1,\n  \"repayment_date\": \"2026-10-13\",\n  \"amount\": 1500,\n  \"payment_mode\": \"Cash\",\n  \"remark\": \"Partial repayment received\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/advances/receive",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "advances",
+                                "receive"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Farmer Advance Ledger",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/advances/ledger/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "advances",
+                                "ledger",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Farmer Advance",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/advances/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "advances",
+                                "1"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "6. Deductions",
+            "description": "APIs for Farmer Deductions (Cattle Feed, Medicine, Store Purchase, Insurance, etc.) and Credits.",
+            "item": [
+                {
+                    "name": "List Farmer Deductions",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/deductions?deduction_type=all&per_page=25",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "deductions"
+                            ],
+                            "query": [
+                                {
+                                    "key": "deduction_type",
+                                    "value": "all",
+                                    "description": "all | cattle_feed | medicine | ghee_butter | doctor_fee | insurance | advance_recovery | store_purchase | equipment | other"
+                                },
+                                {
+                                    "key": "transaction_type",
+                                    "value": "given",
+                                    "description": "given | received",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "farmer_id",
+                                    "value": "1",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "25"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Farmer Deduction / Credit Entry",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"farmer_id\": 1,\n  \"entry_date\": \"2026-10-13\",\n  \"deduction_type\": \"cattle_feed\",\n  \"transaction_type\": \"given\",\n  \"amount\": 1250.00,\n  \"comments\": \"2 Bags Cattle Feed issued\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/deductions",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "deductions"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "View Single Deduction",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/deductions/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "deductions",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Farmer Deduction",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"entry_date\": \"2026-10-13\",\n  \"deduction_type\": \"cattle_feed\",\n  \"transaction_type\": \"given\",\n  \"amount\": 1300.00,\n  \"comments\": \"Updated cattle feed amount\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/deductions/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "deductions",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Farmer Deduction History",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/deductions/farmer/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "deductions",
+                                "farmer",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Farmer Deduction",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/deductions/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "deductions",
+                                "1"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "7. Farmer Invoices",
+            "description": "APIs for Farmer Billing & Invoices: Pending/Generated listing, Period Invoice Generation, Verification & Adjustment, Bulk Approve, and Bulk Delete.",
+            "item": [
+                {
+                    "name": "List Farmer Invoices (Pending & Generated)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/farmer-invoices?status=all&start_date=2026-10-01&end_date=2026-10-31&per_page=50",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "farmer-invoices"
+                            ],
+                            "query": [
+                                {
+                                    "key": "status",
+                                    "value": "all",
+                                    "description": "all | pending | generated"
+                                },
+                                {
+                                    "key": "start_date",
+                                    "value": "2026-10-01"
+                                },
+                                {
+                                    "key": "end_date",
+                                    "value": "2026-10-31"
+                                },
+                                {
+                                    "key": "farmer_id",
+                                    "value": "1",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "search",
+                                    "value": "",
+                                    "description": "Invoice number, farmer name, or code",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "50"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Generate Pending Farmer Invoices for Period",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"start_date\": \"2026-10-01\",\n  \"end_date\": \"2026-10-15\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/generate",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "farmer-invoices",
+                                "generate"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "View Single Farmer Invoice (Full Breakdown)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "farmer-invoices",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Preview Farmer Invoice",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/1/preview",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "farmer-invoices",
+                                "1",
+                                "preview"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Verify & Save Farmer Invoice Adjustments",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"stationary_deduction\": 0,\n  \"feed_deduction\": 500,\n  \"advance_deduction\": 200,\n  \"other_deduction\": 0,\n  \"other_credit\": 0,\n  \"transport_credit\": 50,\n  \"subsidy_credit\": 0,\n  \"incentive_credit\": 100,\n  \"round_off\": 0,\n  \"status\": \"generated\",\n  \"payment_mode\": \"Bank Transfer\",\n  \"payment_reference\": \"INV-PAID-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/1/verify-save",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "farmer-invoices",
+                                "1",
+                                "verify-save"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Bulk Approve Farmer Invoices",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"invoice_ids\": [1, 2]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/bulk-approve",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "farmer-invoices",
+                                "bulk-approve"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Bulk Delete Farmer Invoices",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"invoice_ids\": [10, 11]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/bulk-delete",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "farmer-invoices",
+                                "bulk-delete"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Single Farmer Invoice",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                "description": "Bypasses Imunify360 bot-protection"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "procurement",
+                                "farmer-invoices",
+                                "1"
+                            ]
+                        }
+                    }
+                }
+            ]
         }
-      ]
-    },
-    {
-      "name": "3. Rate Charts (Fat/SNF)",
-      "description": "APIs for managing Fat/SNF/CLR Rate Charts, Farmer/Center Assignment, and Historical Rate Corrections.",
-      "item": [
-        {
-          "name": "List Rate Charts",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/rate-charts?status=active&category=collection",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "rate-charts"
-              ],
-              "query": [
-                {
-                  "key": "status",
-                  "value": "active",
-                  "description": "active | inactive | all"
-                },
-                {
-                  "key": "category",
-                  "value": "collection",
-                  "description": "collection | milk_sale | chilling_center | all"
-                },
-                {
-                  "key": "milk_type",
-                  "value": "cow",
-                  "description": "cow | buffalo | mixed",
-                  "disabled": true
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Rate Chart",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Cow Standard Collection Chart 2026\",\n  \"category\": \"collection\",\n  \"milk_type\": \"cow\",\n  \"format\": \"fat_snf\",\n  \"type\": \"rate_per_kg\",\n  \"base_rate\": 36.00,\n  \"fat_factor\": 6.50,\n  \"snf_factor\": 4.20,\n  \"min_fat\": 3.0,\n  \"max_fat\": 8.0,\n  \"min_snf\": 8.0,\n  \"max_snf\": 9.5,\n  \"effective_date\": \"2026-10-01\",\n  \"is_default\": false,\n  \"status\": \"active\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/rate-charts",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "rate-charts"
-              ]
-            }
-          }
-        },
-        {
-          "name": "View Single Rate Chart",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/rate-charts/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "rate-charts",
-                "1"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Update Rate Chart",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Cow Standard Collection Chart 2026 (Updated)\",\n  \"category\": \"collection\",\n  \"milk_type\": \"cow\",\n  \"format\": \"fat_snf\",\n  \"type\": \"rate_per_kg\",\n  \"base_rate\": 38.00,\n  \"fat_factor\": 6.60,\n  \"snf_factor\": 4.30,\n  \"status\": \"active\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/rate-charts/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "rate-charts",
-                "1"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Assign Rate Chart to Farmers & Centers",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"farmer_ids\": [1, 2],\n  \"center_ids\": [1]\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/rate-charts/1/assign",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "rate-charts",
-                "1",
-                "assign"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Apply Historical Rate Correction",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"rate_chart_id\": 1,\n  \"category\": \"collection\",\n  \"milk_type\": \"cow\",\n  \"start_date\": \"2026-10-01\",\n  \"end_date\": \"2026-10-13\",\n  \"start_shift\": \"morning\",\n  \"end_shift\": \"evening\",\n  \"farmer_ids\": [1]\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/rate-charts/apply-correction",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "rate-charts",
-                "apply-correction"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Delete Rate Chart",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/rate-charts/99",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "rate-charts",
-                "99"
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "4. Farmer Settlements",
-      "description": "APIs for Farmer Payment Settlements, Period Preview Calculation, and Settlement Vouchers.",
-      "item": [
-        {
-          "name": "List Farmer Settlements",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/settlements?per_page=25",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "settlements"
-              ],
-              "query": [
-                {
-                  "key": "farmer_id",
-                  "value": "1",
-                  "disabled": true
-                },
-                {
-                  "key": "status",
-                  "value": "paid",
-                  "disabled": true
-                },
-                {
-                  "key": "per_page",
-                  "value": "25"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Preview Farmer Settlement Calculation",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/settlements/preview?farmer_id=1&period_start=2026-10-01&period_end=2026-10-13",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "settlements",
-                "preview"
-              ],
-              "query": [
-                {
-                  "key": "farmer_id",
-                  "value": "1"
-                },
-                {
-                  "key": "period_start",
-                  "value": "2026-10-01"
-                },
-                {
-                  "key": "period_end",
-                  "value": "2026-10-13"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create / Process Farmer Settlement",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"farmer_id\": 1,\n  \"period_start\": \"2026-10-01\",\n  \"period_end\": \"2026-10-13\",\n  \"advance_recovered\": 0,\n  \"bonus_amount\": 0,\n  \"deduction_amount\": 0,\n  \"payment_mode\": \"Bank Transfer\",\n  \"payment_reference\": \"UTR987654321\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/settlements",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "settlements"
-              ]
-            }
-          }
-        },
-        {
-          "name": "View Single Settlement",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/settlements/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "settlements",
-                "1"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Delete Settlement",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/settlements/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "settlements",
-                "1"
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "5. Advance & Loans",
-      "description": "APIs for Farmer Advances, Loans, Repayments, and Farmer Advance Ledgers.",
-      "item": [
-        {
-          "name": "List Advances & Loans",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/advances?per_page=25",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "advances"
-              ],
-              "query": [
-                {
-                  "key": "farmer_id",
-                  "value": "1",
-                  "disabled": true
-                },
-                {
-                  "key": "status",
-                  "value": "pending",
-                  "description": "pending | partial | recovered",
-                  "disabled": true
-                },
-                {
-                  "key": "search",
-                  "value": "",
-                  "disabled": true
-                },
-                {
-                  "key": "per_page",
-                  "value": "25"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Issue New Farmer Advance",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"farmer_id\": 1,\n  \"advance_date\": \"2026-10-13\",\n  \"amount\": 5000,\n  \"voucher_no\": \"010\",\n  \"interest_rate\": 0,\n  \"payment_mode\": \"Cash\",\n  \"purpose\": \"Festival Advance\",\n  \"notes\": \"Paid in cash\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/advances",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "advances"
-              ]
-            }
-          }
-        },
-        {
-          "name": "View Single Advance Details",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/advances/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "advances",
-                "1"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Update Farmer Advance",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"advance_date\": \"2026-10-13\",\n  \"voucher_no\": \"010\",\n  \"amount\": 5000,\n  \"interest_rate\": 2.0,\n  \"paid_amount\": 1000,\n  \"payment_mode\": \"Cash\",\n  \"notes\": \"Updated advance note\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/advances/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "advances",
-                "1"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Receive Advance Repayment",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"farmer_advance_id\": 1,\n  \"repayment_date\": \"2026-10-13\",\n  \"amount\": 1500,\n  \"payment_mode\": \"Cash\",\n  \"remark\": \"Partial repayment received\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/advances/receive",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "advances",
-                "receive"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Farmer Advance Ledger",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/advances/ledger/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "advances",
-                "ledger",
-                "1"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Delete Farmer Advance",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/advances/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "advances",
-                "1"
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "6. Deductions",
-      "description": "APIs for Farmer Deductions (Cattle Feed, Medicine, Store Purchase, Insurance, etc.) and Credits.",
-      "item": [
-        {
-          "name": "List Farmer Deductions",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/deductions?deduction_type=all&per_page=25",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "deductions"
-              ],
-              "query": [
-                {
-                  "key": "deduction_type",
-                  "value": "all",
-                  "description": "all | cattle_feed | medicine | ghee_butter | doctor_fee | insurance | advance_recovery | store_purchase | equipment | other"
-                },
-                {
-                  "key": "transaction_type",
-                  "value": "given",
-                  "description": "given | received",
-                  "disabled": true
-                },
-                {
-                  "key": "farmer_id",
-                  "value": "1",
-                  "disabled": true
-                },
-                {
-                  "key": "per_page",
-                  "value": "25"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Farmer Deduction / Credit Entry",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"farmer_id\": 1,\n  \"entry_date\": \"2026-10-13\",\n  \"deduction_type\": \"cattle_feed\",\n  \"transaction_type\": \"given\",\n  \"amount\": 1250.00,\n  \"comments\": \"2 Bags Cattle Feed issued\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/deductions",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "deductions"
-              ]
-            }
-          }
-        },
-        {
-          "name": "View Single Deduction",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/deductions/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "deductions",
-                "1"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Update Farmer Deduction",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"entry_date\": \"2026-10-13\",\n  \"deduction_type\": \"cattle_feed\",\n  \"transaction_type\": \"given\",\n  \"amount\": 1300.00,\n  \"comments\": \"Updated cattle feed amount\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/deductions/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "deductions",
-                "1"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Farmer Deduction History",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/deductions/farmer/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "deductions",
-                "farmer",
-                "1"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Delete Farmer Deduction",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/deductions/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "deductions",
-                "1"
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "7. Farmer Invoices",
-      "description": "APIs for Farmer Billing & Invoices: Pending/Generated listing, Period Invoice Generation, Verification & Adjustment, Bulk Approve, and Bulk Delete.",
-      "item": [
-        {
-          "name": "List Farmer Invoices (Pending & Generated)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/farmer-invoices?status=all&start_date=2026-10-01&end_date=2026-10-31&per_page=50",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "farmer-invoices"
-              ],
-              "query": [
-                {
-                  "key": "status",
-                  "value": "all",
-                  "description": "all | pending | generated"
-                },
-                {
-                  "key": "start_date",
-                  "value": "2026-10-01"
-                },
-                {
-                  "key": "end_date",
-                  "value": "2026-10-31"
-                },
-                {
-                  "key": "farmer_id",
-                  "value": "1",
-                  "disabled": true
-                },
-                {
-                  "key": "search",
-                  "value": "",
-                  "description": "Invoice number, farmer name, or code",
-                  "disabled": true
-                },
-                {
-                  "key": "per_page",
-                  "value": "50"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Generate Pending Farmer Invoices for Period",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"start_date\": \"2026-10-01\",\n  \"end_date\": \"2026-10-15\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/generate",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "farmer-invoices",
-                "generate"
-              ]
-            }
-          }
-        },
-        {
-          "name": "View Single Farmer Invoice (Full Breakdown)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "farmer-invoices",
-                "1"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Preview Farmer Invoice",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/1/preview",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "farmer-invoices",
-                "1",
-                "preview"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Verify & Save Farmer Invoice Adjustments",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"stationary_deduction\": 0,\n  \"feed_deduction\": 500,\n  \"advance_deduction\": 200,\n  \"other_deduction\": 0,\n  \"other_credit\": 0,\n  \"transport_credit\": 50,\n  \"subsidy_credit\": 0,\n  \"incentive_credit\": 100,\n  \"round_off\": 0,\n  \"status\": \"generated\",\n  \"payment_mode\": \"Bank Transfer\",\n  \"payment_reference\": \"INV-PAID-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/1/verify-save",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "farmer-invoices",
-                "1",
-                "verify-save"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Bulk Approve Farmer Invoices",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"invoice_ids\": [1, 2]\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/bulk-approve",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "farmer-invoices",
-                "bulk-approve"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Bulk Delete Farmer Invoices",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"invoice_ids\": [10, 11]\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/bulk-delete",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "farmer-invoices",
-                "bulk-delete"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Delete Single Farmer Invoice",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "procurement",
-                "farmer-invoices",
-                "1"
-              ]
-            }
-          }
-        }
-      ]
-    }
-  ]
+    ]
 }

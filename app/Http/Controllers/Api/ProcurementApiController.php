@@ -38,7 +38,7 @@ class ProcurementApiController extends Controller
      */
     public function collectionsIndex(Request $request)
     {
-        $query = MilkCollection::with(['farmer', 'collectionCenter', 'collector']);
+        $query = MilkCollection::with(['farmer', 'collectionCenter', 'operator']);
 
         if ($request->filled('date')) {
             $query->whereDate('collection_date', $request->date);
@@ -70,7 +70,7 @@ class ProcurementApiController extends Controller
         if ($request->filled('search')) {
             $search = trim($request->search);
             $query->where(function ($q) use ($search) {
-                $q->where('slip_number', 'like', "%{$search}%")
+                $q->where('receipt_number', 'like', "%{$search}%")
                   ->orWhereHas('farmer', function ($fq) use ($search) {
                       $fq->where('name', 'like', "%{$search}%")
                          ->orWhere('farmer_code', 'like', "%{$search}%")
@@ -90,14 +90,21 @@ class ProcurementApiController extends Controller
             $shiftQuery->where('shift', $todayShift);
         }
 
+        $avgFat = 0.0;
+        $avgSnf = 0.0;
+        try {
+            $avgFat = round((float) ((clone $shiftQuery)->avg('fat') ?? (clone $shiftQuery)->avg('fat_percentage') ?? 0), 2);
+            $avgSnf = round((float) ((clone $shiftQuery)->avg('snf') ?? (clone $shiftQuery)->avg('snf_percentage') ?? 0), 2);
+        } catch (\Throwable $e) {}
+
         $shiftStats = [
             'date' => $today,
             'shift' => $todayShift ?: 'all',
             'total_entries' => (int) (clone $shiftQuery)->count(),
             'total_liters' => round((float) (clone $shiftQuery)->sum('quantity_liters'), 2),
             'total_amount' => round((float) (clone $shiftQuery)->sum('net_amount'), 2),
-            'avg_fat' => round((float) ((clone $shiftQuery)->avg('fat_percentage') ?? 0), 2),
-            'avg_snf' => round((float) ((clone $shiftQuery)->avg('snf_percentage') ?? 0), 2),
+            'avg_fat' => $avgFat,
+            'avg_snf' => $avgSnf,
             'cow_liters' => round((float) (clone $shiftQuery)->where('milk_type', 'cow')->sum('quantity_liters'), 2),
             'buffalo_liters' => round((float) (clone $shiftQuery)->where('milk_type', 'buffalo')->sum('quantity_liters'), 2),
         ];
@@ -105,7 +112,8 @@ class ProcurementApiController extends Controller
         $previousCollectionRecord = MilkCollection::with('farmer')->latest('collection_date')->latest('id')->first();
         $previousCollection = $previousCollectionRecord ? [
             'id' => $previousCollectionRecord->id,
-            'slip_number' => $previousCollectionRecord->slip_number,
+            'receipt_number' => $previousCollectionRecord->receipt_number,
+            'slip_number' => $previousCollectionRecord->receipt_number,
             'collection_date' => optional($previousCollectionRecord->collection_date)->format('Y-m-d'),
             'shift' => $previousCollectionRecord->shift,
             'farmer_id' => $previousCollectionRecord->farmer_id,
@@ -113,9 +121,11 @@ class ProcurementApiController extends Controller
             'farmer_name' => $previousCollectionRecord->farmer->name ?? null,
             'milk_type' => $previousCollectionRecord->milk_type,
             'quantity_liters' => (float) $previousCollectionRecord->quantity_liters,
-            'fat_percentage' => (float) $previousCollectionRecord->fat_percentage,
+            'fat' => (float) ($previousCollectionRecord->fat ?? $previousCollectionRecord->fat_percentage ?? 0),
+            'fat_percentage' => (float) ($previousCollectionRecord->fat ?? $previousCollectionRecord->fat_percentage ?? 0),
             'clr' => (float) $previousCollectionRecord->clr,
-            'snf_percentage' => (float) $previousCollectionRecord->snf_percentage,
+            'snf' => (float) ($previousCollectionRecord->snf ?? $previousCollectionRecord->snf_percentage ?? 0),
+            'snf_percentage' => (float) ($previousCollectionRecord->snf ?? $previousCollectionRecord->snf_percentage ?? 0),
             'applied_rate' => (float) $previousCollectionRecord->applied_rate,
             'net_amount' => (float) $previousCollectionRecord->net_amount,
         ] : null;
@@ -173,9 +183,9 @@ class ProcurementApiController extends Controller
     public function collectionsCalculateRate(Request $request)
     {
         $milkType = $request->get('milk_type', 'cow');
-        $fat = (float) $request->get('fat', 4.0);
+        $fat = (float) ($request->get('fat') ?? $request->get('fat_percentage') ?? 4.0);
         $clr = (float) $request->get('clr', 0);
-        $snf = (float) $request->get('snf', 0);
+        $snf = (float) ($request->get('snf') ?? $request->get('snf_percentage') ?? 0);
         $liters = (float) $request->get('liters', $request->get('quantity_liters', 1.0));
         $farmerId = $request->get('farmer_id');
 
@@ -209,7 +219,9 @@ class ProcurementApiController extends Controller
                 'success' => true,
                 'data' => [
                     'rate' => $rate,
+                    'fat' => round($fat, 2),
                     'snf' => round($snf, 2),
+                    'clr' => round($clr, 2),
                     'gross_amount' => $gross,
                     'net_amount' => $gross,
                     'chart_name' => 'Farmer Fixed Rate',
@@ -236,7 +248,9 @@ class ProcurementApiController extends Controller
             'success' => true,
             'data' => [
                 'rate' => $rate,
+                'fat' => round($fat, 2),
                 'snf' => round($snf, 2),
+                'clr' => round($clr, 2),
                 'gross_amount' => $gross,
                 'net_amount' => $gross,
                 'chart_id' => $chart->id ?? null,
@@ -258,72 +272,106 @@ class ProcurementApiController extends Controller
             'collection_center_id' => 'nullable|exists:collection_centers,id',
             'milk_type' => 'required|in:cow,buffalo,mixed',
             'quantity_liters' => 'required|numeric|min:0.1',
-            'fat_percentage' => 'required|numeric|min:1|max:15',
-            'clr' => 'nullable|numeric|min:0|max:45',
-            'snf_percentage' => 'nullable|numeric|min:1|max:15',
-            'applied_rate' => 'required|numeric|min:1',
+            'fat' => 'nullable|numeric|min:0|max:20',
+            'fat_percentage' => 'nullable|numeric|min:0|max:20',
+            'clr' => 'nullable|numeric|min:0|max:50',
+            'snf' => 'nullable|numeric|min:0|max:20',
+            'snf_percentage' => 'nullable|numeric|min:0|max:20',
+            'applied_rate' => 'required|numeric|min:0.1',
+            'bonus' => 'nullable|numeric|min:0',
             'bonus_amount' => 'nullable|numeric|min:0',
+            'deduction' => 'nullable|numeric|min:0',
             'deduction_amount' => 'nullable|numeric|min:0',
-            'deduction_reason' => 'nullable|string',
+            'notes' => 'nullable|string|max:500',
+            'deduction_reason' => 'nullable|string|max:500',
+            'receipt_number' => 'nullable|string|max:50',
+            'slip_number' => 'nullable|string|max:50',
             'sample_no' => 'nullable|string|max:50',
             'can_details' => 'nullable|string',
         ]);
 
         $farmer = Farmer::findOrFail($validated['farmer_id']);
 
+        $fat = (float) ($request->input('fat') ?? $request->input('fat_percentage') ?? 4.0);
         $clr = (float) ($validated['clr'] ?? 0);
-        $snf = (float) ($validated['snf_percentage'] ?? 0);
+        $snf = (float) ($request->input('snf') ?? $request->input('snf_percentage') ?? 0);
+
         if ($snf <= 0 && $clr > 0) {
-            $snf = RateChart::clrToSnf($clr, (float) $validated['fat_percentage']);
+            $snf = RateChart::clrToSnf($clr, $fat);
         } elseif ($snf <= 0) {
             $snf = 8.5;
         }
 
         $liters = (float) $validated['quantity_liters'];
         $rate = (float) $validated['applied_rate'];
-        $bonus = (float) ($validated['bonus_amount'] ?? 0);
-        $deduction = (float) ($validated['deduction_amount'] ?? 0);
+        $bonus = (float) ($request->input('bonus') ?? $request->input('bonus_amount') ?? 0);
+        $deduction = (float) ($request->input('deduction') ?? $request->input('deduction_amount') ?? 0);
+        $notes = $request->input('notes') ?? $request->input('deduction_reason') ?? null;
 
         $grossAmount = round($liters * $rate, 2);
         $netAmount = round($grossAmount + $bonus - $deduction, 2);
 
-        $dateStr = Carbon::parse($validated['collection_date'])->format('Ymd');
-        $shiftCode = $validated['shift'] === 'morning' ? 'M' : 'E';
-        $nextId = (MilkCollection::max('id') ?? 0) + 1;
-        $slipNumber = "SLP-{$dateStr}-{$shiftCode}-" . str_pad($nextId, 4, '0', STR_PAD_LEFT);
+        $receiptNumber = $request->input('receipt_number') ?: $request->input('slip_number');
+        if (empty($receiptNumber)) {
+            $nextId = (MilkCollection::max('id') ?? 0) + 1001;
+            $receiptNumber = 'COL-' . $nextId;
+        }
 
         $collectionData = [
-            'slip_number' => $slipNumber,
+            'receipt_number' => $receiptNumber,
+            'farmer_id' => $farmer->id,
+            'collection_center_id' => $validated['collection_center_id'] ?? $farmer->collection_center_id,
+            'operator_id' => Auth::id(),
             'collection_date' => $validated['collection_date'],
             'shift' => $validated['shift'],
-            'farmer_id' => $farmer->id,
-            'branch_id' => $farmer->branch_id ?? 1,
-            'collection_center_id' => $validated['collection_center_id'] ?? $farmer->collection_center_id,
             'milk_type' => $validated['milk_type'],
             'quantity_liters' => $liters,
-            'quantity_kg' => round($liters * 1.03, 2),
-            'fat_percentage' => $validated['fat_percentage'],
-            'clr' => $clr,
-            'snf_percentage' => $snf,
-            'water_percentage' => 0,
+            'fat' => $fat,
+            'clr' => $clr > 0 ? $clr : null,
+            'snf' => $snf,
             'calculated_rate' => $rate,
             'applied_rate' => $rate,
             'gross_amount' => $grossAmount,
-            'bonus_amount' => $bonus,
-            'deduction_amount' => $deduction,
+            'bonus' => $bonus,
+            'deduction' => $deduction,
             'net_amount' => $netAmount,
-            'deduction_reason' => $validated['deduction_reason'] ?? null,
-            'is_manual_override' => false,
             'payment_status' => 'pending',
-            'collected_by' => Auth::id(),
+            'notes' => $notes,
         ];
 
-        if (Schema::hasColumn('milk_collections', 'sample_no')) {
-            $collectionData['sample_no'] = $validated['sample_no'] ?? null;
-        }
-        if (Schema::hasColumn('milk_collections', 'can_details')) {
-            $collectionData['can_details'] = $validated['can_details'] ?? null;
-        }
+        try {
+            $tableCols = Schema::getColumnListing('milk_collections');
+            if (in_array('slip_number', $tableCols)) {
+                $collectionData['slip_number'] = $receiptNumber;
+            }
+            if (in_array('collected_by', $tableCols)) {
+                $collectionData['collected_by'] = Auth::id();
+            }
+            if (in_array('fat_percentage', $tableCols)) {
+                $collectionData['fat_percentage'] = $fat;
+            }
+            if (in_array('snf_percentage', $tableCols)) {
+                $collectionData['snf_percentage'] = $snf;
+            }
+            if (in_array('bonus_amount', $tableCols)) {
+                $collectionData['bonus_amount'] = $bonus;
+            }
+            if (in_array('deduction_amount', $tableCols)) {
+                $collectionData['deduction_amount'] = $deduction;
+            }
+            if (in_array('deduction_reason', $tableCols)) {
+                $collectionData['deduction_reason'] = $notes;
+            }
+            if (in_array('quantity_kg', $tableCols)) {
+                $collectionData['quantity_kg'] = round($liters * 1.03, 2);
+            }
+            if (in_array('sample_no', $tableCols) && !empty($validated['sample_no'])) {
+                $collectionData['sample_no'] = $validated['sample_no'];
+            }
+            if (in_array('can_details', $tableCols) && !empty($validated['can_details'])) {
+                $collectionData['can_details'] = $validated['can_details'];
+            }
+        } catch (\Throwable $e) {}
 
         $collection = MilkCollection::create($collectionData);
 
@@ -338,21 +386,21 @@ class ProcurementApiController extends Controller
             'balance' => $newBalance,
             'reference_type' => 'milk_collection',
             'reference_id' => $collection->id,
-            'description' => ucfirst($validated['shift']) . " Milk Intake ({$liters} L @ ₹{$rate}) - Slip #{$slipNumber}",
+            'description' => ucfirst($validated['shift']) . " Milk Intake ({$liters} L @ ₹{$rate}) - Receipt #{$receiptNumber}",
         ]);
 
         AuditLog::log('Created Milk Collection (API)', 'MilkCollection', $collection->id, [
-            'slip' => $slipNumber,
+            'receipt' => $receiptNumber,
             'farmer' => $farmer->name,
             'liters' => $liters,
             'net' => $netAmount,
         ]);
 
-        $collection->load(['farmer', 'collectionCenter']);
+        $collection->load(['farmer', 'collectionCenter', 'operator']);
 
         return response()->json([
             'success' => true,
-            'message' => "Collection Slip #{$slipNumber} saved for {$farmer->name} ({$liters} L = ₹" . number_format($netAmount, 2) . ")",
+            'message' => "Collection Receipt #{$receiptNumber} saved for {$farmer->name} ({$liters} L = ₹" . number_format($netAmount, 2) . ")",
             'data' => $collection,
         ], 201);
     }
@@ -363,7 +411,7 @@ class ProcurementApiController extends Controller
      */
     public function collectionsShow(MilkCollection $collection)
     {
-        $collection->load(['farmer', 'collectionCenter', 'collector']);
+        $collection->load(['farmer', 'collectionCenter', 'operator']);
         return response()->json([
             'success' => true,
             'data' => $collection,
@@ -381,77 +429,108 @@ class ProcurementApiController extends Controller
             'shift' => 'nullable|in:morning,evening',
             'milk_type' => 'required|in:cow,buffalo,mixed',
             'quantity_liters' => 'required|numeric|min:0.1',
-            'fat_percentage' => 'required|numeric|min:1|max:15',
-            'clr' => 'nullable|numeric|min:0|max:45',
-            'snf_percentage' => 'nullable|numeric|min:1|max:15',
-            'applied_rate' => 'required|numeric|min:1',
+            'fat' => 'nullable|numeric|min:0|max:20',
+            'fat_percentage' => 'nullable|numeric|min:0|max:20',
+            'clr' => 'nullable|numeric|min:0|max:50',
+            'snf' => 'nullable|numeric|min:0|max:20',
+            'snf_percentage' => 'nullable|numeric|min:0|max:20',
+            'applied_rate' => 'required|numeric|min:0.1',
+            'bonus' => 'nullable|numeric|min:0',
             'bonus_amount' => 'nullable|numeric|min:0',
+            'deduction' => 'nullable|numeric|min:0',
             'deduction_amount' => 'nullable|numeric|min:0',
-            'deduction_reason' => 'nullable|string',
+            'notes' => 'nullable|string|max:500',
+            'deduction_reason' => 'nullable|string|max:500',
         ]);
 
         $farmer = $collection->farmer;
         $oldNetAmount = (float) $collection->net_amount;
 
+        $fat = (float) ($request->input('fat') ?? $request->input('fat_percentage') ?? $collection->fat ?? 4.0);
         $clr = (float) ($validated['clr'] ?? $collection->clr ?? 0);
-        $snf = (float) ($validated['snf_percentage'] ?? 0);
+        $snf = (float) ($request->input('snf') ?? $request->input('snf_percentage') ?? $collection->snf ?? 0);
+
         if ($snf <= 0 && $clr > 0) {
-            $snf = RateChart::clrToSnf($clr, (float) $validated['fat_percentage']);
+            $snf = RateChart::clrToSnf($clr, $fat);
         } elseif ($snf <= 0) {
-            $snf = (float) $collection->snf_percentage ?: 8.5;
+            $snf = (float) ($collection->snf ?? 8.5);
         }
 
         $liters = (float) $validated['quantity_liters'];
         $rate = (float) $validated['applied_rate'];
-        $bonus = (float) ($validated['bonus_amount'] ?? $collection->bonus_amount ?? 0);
-        $deduction = (float) ($validated['deduction_amount'] ?? $collection->deduction_amount ?? 0);
+        $bonus = (float) ($request->input('bonus') ?? $request->input('bonus_amount') ?? $collection->bonus ?? 0);
+        $deduction = (float) ($request->input('deduction') ?? $request->input('deduction_amount') ?? $collection->deduction ?? 0);
+        $notes = $request->input('notes') ?? $request->input('deduction_reason') ?? $collection->notes;
 
         $grossAmount = round($liters * $rate, 2);
         $newNetAmount = round($grossAmount + $bonus - $deduction, 2);
 
-        $collection->update([
+        $updateData = [
             'collection_date' => $validated['collection_date'] ?? $collection->collection_date,
             'shift' => $validated['shift'] ?? $collection->shift,
             'milk_type' => $validated['milk_type'],
             'quantity_liters' => $liters,
-            'quantity_kg' => round($liters * 1.03, 2),
-            'fat_percentage' => $validated['fat_percentage'],
-            'clr' => $clr,
-            'snf_percentage' => $snf,
+            'fat' => $fat,
+            'clr' => $clr > 0 ? $clr : null,
+            'snf' => $snf,
             'calculated_rate' => $rate,
             'applied_rate' => $rate,
             'gross_amount' => $grossAmount,
-            'bonus_amount' => $bonus,
-            'deduction_amount' => $deduction,
+            'bonus' => $bonus,
+            'deduction' => $deduction,
             'net_amount' => $newNetAmount,
-            'deduction_reason' => $validated['deduction_reason'] ?? $collection->deduction_reason,
-            'is_manual_override' => true,
-        ]);
+            'notes' => $notes,
+        ];
+
+        try {
+            $tableCols = Schema::getColumnListing('milk_collections');
+            if (in_array('fat_percentage', $tableCols)) {
+                $updateData['fat_percentage'] = $fat;
+            }
+            if (in_array('snf_percentage', $tableCols)) {
+                $updateData['snf_percentage'] = $snf;
+            }
+            if (in_array('bonus_amount', $tableCols)) {
+                $updateData['bonus_amount'] = $bonus;
+            }
+            if (in_array('deduction_amount', $tableCols)) {
+                $updateData['deduction_amount'] = $deduction;
+            }
+            if (in_array('deduction_reason', $tableCols)) {
+                $updateData['deduction_reason'] = $notes;
+            }
+            if (in_array('quantity_kg', $tableCols)) {
+                $updateData['quantity_kg'] = round($liters * 1.03, 2);
+            }
+        } catch (\Throwable $e) {}
+
+        $collection->update($updateData);
 
         if ($farmer) {
             $diff = round($newNetAmount - $oldNetAmount, 2);
             $newBalance = round((float) $farmer->current_balance + $diff, 2);
             $farmer->update(['current_balance' => $newBalance]);
 
+            $receiptNum = $collection->receipt_number ?? $collection->slip_number ?? $collection->id;
             FarmerLedger::where('reference_type', 'milk_collection')
                 ->where('reference_id', $collection->id)
                 ->update([
                     'amount' => $newNetAmount,
                     'balance' => $newBalance,
-                    'description' => ucfirst($collection->shift) . " Milk Intake ({$liters} L @ ₹{$rate}) - Slip #{$collection->slip_number} (Updated)",
+                    'description' => ucfirst($collection->shift) . " Milk Intake ({$liters} L @ ₹{$rate}) - Receipt #{$receiptNum} (Updated)",
                 ]);
         }
 
         AuditLog::log('Updated Milk Collection (API)', 'MilkCollection', $collection->id, [
-            'slip' => $collection->slip_number,
+            'receipt' => $collection->receipt_number ?? $collection->slip_number,
             'old_net' => $oldNetAmount,
             'new_net' => $newNetAmount,
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => "Collection Slip #{$collection->slip_number} updated successfully.",
-            'data' => $collection->fresh(['farmer', 'collectionCenter']),
+            'message' => "Collection Receipt #" . ($collection->receipt_number ?? $collection->slip_number) . " updated successfully.",
+            'data' => $collection->fresh(['farmer', 'collectionCenter', 'operator']),
         ]);
     }
 
@@ -461,7 +540,7 @@ class ProcurementApiController extends Controller
      */
     public function collectionsDestroy(MilkCollection $collection)
     {
-        $slip = $collection->slip_number;
+        $slip = $collection->receipt_number ?? $collection->slip_number ?? ('ID-' . $collection->id);
         $farmer = $collection->farmer;
         $netAmount = (float) $collection->net_amount;
 
@@ -476,11 +555,11 @@ class ProcurementApiController extends Controller
 
         $collection->delete();
 
-        AuditLog::log('Deleted Milk Collection (API)', 'MilkCollection', $collection->id, ['slip' => $slip]);
+        AuditLog::log('Deleted Milk Collection (API)', 'MilkCollection', $collection->id, ['receipt' => $slip]);
 
         return response()->json([
             'success' => true,
-            'message' => "Collection Slip #{$slip} deleted successfully.",
+            'message' => "Collection Receipt #{$slip} deleted successfully.",
         ]);
     }
 
