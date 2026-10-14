@@ -11,24 +11,31 @@ class MilkCollection extends Model
 
     protected $fillable = [
         'receipt_number',
+        'slip_number',
         'farmer_id',
         'collection_center_id',
         'operator_id',
+        'collected_by',
         'collection_date',
         'shift',
         'milk_type',
         'quantity_liters',
         'fat',
+        'fat_percentage',
         'snf',
+        'snf_percentage',
         'clr',
         'calculated_rate',
         'applied_rate',
         'gross_amount',
         'bonus',
+        'bonus_amount',
         'deduction',
+        'deduction_amount',
         'net_amount',
         'payment_status',
         'notes',
+        'deduction_reason',
     ];
 
     protected $casts = [
@@ -52,6 +59,16 @@ class MilkCollection extends Model
         'bonus_amount',
         'deduction_amount',
     ];
+
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            if (empty($model->receipt_number)) {
+                $nextId = (static::max('id') ?? 0) + 1001;
+                $model->receipt_number = 'COL-' . $nextId;
+            }
+        });
+    }
 
     public function farmer()
     {
@@ -130,5 +147,15 @@ class MilkCollection extends Model
     public function setDeductionAmountAttribute($value)
     {
         $this->attributes['deduction'] = $value;
+    }
+
+    public function setCollectedByAttribute($value)
+    {
+        $this->attributes['operator_id'] = $value;
+    }
+
+    public function setDeductionReasonAttribute($value)
+    {
+        $this->attributes['notes'] = $value;
     }
 }

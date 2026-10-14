@@ -317,63 +317,62 @@ class ProcurementApiController extends Controller
             $receiptNumber = 'COL-' . $nextId;
         }
 
-        $collectionData = [
-            'receipt_number' => $receiptNumber,
-            'farmer_id' => $farmer->id,
-            'collection_center_id' => $validated['collection_center_id'] ?? $farmer->collection_center_id,
-            'operator_id' => Auth::id(),
-            'collection_date' => $validated['collection_date'],
-            'shift' => $validated['shift'],
-            'milk_type' => $validated['milk_type'],
-            'quantity_liters' => $liters,
-            'fat' => $fat,
-            'clr' => $clr > 0 ? $clr : null,
-            'snf' => $snf,
-            'calculated_rate' => $rate,
-            'applied_rate' => $rate,
-            'gross_amount' => $grossAmount,
-            'bonus' => $bonus,
-            'deduction' => $deduction,
-            'net_amount' => $netAmount,
-            'payment_status' => 'pending',
-            'notes' => $notes,
-        ];
+        $collection = new MilkCollection();
+        $collection->receipt_number = $receiptNumber;
+        $collection->farmer_id = $farmer->id;
+        $collection->collection_center_id = $validated['collection_center_id'] ?? $farmer->collection_center_id;
+        $collection->operator_id = Auth::id();
+        $collection->collection_date = $validated['collection_date'];
+        $collection->shift = $validated['shift'];
+        $collection->milk_type = $validated['milk_type'];
+        $collection->quantity_liters = $liters;
+        $collection->fat = $fat;
+        $collection->clr = $clr > 0 ? $clr : null;
+        $collection->snf = $snf;
+        $collection->calculated_rate = $rate;
+        $collection->applied_rate = $rate;
+        $collection->gross_amount = $grossAmount;
+        $collection->bonus = $bonus;
+        $collection->deduction = $deduction;
+        $collection->net_amount = $netAmount;
+        $collection->payment_status = 'pending';
+        $collection->notes = $notes;
 
         try {
             $tableCols = Schema::getColumnListing('milk_collections');
             if (in_array('slip_number', $tableCols)) {
-                $collectionData['slip_number'] = $receiptNumber;
+                $collection->slip_number = $receiptNumber;
             }
             if (in_array('collected_by', $tableCols)) {
-                $collectionData['collected_by'] = Auth::id();
+                $collection->collected_by = Auth::id();
             }
             if (in_array('fat_percentage', $tableCols)) {
-                $collectionData['fat_percentage'] = $fat;
+                $collection->fat_percentage = $fat;
             }
             if (in_array('snf_percentage', $tableCols)) {
-                $collectionData['snf_percentage'] = $snf;
+                $collection->snf_percentage = $snf;
             }
             if (in_array('bonus_amount', $tableCols)) {
-                $collectionData['bonus_amount'] = $bonus;
+                $collection->bonus_amount = $bonus;
             }
             if (in_array('deduction_amount', $tableCols)) {
-                $collectionData['deduction_amount'] = $deduction;
+                $collection->deduction_amount = $deduction;
             }
             if (in_array('deduction_reason', $tableCols)) {
-                $collectionData['deduction_reason'] = $notes;
+                $collection->deduction_reason = $notes;
             }
             if (in_array('quantity_kg', $tableCols)) {
-                $collectionData['quantity_kg'] = round($liters * 1.03, 2);
+                $collection->quantity_kg = round($liters * 1.03, 2);
             }
             if (in_array('sample_no', $tableCols) && !empty($validated['sample_no'])) {
-                $collectionData['sample_no'] = $validated['sample_no'];
+                $collection->sample_no = $validated['sample_no'];
             }
             if (in_array('can_details', $tableCols) && !empty($validated['can_details'])) {
-                $collectionData['can_details'] = $validated['can_details'];
+                $collection->can_details = $validated['can_details'];
             }
         } catch (\Throwable $e) {}
 
-        $collection = MilkCollection::create($collectionData);
+        $collection->save();
 
         $newBalance = round((float) $farmer->current_balance + $netAmount, 2);
         $farmer->update(['current_balance' => $newBalance]);
