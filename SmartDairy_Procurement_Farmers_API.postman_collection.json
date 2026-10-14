@@ -948,7 +948,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"farmer_ids\": [1, 2],\n  \"center_ids\": [1]\n}"
+                            "raw": "{\n  \"farmer_ids\": [{{farmer_id}}],\n  \"center_ids\": []\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/v1/procurement/rate-charts/{{rate_chart_id}}/assign",
@@ -987,7 +987,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"rate_chart_id\": 1,\n  \"category\": \"collection\",\n  \"milk_type\": \"cow\",\n  \"start_date\": \"2026-10-01\",\n  \"end_date\": \"2026-10-13\",\n  \"start_shift\": \"morning\",\n  \"end_shift\": \"evening\",\n  \"farmer_ids\": [1]\n}"
+                            "raw": "{\n  \"rate_chart_id\": {{rate_chart_id}},\n  \"category\": \"collection\",\n  \"milk_type\": \"cow\",\n  \"start_date\": \"2026-10-01\",\n  \"end_date\": \"2026-10-14\",\n  \"start_shift\": \"morning\",\n  \"end_shift\": \"evening\",\n  \"farmer_ids\": [{{farmer_id}}]\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/v1/procurement/rate-charts/apply-correction",

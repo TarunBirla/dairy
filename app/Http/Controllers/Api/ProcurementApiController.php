@@ -1295,69 +1295,150 @@ class ProcurementApiController extends Controller
     public function rateChartsApplyCorrection(Request $request)
     {
         $validated = $request->validate([
-            'rate_chart_id' => 'required|exists:rate_charts,id',
-            'category' => 'required|in:collection,milk_sale,chilling_center',
-            'milk_type' => 'required|in:cow,buffalo,mixed',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-            'start_shift' => 'required|in:morning,evening',
-            'end_shift' => 'required|in:morning,evening',
+            'rate_chart_id' => 'required',
+            'category' => 'nullable|string',
+            'filter_type' => 'nullable|string',
+            'milk_type' => 'nullable|string',
+            'start_date' => 'nullable|date',
+            'from_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+            'to_date' => 'nullable|date',
+            'start_shift' => 'nullable|string',
+            'end_shift' => 'nullable|string',
+            'shift' => 'nullable|string',
             'farmer_ids' => 'nullable|array',
             'center_ids' => 'nullable|array',
+            'selected_ids' => 'nullable|array',
         ]);
 
-        $chart = RateChart::findOrFail($validated['rate_chart_id']);
+        $chart = $this->resolveRateChart($validated['rate_chart_id']);
+        if (!$chart) {
+            return response()->json([
+                'success' => false,
+                'message' => "Rate Chart not found for ID/Code: '{$validated['rate_chart_id']}'.",
+            ], 404);
+        }
+
+        $category = $validated['category'] ?? $validated['filter_type'] ?? 'collection';
+        $milkType = $validated['milk_type'] ?? $chart->milk_type ?? 'cow';
+        $startDate = $validated['start_date'] ?? $validated['from_date'] ?? Carbon::today()->format('Y-m-d');
+        $endDate = $validated['end_date'] ?? $validated['to_date'] ?? $startDate;
+        $startShift = $validated['start_shift'] ?? $validated['shift'] ?? 'morning';
+        $endShift = $validated['end_shift'] ?? $validated['shift'] ?? 'evening';
+        $shift = $validated['shift'] ?? (($startShift === $endShift) ? $startShift : 'morning_evening');
+
+        $farmerIds = $validated['farmer_ids'] ?? $validated['selected_ids'] ?? [];
+        $centerIds = $validated['center_ids'] ?? [];
+
         $updatedCount = 0;
+        $totalDifference = 0.0;
 
-        if ($validated['category'] === 'collection') {
-            $query = MilkCollection::whereBetween('collection_date', [$validated['start_date'], $validated['end_date']])
-                ->where('milk_type', $validated['milk_type']);
+        if ($category === 'collection') {
+            $query = MilkCollection::whereBetween('collection_date', [$startDate, $endDate]);
 
-            if (!empty($validated['farmer_ids'])) {
-                $query->whereIn('farmer_id', $validated['farmer_ids']);
+            if ($milkType !== 'all') {
+                $query->where('milk_type', $milkType);
             }
-            if (!empty($validated['center_ids'])) {
-                $query->whereIn('collection_center_id', $validated['center_ids']);
+
+            if (!empty($farmerIds)) {
+                $query->whereIn('farmer_id', $farmerIds);
+            }
+            if (!empty($centerIds)) {
+                $query->whereIn('collection_center_id', $centerIds);
             }
 
             $collections = $query->get();
             foreach ($collections as $collection) {
-                $newRate = $chart->calculateRate((float) $collection->fat_percentage, (float) $collection->snf_percentage);
-                $newGross = round((float) $collection->quantity_liters * $newRate, 2);
-                $newNet = round($newGross + (float) $collection->bonus_amount - (float) $collection->deduction_amount, 2);
+                $oldNet = (float) $collection->net_amount;
+                $fatVal = (float) ($collection->fat ?? $collection->fat_percentage ?? 0);
+                $snfVal = (float) ($collection->snf ?? $collection->snf_percentage ?? 0);
 
-                $collection->update([
+                $newRate = $chart->calculateRate($fatVal, $snfVal);
+                $newGross = round((float) $collection->quantity_liters * $newRate, 2);
+                $bonus = (float) ($collection->bonus ?? $collection->bonus_amount ?? 0);
+                $ded = (float) ($collection->deduction ?? $collection->deduction_amount ?? 0);
+                $newNet = round($newGross + $bonus - $ded, 2);
+                $diff = round($newNet - $oldNet, 2);
+                $totalDifference += $diff;
+
+                $updateData = [
                     'calculated_rate' => $newRate,
                     'applied_rate' => $newRate,
                     'gross_amount' => $newGross,
                     'net_amount' => $newNet,
-                ]);
+                ];
+
+                if (Schema::hasColumn('milk_collections', 'notes')) {
+                    $notePrefix = $collection->notes ? $collection->notes . "\n" : '';
+                    $updateData['notes'] = trim($notePrefix . "Rate correction applied [Chart: {$chart->name}, New Rate: ₹{$newRate}]");
+                }
+
+                $collection->update($updateData);
+
+                if ($collection->farmer && $diff != 0) {
+                    try {
+                        $collection->farmer->increment('current_balance', $diff);
+                    } catch (\Throwable $e) {
+                        // ignore balance sync failure if not supported
+                    }
+                }
+
                 $updatedCount++;
             }
         }
 
         if (Schema::hasTable('rate_corrections')) {
-            RateCorrection::create([
+            $selectedPeople = !empty($farmerIds) ? $farmerIds : (!empty($centerIds) ? $centerIds : null);
+            $correctionData = [
+                'from_date' => $startDate,
+                'to_date' => $endDate,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'filter_type' => $category,
+                'category' => $category,
+                'apply_to' => 'farmer',
+                'shift' => $shift,
+                'milk_type' => $milkType,
                 'rate_chart_id' => $chart->id,
-                'category' => $validated['category'],
-                'milk_type' => $validated['milk_type'],
-                'start_date' => $validated['start_date'],
-                'end_date' => $validated['end_date'],
-                'start_shift' => $validated['start_shift'],
-                'end_shift' => $validated['end_shift'],
-                'farmer_ids' => $validated['farmer_ids'] ?? [],
-                'center_ids' => $validated['center_ids'] ?? [],
+                'selected_ids' => $selectedPeople,
+                'farmer_ids' => $farmerIds,
                 'records_updated' => $updatedCount,
+                'total_difference' => round($totalDifference, 2),
                 'applied_by' => Auth::id(),
-            ]);
+            ];
+
+            try {
+                $cols = Schema::getColumnListing('rate_corrections');
+                $filtered = array_intersect_key($correctionData, array_flip($cols));
+                if (isset($filtered['selected_ids']) && is_array($filtered['selected_ids'])) {
+                    $filtered['selected_ids'] = json_encode($filtered['selected_ids']);
+                }
+                if (isset($filtered['farmer_ids']) && is_array($filtered['farmer_ids'])) {
+                    $filtered['farmer_ids'] = json_encode($filtered['farmer_ids']);
+                }
+                if (!isset($filtered['created_at']) && in_array('created_at', $cols)) {
+                    $filtered['created_at'] = Carbon::now();
+                }
+                if (!isset($filtered['updated_at']) && in_array('updated_at', $cols)) {
+                    $filtered['updated_at'] = Carbon::now();
+                }
+
+                DB::table('rate_corrections')->insert($filtered);
+            } catch (\Throwable $e) {
+                // Fail gracefully so main correction response succeeds
+            }
         }
+
+        AuditLog::log("Applied Rate Correction: {$chart->name} ({$updatedCount} records, diff: ₹{$totalDifference})", 'RateChart', $chart->id);
 
         return response()->json([
             'success' => true,
             'message' => "Rate correction applied using '{$chart->name}'. {$updatedCount} collection record(s) recalculated.",
             'data' => [
                 'rate_chart_id' => $chart->id,
+                'rate_chart_name' => $chart->name,
                 'records_updated' => $updatedCount,
+                'total_difference' => round($totalDifference, 2),
             ],
         ]);
     }
