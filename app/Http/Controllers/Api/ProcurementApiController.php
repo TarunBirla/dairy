@@ -185,10 +185,16 @@ class ProcurementApiController extends Controller
             return $id;
         }
 
-        return MilkCollection::where('id', $id)
-            ->orWhere('receipt_number', $id)
-            ->orWhere('id', (int) $id)
-            ->first();
+        if (is_numeric($id)) {
+            $found = MilkCollection::find((int) $id);
+            if ($found) return $found;
+        }
+
+        if (Schema::hasColumn('milk_collections', 'receipt_number')) {
+            return MilkCollection::where('receipt_number', $id)->first();
+        }
+
+        return null;
     }
 
     /**
@@ -771,10 +777,16 @@ class ProcurementApiController extends Controller
             return $id;
         }
 
-        return Farmer::where('id', $id)
-            ->orWhere('farmer_code', $id)
-            ->orWhere('id', (int) $id)
-            ->first();
+        if (is_numeric($id)) {
+            $found = Farmer::find((int) $id);
+            if ($found) return $found;
+        }
+
+        if (Schema::hasColumn('farmers', 'farmer_code')) {
+            return Farmer::where('farmer_code', $id)->first();
+        }
+
+        return null;
     }
 
     /**
@@ -1104,7 +1116,7 @@ class ProcurementApiController extends Controller
     }
 
     /**
-     * Helper to resolve RateChart by ID, Code, or Name
+     * Helper to resolve RateChart by ID or Name
      */
     protected function resolveRateChart($id): ?RateChart
     {
@@ -1112,11 +1124,12 @@ class ProcurementApiController extends Controller
             return $id;
         }
 
-        return RateChart::where('id', $id)
-            ->orWhere('code', $id)
-            ->orWhere('name', $id)
-            ->orWhere('id', (int) $id)
-            ->first();
+        if (is_numeric($id)) {
+            $found = RateChart::find((int) $id);
+            if ($found) return $found;
+        }
+
+        return RateChart::where('name', $id)->first();
     }
 
     /**
@@ -1640,10 +1653,16 @@ class ProcurementApiController extends Controller
             return $id;
         }
 
-        return FarmerSettlement::where('id', $id)
-            ->orWhere('settlement_number', $id)
-            ->orWhere('id', (int) $id)
-            ->first();
+        if (is_numeric($id)) {
+            $found = FarmerSettlement::find((int) $id);
+            if ($found) return $found;
+        }
+
+        if (Schema::hasColumn('farmer_settlements', 'settlement_number')) {
+            return FarmerSettlement::where('settlement_number', $id)->first();
+        }
+
+        return null;
     }
 
     /**
@@ -1832,7 +1851,7 @@ class ProcurementApiController extends Controller
     }
 
     /**
-     * Helper to resolve FarmerAdvance by ID or Voucher/Advance Number
+     * Helper to resolve FarmerAdvance by ID or Voucher Number
      */
     protected function resolveAdvance($id): ?FarmerAdvance
     {
@@ -1840,10 +1859,16 @@ class ProcurementApiController extends Controller
             return $id;
         }
 
-        return FarmerAdvance::where('id', $id)
-            ->orWhere('voucher_no', $id)
-            ->orWhere('id', (int) $id)
-            ->first();
+        if (is_numeric($id)) {
+            $found = FarmerAdvance::find((int) $id);
+            if ($found) return $found;
+        }
+
+        if (Schema::hasColumn('farmer_advances', 'voucher_no')) {
+            return FarmerAdvance::where('voucher_no', $id)->first();
+        }
+
+        return null;
     }
 
     /**
@@ -2205,9 +2230,11 @@ class ProcurementApiController extends Controller
             return $id;
         }
 
-        return FarmerDeduction::where('id', $id)
-            ->orWhere('id', (int) $id)
-            ->first();
+        if (is_numeric($id)) {
+            return FarmerDeduction::find((int) $id);
+        }
+
+        return null;
     }
 
     /**
@@ -2603,10 +2630,16 @@ class ProcurementApiController extends Controller
             return $id;
         }
 
-        return FarmerInvoice::where('id', $id)
-            ->orWhere('invoice_number', $id)
-            ->orWhere('id', (int) $id)
-            ->first();
+        if (is_numeric($id)) {
+            $found = FarmerInvoice::find((int) $id);
+            if ($found) return $found;
+        }
+
+        if (Schema::hasColumn('farmer_invoices', 'invoice_number')) {
+            return FarmerInvoice::where('invoice_number', $id)->first();
+        }
+
+        return null;
     }
 
     /**
