@@ -25,6 +25,11 @@
             "key": "bearer_token",
             "value": "PASTE_YOUR_BEARER_TOKEN_OR_RUN_LOGIN_REQUEST",
             "type": "string"
+        },
+        {
+            "key": "collection_id",
+            "value": "1",
+            "type": "string"
         }
     ],
     "item": [
@@ -342,7 +347,24 @@
                                 "collections"
                             ]
                         }
-                    }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.data && jsonData.data.id) {",
+                                    "        pm.collectionVariables.set(\"collection_id\", jsonData.data.id.toString());",
+                                    "        console.log(\"Saved collection_id:\", jsonData.data.id);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ]
                 },
                 {
                     "name": "View Single Collection Slip",
@@ -360,7 +382,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/collections/1",
+                            "raw": "{{base_url}}/api/v1/procurement/collections/{{collection_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -369,7 +391,7 @@
                                 "v1",
                                 "procurement",
                                 "collections",
-                                "1"
+                                "{{collection_id}}"
                             ]
                         }
                     }
@@ -398,7 +420,7 @@
                             "raw": "{\n  \"collection_date\": \"2026-10-13\",\n  \"shift\": \"morning\",\n  \"milk_type\": \"cow\",\n  \"quantity_liters\": 16.0,\n  \"fat_percentage\": 4.4,\n  \"clr\": 28.5,\n  \"snf_percentage\": 8.6,\n  \"applied_rate\": 43.20,\n  \"bonus_amount\": 0,\n  \"deduction_amount\": 0\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/collections/1",
+                            "raw": "{{base_url}}/api/v1/procurement/collections/{{collection_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -407,7 +429,7 @@
                                 "v1",
                                 "procurement",
                                 "collections",
-                                "1"
+                                "{{collection_id}}"
                             ]
                         }
                     }
@@ -428,7 +450,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/collections/1",
+                            "raw": "{{base_url}}/api/v1/procurement/collections/{{collection_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -437,7 +459,7 @@
                                 "v1",
                                 "procurement",
                                 "collections",
-                                "1"
+                                "{{collection_id}}"
                             ]
                         }
                     }

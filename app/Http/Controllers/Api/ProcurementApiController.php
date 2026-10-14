@@ -167,12 +167,209 @@ class ProcurementApiController extends Controller
                 'collection_centers' => $centers,
                 'rate_charts' => $rateCharts,
                 'settings' => [
-                    'route_wise_collection' => (string) SystemSetting::getValue('collection_route_wise', '1') === '1',
-                    'show_previous_collection' => (string) SystemSetting::getValue('collection_previous_collection', '1') === '1',
-                    'clr_enabled' => (string) SystemSetting::getValue('collection_clr_Option', '1') === '1',
-                    'snf_formula' => SystemSetting::getValue('collection_snf_formula', 'ISI'),
+                    'route_wise_collection' => (string) SystemSetting::get('collection_route_wise', '1') === '1',
+                    'show_previous_collection' => (string) SystemSetting::get('collection_previous_collection', '1') === '1',
+                    'clr_enabled' => (string) SystemSetting::get('collection_clr_Option', '1') === '1',
+                    'snf_formula' => SystemSetting::get('collection_snf_formula', 'ISI'),
                 ],
             ],
+        ]);
+    }
+
+    /**
+     * Helper to resolve MilkCollection by ID or Receipt Number
+     */
+    protected function resolveCollection($id): ?MilkCollection
+    {
+        if ($id instanceof MilkCollection) {
+            return $id;
+        }
+
+        return MilkCollection::where('id', $id)
+            ->orWhere('receipt_number', $id)
+            ->orWhere('id', (int) $id)
+            ->first();
+    }
+
+    /**
+     * GET /api/v1/procurement/collections/{collection}
+     * View single milk collection slip details.
+     */
+    public function collectionsShow($collection)
+    {
+        $item = $this->resolveCollection($collection);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => "Milk collection record not found for ID/Receipt: '{$collection}'. Please run 'Create Milk Collection Entry' first or specify an existing ID.",
+            ], 404);
+        }
+
+        $item->load(['farmer', 'collectionCenter', 'operator']);
+        return response()->json([
+            'success' => true,
+            'data' => $item,
+        ]);
+    }
+
+    /**
+     * PUT /api/v1/procurement/collections/{collection}
+     * Update an existing milk collection entry and sync farmer ledger balance.
+     */
+    public function collectionsUpdate(Request $request, $collection)
+    {
+        $item = $this->resolveCollection($collection);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => "Milk collection record not found for ID/Receipt: '{$collection}'.",
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'collection_date' => 'nullable|date',
+            'shift' => 'nullable|in:morning,evening',
+            'milk_type' => 'required|in:cow,buffalo,mixed',
+            'quantity_liters' => 'required|numeric|min:0.1',
+            'fat' => 'nullable|numeric|min:0|max:20',
+            'fat_percentage' => 'nullable|numeric|min:0|max:20',
+            'clr' => 'nullable|numeric|min:0|max:50',
+            'snf' => 'nullable|numeric|min:0|max:20',
+            'snf_percentage' => 'nullable|numeric|min:0|max:20',
+            'applied_rate' => 'required|numeric|min:0.1',
+            'bonus' => 'nullable|numeric|min:0',
+            'bonus_amount' => 'nullable|numeric|min:0',
+            'deduction' => 'nullable|numeric|min:0',
+            'deduction_amount' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string|max:500',
+            'deduction_reason' => 'nullable|string|max:500',
+        ]);
+
+        $farmer = $item->farmer;
+        $oldNetAmount = (float) $item->net_amount;
+
+        $fat = (float) ($request->input('fat') ?? $request->input('fat_percentage') ?? $item->fat ?? 4.0);
+        $clr = (float) ($validated['clr'] ?? $item->clr ?? 0);
+        $snf = (float) ($request->input('snf') ?? $request->input('snf_percentage') ?? $item->snf ?? 0);
+
+        if ($snf <= 0 && $clr > 0) {
+            $snf = RateChart::clrToSnf($clr, $fat);
+        } elseif ($snf <= 0) {
+            $snf = (float) ($item->snf ?? 8.5);
+        }
+
+        $liters = (float) $validated['quantity_liters'];
+        $rate = (float) $validated['applied_rate'];
+        $bonus = (float) ($request->input('bonus') ?? $request->input('bonus_amount') ?? $item->bonus ?? 0);
+        $deduction = (float) ($request->input('deduction') ?? $request->input('deduction_amount') ?? $item->deduction ?? 0);
+        $notes = $request->input('notes') ?? $request->input('deduction_reason') ?? $item->notes;
+
+        $grossAmount = round($liters * $rate, 2);
+        $newNetAmount = round($grossAmount + $bonus - $deduction, 2);
+
+        $updateData = [
+            'collection_date' => $validated['collection_date'] ?? $item->collection_date,
+            'shift' => $validated['shift'] ?? $item->shift,
+            'milk_type' => $validated['milk_type'],
+            'quantity_liters' => $liters,
+            'fat' => $fat,
+            'clr' => $clr > 0 ? $clr : null,
+            'snf' => $snf,
+            'calculated_rate' => $rate,
+            'applied_rate' => $rate,
+            'gross_amount' => $grossAmount,
+            'bonus' => $bonus,
+            'deduction' => $deduction,
+            'net_amount' => $newNetAmount,
+            'notes' => $notes,
+        ];
+
+        try {
+            $tableCols = Schema::getColumnListing('milk_collections');
+            if (in_array('fat_percentage', $tableCols)) {
+                $updateData['fat_percentage'] = $fat;
+            }
+            if (in_array('snf_percentage', $tableCols)) {
+                $updateData['snf_percentage'] = $snf;
+            }
+            if (in_array('bonus_amount', $tableCols)) {
+                $updateData['bonus_amount'] = $bonus;
+            }
+            if (in_array('deduction_amount', $tableCols)) {
+                $updateData['deduction_amount'] = $deduction;
+            }
+            if (in_array('deduction_reason', $tableCols)) {
+                $updateData['deduction_reason'] = $notes;
+            }
+            if (in_array('quantity_kg', $tableCols)) {
+                $updateData['quantity_kg'] = round($liters * 1.03, 2);
+            }
+        } catch (\Throwable $e) {}
+
+        $item->update($updateData);
+
+        if ($farmer) {
+            $diff = round($newNetAmount - $oldNetAmount, 2);
+            $newBalance = round((float) $farmer->current_balance + $diff, 2);
+            $farmer->update(['current_balance' => $newBalance]);
+
+            $receiptNum = $item->receipt_number ?? $item->slip_number ?? $item->id;
+            FarmerLedger::where('reference_type', 'milk_collection')
+                ->where('reference_id', $item->id)
+                ->update([
+                    'amount' => $newNetAmount,
+                    'balance' => $newBalance,
+                    'description' => ucfirst($item->shift) . " Milk Intake ({$liters} L @ ₹{$rate}) - Receipt #{$receiptNum} (Updated)",
+                ]);
+        }
+
+        AuditLog::log('Updated Milk Collection (API)', 'MilkCollection', $item->id, [
+            'receipt' => $item->receipt_number ?? $item->slip_number,
+            'old_net' => $oldNetAmount,
+            'new_net' => $newNetAmount,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Collection Receipt #" . ($item->receipt_number ?? $item->slip_number) . " updated successfully.",
+            'data' => $item->fresh(['farmer', 'collectionCenter', 'operator']),
+        ]);
+    }
+
+    /**
+     * DELETE /api/v1/procurement/collections/{collection}
+     * Delete a milk collection entry and revert farmer balance.
+     */
+    public function collectionsDestroy($collection)
+    {
+        $item = $this->resolveCollection($collection);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => "Milk collection record not found for ID/Receipt: '{$collection}'.",
+            ], 404);
+        }
+
+        $slip = $item->receipt_number ?? $item->slip_number ?? ('ID-' . $item->id);
+        $farmer = $item->farmer;
+        $netAmount = (float) $item->net_amount;
+
+        if ($farmer) {
+            $newBalance = round((float) $farmer->current_balance - $netAmount, 2);
+            $farmer->update(['current_balance' => $newBalance]);
+        }
+
+        FarmerLedger::where('reference_type', 'milk_collection')
+            ->where('reference_id', $item->id)
+            ->delete();
+
+        $item->delete();
+
+        AuditLog::log('Deleted Milk Collection (API)', 'MilkCollection', $item->id, ['receipt' => $slip]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Collection Receipt #{$slip} deleted successfully.",
         ]);
     }
 
@@ -404,163 +601,7 @@ class ProcurementApiController extends Controller
         ], 201);
     }
 
-    /**
-     * GET /api/v1/procurement/collections/{collection}
-     * View single milk collection slip details.
-     */
-    public function collectionsShow(MilkCollection $collection)
-    {
-        $collection->load(['farmer', 'collectionCenter', 'operator']);
-        return response()->json([
-            'success' => true,
-            'data' => $collection,
-        ]);
-    }
 
-    /**
-     * PUT /api/v1/procurement/collections/{collection}
-     * Update an existing milk collection entry and sync farmer ledger balance.
-     */
-    public function collectionsUpdate(Request $request, MilkCollection $collection)
-    {
-        $validated = $request->validate([
-            'collection_date' => 'nullable|date',
-            'shift' => 'nullable|in:morning,evening',
-            'milk_type' => 'required|in:cow,buffalo,mixed',
-            'quantity_liters' => 'required|numeric|min:0.1',
-            'fat' => 'nullable|numeric|min:0|max:20',
-            'fat_percentage' => 'nullable|numeric|min:0|max:20',
-            'clr' => 'nullable|numeric|min:0|max:50',
-            'snf' => 'nullable|numeric|min:0|max:20',
-            'snf_percentage' => 'nullable|numeric|min:0|max:20',
-            'applied_rate' => 'required|numeric|min:0.1',
-            'bonus' => 'nullable|numeric|min:0',
-            'bonus_amount' => 'nullable|numeric|min:0',
-            'deduction' => 'nullable|numeric|min:0',
-            'deduction_amount' => 'nullable|numeric|min:0',
-            'notes' => 'nullable|string|max:500',
-            'deduction_reason' => 'nullable|string|max:500',
-        ]);
-
-        $farmer = $collection->farmer;
-        $oldNetAmount = (float) $collection->net_amount;
-
-        $fat = (float) ($request->input('fat') ?? $request->input('fat_percentage') ?? $collection->fat ?? 4.0);
-        $clr = (float) ($validated['clr'] ?? $collection->clr ?? 0);
-        $snf = (float) ($request->input('snf') ?? $request->input('snf_percentage') ?? $collection->snf ?? 0);
-
-        if ($snf <= 0 && $clr > 0) {
-            $snf = RateChart::clrToSnf($clr, $fat);
-        } elseif ($snf <= 0) {
-            $snf = (float) ($collection->snf ?? 8.5);
-        }
-
-        $liters = (float) $validated['quantity_liters'];
-        $rate = (float) $validated['applied_rate'];
-        $bonus = (float) ($request->input('bonus') ?? $request->input('bonus_amount') ?? $collection->bonus ?? 0);
-        $deduction = (float) ($request->input('deduction') ?? $request->input('deduction_amount') ?? $collection->deduction ?? 0);
-        $notes = $request->input('notes') ?? $request->input('deduction_reason') ?? $collection->notes;
-
-        $grossAmount = round($liters * $rate, 2);
-        $newNetAmount = round($grossAmount + $bonus - $deduction, 2);
-
-        $updateData = [
-            'collection_date' => $validated['collection_date'] ?? $collection->collection_date,
-            'shift' => $validated['shift'] ?? $collection->shift,
-            'milk_type' => $validated['milk_type'],
-            'quantity_liters' => $liters,
-            'fat' => $fat,
-            'clr' => $clr > 0 ? $clr : null,
-            'snf' => $snf,
-            'calculated_rate' => $rate,
-            'applied_rate' => $rate,
-            'gross_amount' => $grossAmount,
-            'bonus' => $bonus,
-            'deduction' => $deduction,
-            'net_amount' => $newNetAmount,
-            'notes' => $notes,
-        ];
-
-        try {
-            $tableCols = Schema::getColumnListing('milk_collections');
-            if (in_array('fat_percentage', $tableCols)) {
-                $updateData['fat_percentage'] = $fat;
-            }
-            if (in_array('snf_percentage', $tableCols)) {
-                $updateData['snf_percentage'] = $snf;
-            }
-            if (in_array('bonus_amount', $tableCols)) {
-                $updateData['bonus_amount'] = $bonus;
-            }
-            if (in_array('deduction_amount', $tableCols)) {
-                $updateData['deduction_amount'] = $deduction;
-            }
-            if (in_array('deduction_reason', $tableCols)) {
-                $updateData['deduction_reason'] = $notes;
-            }
-            if (in_array('quantity_kg', $tableCols)) {
-                $updateData['quantity_kg'] = round($liters * 1.03, 2);
-            }
-        } catch (\Throwable $e) {}
-
-        $collection->update($updateData);
-
-        if ($farmer) {
-            $diff = round($newNetAmount - $oldNetAmount, 2);
-            $newBalance = round((float) $farmer->current_balance + $diff, 2);
-            $farmer->update(['current_balance' => $newBalance]);
-
-            $receiptNum = $collection->receipt_number ?? $collection->slip_number ?? $collection->id;
-            FarmerLedger::where('reference_type', 'milk_collection')
-                ->where('reference_id', $collection->id)
-                ->update([
-                    'amount' => $newNetAmount,
-                    'balance' => $newBalance,
-                    'description' => ucfirst($collection->shift) . " Milk Intake ({$liters} L @ ₹{$rate}) - Receipt #{$receiptNum} (Updated)",
-                ]);
-        }
-
-        AuditLog::log('Updated Milk Collection (API)', 'MilkCollection', $collection->id, [
-            'receipt' => $collection->receipt_number ?? $collection->slip_number,
-            'old_net' => $oldNetAmount,
-            'new_net' => $newNetAmount,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => "Collection Receipt #" . ($collection->receipt_number ?? $collection->slip_number) . " updated successfully.",
-            'data' => $collection->fresh(['farmer', 'collectionCenter', 'operator']),
-        ]);
-    }
-
-    /**
-     * DELETE /api/v1/procurement/collections/{collection}
-     * Delete a milk collection entry and revert farmer balance.
-     */
-    public function collectionsDestroy(MilkCollection $collection)
-    {
-        $slip = $collection->receipt_number ?? $collection->slip_number ?? ('ID-' . $collection->id);
-        $farmer = $collection->farmer;
-        $netAmount = (float) $collection->net_amount;
-
-        if ($farmer) {
-            $newBalance = round((float) $farmer->current_balance - $netAmount, 2);
-            $farmer->update(['current_balance' => $newBalance]);
-        }
-
-        FarmerLedger::where('reference_type', 'milk_collection')
-            ->where('reference_id', $collection->id)
-            ->delete();
-
-        $collection->delete();
-
-        AuditLog::log('Deleted Milk Collection (API)', 'MilkCollection', $collection->id, ['receipt' => $slip]);
-
-        return response()->json([
-            'success' => true,
-            'message' => "Collection Receipt #{$slip} deleted successfully.",
-        ]);
-    }
 
     /*
     |--------------------------------------------------------------------------
