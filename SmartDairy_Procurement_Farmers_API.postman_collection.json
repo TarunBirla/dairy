@@ -30,6 +30,36 @@
             "key": "collection_id",
             "value": "1",
             "type": "string"
+        },
+        {
+            "key": "farmer_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "rate_chart_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "settlement_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "advance_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "deduction_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "invoice_id",
+            "value": "1",
+            "type": "string"
         }
     ],
     "item": [
@@ -564,7 +594,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"farmer_code\": \"FMR0099\",\n  \"name\": \"Rameshwar Patel\",\n  \"name_hi\": \"\u0930\u093e\u092e\u0947\u0936\u094d\u0935\u0930 \u092a\u091f\u0947\u0932\",\n  \"phone\": \"9876543210\",\n  \"village\": \"Rampur\",\n  \"address\": \"Main Road, Rampur\",\n  \"animal_type\": \"cow\",\n  \"route_id\": 1,\n  \"collection_center_id\": 1,\n  \"rate_chart_id\": 1,\n  \"cow_milk_rate\": 0,\n  \"buffalo_milk_rate\": 0,\n  \"bank_name\": \"State Bank of India\",\n  \"branch_name\": \"Rampur Branch\",\n  \"account_number\": \"123456789012\",\n  \"ifsc_code\": \"SBIN0001234\",\n  \"upi_id\": \"rameshwar@sbi\",\n  \"status\": \"active\"\n}"
+                            "raw": "{\n  \"farmer_code\": \"FMR0099\",\n  \"name\": \"Rameshwar Patel\",\n  \"name_hi\": \"रामेश्वर पटेल\",\n  \"phone\": \"9876543210\",\n  \"village\": \"Rampur\",\n  \"address\": \"Main Road, Rampur\",\n  \"animal_type\": \"cow\",\n  \"route_id\": 1,\n  \"collection_center_id\": 1,\n  \"rate_chart_id\": 1,\n  \"cow_milk_rate\": 0,\n  \"buffalo_milk_rate\": 0,\n  \"bank_name\": \"State Bank of India\",\n  \"branch_name\": \"Rampur Branch\",\n  \"account_number\": \"123456789012\",\n  \"ifsc_code\": \"SBIN0001234\",\n  \"upi_id\": \"rameshwar@sbi\",\n  \"status\": \"active\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/v1/procurement/farmers",
@@ -578,7 +608,27 @@
                                 "farmers"
                             ]
                         }
-                    }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201 || pm.response.code === 200) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    if (jsonData.data && jsonData.data.id) {",
+                                    "        pm.collectionVariables.set(\"farmer_id\", jsonData.data.id.toString());",
+                                    "        console.log(\"Saved farmer_id:\", jsonData.data.id);",
+                                    "    } else if (Array.isArray(jsonData.data) && jsonData.data.length > 0 && jsonData.data[0].id) {",
+                                    "        pm.collectionVariables.set(\"farmer_id\", jsonData.data[0].id.toString());",
+                                    "        console.log(\"Saved farmer_id from list:\", jsonData.data[0].id);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ]
                 },
                 {
                     "name": "View Farmer Profile & Recent Activity",
@@ -596,7 +646,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/farmers/1",
+                            "raw": "{{base_url}}/api/v1/procurement/farmers/{{farmer_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -605,7 +655,7 @@
                                 "v1",
                                 "procurement",
                                 "farmers",
-                                "1"
+                                "{{farmer_id}}"
                             ]
                         }
                     }
@@ -626,7 +676,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/farmers/1/passbook?start_date=2026-10-01&end_date=2026-10-31",
+                            "raw": "{{base_url}}/api/v1/procurement/farmers/{{farmer_id}}/passbook?start_date=2026-10-01&end_date=2026-10-31",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -635,7 +685,7 @@
                                 "v1",
                                 "procurement",
                                 "farmers",
-                                "1",
+                                "{{farmer_id}}",
                                 "passbook"
                             ],
                             "query": [
@@ -675,7 +725,7 @@
                             "raw": "{\n  \"name\": \"Rameshwar Patel\",\n  \"phone\": \"9876543210\",\n  \"village\": \"Rampur\",\n  \"animal_type\": \"mixed\",\n  \"route_id\": 1,\n  \"status\": \"active\"\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/farmers/1",
+                            "raw": "{{base_url}}/api/v1/procurement/farmers/{{farmer_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -684,7 +734,7 @@
                                 "v1",
                                 "procurement",
                                 "farmers",
-                                "1"
+                                "{{farmer_id}}"
                             ]
                         }
                     }
@@ -705,7 +755,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/farmers/99",
+                            "raw": "{{base_url}}/api/v1/procurement/farmers/{{farmer_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -714,7 +764,7 @@
                                 "v1",
                                 "procurement",
                                 "farmers",
-                                "99"
+                                "{{farmer_id}}"
                             ]
                         }
                     }
@@ -825,7 +875,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/rate-charts/1",
+                            "raw": "{{base_url}}/api/v1/procurement/rate-charts/{{rate_chart_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -834,7 +884,7 @@
                                 "v1",
                                 "procurement",
                                 "rate-charts",
-                                "1"
+                                "{{rate_chart_id}}"
                             ]
                         }
                     }
@@ -863,7 +913,7 @@
                             "raw": "{\n  \"name\": \"Cow Standard Collection Chart 2026 (Updated)\",\n  \"category\": \"collection\",\n  \"milk_type\": \"cow\",\n  \"format\": \"fat_snf\",\n  \"type\": \"rate_per_kg\",\n  \"base_rate\": 38.00,\n  \"fat_factor\": 6.60,\n  \"snf_factor\": 4.30,\n  \"status\": \"active\"\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/rate-charts/1",
+                            "raw": "{{base_url}}/api/v1/procurement/rate-charts/{{rate_chart_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -872,7 +922,7 @@
                                 "v1",
                                 "procurement",
                                 "rate-charts",
-                                "1"
+                                "{{rate_chart_id}}"
                             ]
                         }
                     }
@@ -901,7 +951,7 @@
                             "raw": "{\n  \"farmer_ids\": [1, 2],\n  \"center_ids\": [1]\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/rate-charts/1/assign",
+                            "raw": "{{base_url}}/api/v1/procurement/rate-charts/{{rate_chart_id}}/assign",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -910,7 +960,7 @@
                                 "v1",
                                 "procurement",
                                 "rate-charts",
-                                "1",
+                                "{{rate_chart_id}}",
                                 "assign"
                             ]
                         }
@@ -970,7 +1020,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/rate-charts/99",
+                            "raw": "{{base_url}}/api/v1/procurement/rate-charts/{{rate_chart_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -979,7 +1029,7 @@
                                 "v1",
                                 "procurement",
                                 "rate-charts",
-                                "99"
+                                "{{rate_chart_id}}"
                             ]
                         }
                     }
@@ -1132,7 +1182,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/settlements/1",
+                            "raw": "{{base_url}}/api/v1/procurement/settlements/{{settlement_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -1141,7 +1191,7 @@
                                 "v1",
                                 "procurement",
                                 "settlements",
-                                "1"
+                                "{{settlement_id}}"
                             ]
                         }
                     }
@@ -1162,7 +1212,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/settlements/1",
+                            "raw": "{{base_url}}/api/v1/procurement/settlements/{{settlement_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -1171,7 +1221,7 @@
                                 "v1",
                                 "procurement",
                                 "settlements",
-                                "1"
+                                "{{settlement_id}}"
                             ]
                         }
                     }
@@ -1286,7 +1336,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/advances/1",
+                            "raw": "{{base_url}}/api/v1/procurement/advances/{{advance_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -1295,7 +1345,7 @@
                                 "v1",
                                 "procurement",
                                 "advances",
-                                "1"
+                                "{{advance_id}}"
                             ]
                         }
                     }
@@ -1324,7 +1374,7 @@
                             "raw": "{\n  \"advance_date\": \"2026-10-13\",\n  \"voucher_no\": \"010\",\n  \"amount\": 5000,\n  \"interest_rate\": 2.0,\n  \"paid_amount\": 1000,\n  \"payment_mode\": \"Cash\",\n  \"notes\": \"Updated advance note\"\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/advances/1",
+                            "raw": "{{base_url}}/api/v1/procurement/advances/{{advance_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -1333,7 +1383,7 @@
                                 "v1",
                                 "procurement",
                                 "advances",
-                                "1"
+                                "{{advance_id}}"
                             ]
                         }
                     }
@@ -1359,7 +1409,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"farmer_advance_id\": 1,\n  \"repayment_date\": \"2026-10-13\",\n  \"amount\": 1500,\n  \"payment_mode\": \"Cash\",\n  \"remark\": \"Partial repayment received\"\n}"
+                            "raw": "{\n  \"farmer_advance_id\": {{advance_id}},\n  \"repayment_date\": \"2026-10-13\",\n  \"amount\": 1500,\n  \"payment_mode\": \"Cash\",\n  \"remark\": \"Partial repayment received\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/v1/procurement/advances/receive",
@@ -1392,7 +1442,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/advances/ledger/1",
+                            "raw": "{{base_url}}/api/v1/procurement/advances/ledger/{{farmer_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -1402,7 +1452,7 @@
                                 "procurement",
                                 "advances",
                                 "ledger",
-                                "1"
+                                "{{farmer_id}}"
                             ]
                         }
                     }
@@ -1423,7 +1473,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/advances/1",
+                            "raw": "{{base_url}}/api/v1/procurement/advances/{{advance_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -1432,7 +1482,7 @@
                                 "v1",
                                 "procurement",
                                 "advances",
-                                "1"
+                                "{{advance_id}}"
                             ]
                         }
                     }
@@ -1547,7 +1597,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/deductions/1",
+                            "raw": "{{base_url}}/api/v1/procurement/deductions/{{deduction_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -1556,7 +1606,7 @@
                                 "v1",
                                 "procurement",
                                 "deductions",
-                                "1"
+                                "{{deduction_id}}"
                             ]
                         }
                     }
@@ -1585,7 +1635,7 @@
                             "raw": "{\n  \"entry_date\": \"2026-10-13\",\n  \"deduction_type\": \"cattle_feed\",\n  \"transaction_type\": \"given\",\n  \"amount\": 1300.00,\n  \"comments\": \"Updated cattle feed amount\"\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/deductions/1",
+                            "raw": "{{base_url}}/api/v1/procurement/deductions/{{deduction_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -1594,7 +1644,7 @@
                                 "v1",
                                 "procurement",
                                 "deductions",
-                                "1"
+                                "{{deduction_id}}"
                             ]
                         }
                     }
@@ -1615,7 +1665,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/deductions/farmer/1",
+                            "raw": "{{base_url}}/api/v1/procurement/deductions/farmer/{{farmer_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -1625,7 +1675,7 @@
                                 "procurement",
                                 "deductions",
                                 "farmer",
-                                "1"
+                                "{{farmer_id}}"
                             ]
                         }
                     }
@@ -1646,7 +1696,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/deductions/1",
+                            "raw": "{{base_url}}/api/v1/procurement/deductions/{{deduction_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -1655,7 +1705,7 @@
                                 "v1",
                                 "procurement",
                                 "deductions",
-                                "1"
+                                "{{deduction_id}}"
                             ]
                         }
                     }
@@ -1779,7 +1829,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/1",
+                            "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/{{invoice_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -1788,7 +1838,7 @@
                                 "v1",
                                 "procurement",
                                 "farmer-invoices",
-                                "1"
+                                "{{invoice_id}}"
                             ]
                         }
                     }
@@ -1809,7 +1859,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/1/preview",
+                            "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/{{invoice_id}}/preview",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -1818,7 +1868,7 @@
                                 "v1",
                                 "procurement",
                                 "farmer-invoices",
-                                "1",
+                                "{{invoice_id}}",
                                 "preview"
                             ]
                         }
@@ -1848,7 +1898,7 @@
                             "raw": "{\n  \"stationary_deduction\": 0,\n  \"feed_deduction\": 500,\n  \"advance_deduction\": 200,\n  \"other_deduction\": 0,\n  \"other_credit\": 0,\n  \"transport_credit\": 50,\n  \"subsidy_credit\": 0,\n  \"incentive_credit\": 100,\n  \"round_off\": 0,\n  \"status\": \"generated\",\n  \"payment_mode\": \"Bank Transfer\",\n  \"payment_reference\": \"INV-PAID-001\"\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/1/verify-save",
+                            "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/{{invoice_id}}/verify-save",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -1857,7 +1907,7 @@
                                 "v1",
                                 "procurement",
                                 "farmer-invoices",
-                                "1",
+                                "{{invoice_id}}",
                                 "verify-save"
                             ]
                         }
@@ -1955,7 +2005,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/1",
+                            "raw": "{{base_url}}/api/v1/procurement/farmer-invoices/{{invoice_id}}",
                             "host": [
                                 "{{base_url}}"
                             ],
@@ -1964,7 +2014,7 @@
                                 "v1",
                                 "procurement",
                                 "farmer-invoices",
-                                "1"
+                                "{{invoice_id}}"
                             ]
                         }
                     }

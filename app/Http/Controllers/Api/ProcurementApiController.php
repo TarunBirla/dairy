@@ -763,31 +763,54 @@ class ProcurementApiController extends Controller
     }
 
     /**
+     * Helper to resolve Farmer by ID or Farmer Code
+     */
+    protected function resolveFarmer($id): ?Farmer
+    {
+        if ($id instanceof Farmer) {
+            return $id;
+        }
+
+        return Farmer::where('id', $id)
+            ->orWhere('farmer_code', $id)
+            ->orWhere('id', (int) $id)
+            ->first();
+    }
+
+    /**
      * GET /api/v1/procurement/farmers/{farmer}
      * Get single farmer profile with summary, recent collections, advances, deductions, and ledgers.
      */
-    public function farmersShow(Farmer $farmer)
+    public function farmersShow($farmer)
     {
-        $farmer->load(['collectionCenter', 'rateChart', 'route', 'advances.repayments', 'settlements']);
+        $farmerRecord = $this->resolveFarmer($farmer);
+        if (!$farmerRecord) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer record not found for ID/Code: '{$farmer}'. Please check the ID or create a new farmer.",
+            ], 404);
+        }
 
-        $recentCollections = MilkCollection::where('farmer_id', $farmer->id)->latest('collection_date')->latest('id')->take(30)->get();
-        $recentLedgers = FarmerLedger::where('farmer_id', $farmer->id)->latest('transaction_date')->latest('id')->take(30)->get();
+        $farmerRecord->load(['collectionCenter', 'rateChart', 'route', 'advances.repayments', 'settlements']);
+
+        $recentCollections = MilkCollection::where('farmer_id', $farmerRecord->id)->latest('collection_date')->latest('id')->take(30)->get();
+        $recentLedgers = FarmerLedger::where('farmer_id', $farmerRecord->id)->latest('transaction_date')->latest('id')->take(30)->get();
         $deductions = Schema::hasTable('farmer_deductions')
-            ? FarmerDeduction::where('farmer_id', $farmer->id)->latest('entry_date')->get()
+            ? FarmerDeduction::where('farmer_id', $farmerRecord->id)->latest('entry_date')->get()
             : collect();
 
-        $totalMilkLiters = round((float) MilkCollection::where('farmer_id', $farmer->id)->sum('quantity_liters'), 2);
-        $totalGrossEarned = round((float) MilkCollection::where('farmer_id', $farmer->id)->sum('net_amount'), 2);
+        $totalMilkLiters = round((float) MilkCollection::where('farmer_id', $farmerRecord->id)->sum('quantity_liters'), 2);
+        $totalGrossEarned = round((float) MilkCollection::where('farmer_id', $farmerRecord->id)->sum('net_amount'), 2);
 
         return response()->json([
             'success' => true,
             'data' => [
-                'farmer' => $farmer,
+                'farmer' => $farmerRecord,
                 'kpis' => [
                     'total_milk_liters' => $totalMilkLiters,
                     'total_gross_earned' => $totalGrossEarned,
-                    'current_balance' => (float) $farmer->current_balance,
-                    'total_advances' => round((float) $farmer->advances->sum('amount'), 2),
+                    'current_balance' => (float) $farmerRecord->current_balance,
+                    'total_advances' => round((float) $farmerRecord->advances->sum('amount'), 2),
                     'total_deductions_given' => round((float) $deductions->where('transaction_type', 'given')->sum('amount'), 2),
                 ],
                 'recent_collections' => $recentCollections,
@@ -801,34 +824,42 @@ class ProcurementApiController extends Controller
      * GET /api/v1/procurement/farmers/{farmer}/passbook
      * Get farmer passbook statement for a date range.
      */
-    public function farmersPassbook(Request $request, Farmer $farmer)
+    public function farmersPassbook(Request $request, $farmer)
     {
+        $farmerRecord = $this->resolveFarmer($farmer);
+        if (!$farmerRecord) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer record not found for ID/Code: '{$farmer}'.",
+            ], 404);
+        }
+
         $startDate = $request->get('start_date', Carbon::now()->startOfMonth()->format('Y-m-d'));
         $endDate = $request->get('end_date', Carbon::today()->format('Y-m-d'));
 
-        $collections = MilkCollection::where('farmer_id', $farmer->id)
+        $collections = MilkCollection::where('farmer_id', $farmerRecord->id)
             ->whereBetween('collection_date', [$startDate, $endDate])
             ->orderBy('collection_date')
             ->get();
 
-        $advances = FarmerAdvance::where('farmer_id', $farmer->id)
+        $advances = FarmerAdvance::where('farmer_id', $farmerRecord->id)
             ->whereBetween('advance_date', [$startDate, $endDate])
             ->orderBy('advance_date')
             ->get();
 
         $deductions = Schema::hasTable('farmer_deductions')
-            ? FarmerDeduction::where('farmer_id', $farmer->id)
+            ? FarmerDeduction::where('farmer_id', $farmerRecord->id)
                 ->whereBetween('entry_date', [$startDate, $endDate])
                 ->orderBy('entry_date')
                 ->get()
             : collect();
 
-        $settlements = FarmerSettlement::where('farmer_id', $farmer->id)
+        $settlements = FarmerSettlement::where('farmer_id', $farmerRecord->id)
             ->whereBetween('period_start', [$startDate, $endDate])
             ->orderBy('period_start')
             ->get();
 
-        $ledgers = FarmerLedger::where('farmer_id', $farmer->id)
+        $ledgers = FarmerLedger::where('farmer_id', $farmerRecord->id)
             ->whereBetween('transaction_date', [$startDate, $endDate])
             ->orderBy('transaction_date')
             ->orderBy('id')
@@ -838,12 +869,12 @@ class ProcurementApiController extends Controller
             'success' => true,
             'data' => [
                 'farmer' => [
-                    'id' => $farmer->id,
-                    'farmer_code' => $farmer->farmer_code,
-                    'name' => $farmer->name,
-                    'phone' => $farmer->phone,
-                    'village' => $farmer->village,
-                    'current_balance' => (float) $farmer->current_balance,
+                    'id' => $farmerRecord->id,
+                    'farmer_code' => $farmerRecord->farmer_code,
+                    'name' => $farmerRecord->name,
+                    'phone' => $farmerRecord->phone,
+                    'village' => $farmerRecord->village,
+                    'current_balance' => (float) $farmerRecord->current_balance,
                 ],
                 'period' => [
                     'start_date' => $startDate,
@@ -869,10 +900,18 @@ class ProcurementApiController extends Controller
      * PUT /api/v1/procurement/farmers/{farmer}
      * Update an existing farmer profile.
      */
-    public function farmersUpdate(Request $request, Farmer $farmer)
+    public function farmersUpdate(Request $request, $farmer)
     {
+        $farmerRecord = $this->resolveFarmer($farmer);
+        if (!$farmerRecord) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer record not found for ID/Code: '{$farmer}'.",
+            ], 404);
+        }
+
         $validated = $request->validate([
-            'farmer_code' => 'sometimes|required|string|unique:farmers,farmer_code,' . $farmer->id,
+            'farmer_code' => 'sometimes|required|string|unique:farmers,farmer_code,' . $farmerRecord->id,
             'name' => 'required|string|max:255',
             'name_hi' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:20',
@@ -906,13 +945,13 @@ class ProcurementApiController extends Controller
             $saveData = $validated;
         }
 
-        $farmer->update($saveData);
-        AuditLog::log('Updated Farmer (API)', 'Farmer', $farmer->id);
+        $farmerRecord->update($saveData);
+        AuditLog::log('Updated Farmer (API)', 'Farmer', $farmerRecord->id);
 
         return response()->json([
             'success' => true,
-            'message' => "Farmer {$farmer->name} updated successfully.",
-            'data' => $farmer->fresh(['collectionCenter', 'rateChart', 'route']),
+            'message' => "Farmer {$farmerRecord->name} updated successfully.",
+            'data' => $farmerRecord->fresh(['collectionCenter', 'rateChart', 'route']),
         ]);
     }
 
@@ -920,12 +959,20 @@ class ProcurementApiController extends Controller
      * DELETE /api/v1/procurement/farmers/{farmer}
      * Delete a farmer record.
      */
-    public function farmersDestroy(Farmer $farmer)
+    public function farmersDestroy($farmer)
     {
-        $name = $farmer->name;
-        $code = $farmer->farmer_code;
-        $id = $farmer->id;
-        $farmer->delete();
+        $farmerRecord = $this->resolveFarmer($farmer);
+        if (!$farmerRecord) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer record not found for ID/Code: '{$farmer}'.",
+            ], 404);
+        }
+
+        $name = $farmerRecord->name;
+        $code = $farmerRecord->farmer_code;
+        $id = $farmerRecord->id;
+        $farmerRecord->delete();
 
         AuditLog::log('Deleted Farmer (API)', 'Farmer', $id, ['code' => $code, 'name' => $name]);
 
@@ -1057,15 +1104,39 @@ class ProcurementApiController extends Controller
     }
 
     /**
+     * Helper to resolve RateChart by ID, Code, or Name
+     */
+    protected function resolveRateChart($id): ?RateChart
+    {
+        if ($id instanceof RateChart) {
+            return $id;
+        }
+
+        return RateChart::where('id', $id)
+            ->orWhere('code', $id)
+            ->orWhere('name', $id)
+            ->orWhere('id', (int) $id)
+            ->first();
+    }
+
+    /**
      * GET /api/v1/procurement/rate-charts/{rate}
      * View single Rate Chart with assigned farmers and centers.
      */
-    public function rateChartsShow(RateChart $rate)
+    public function rateChartsShow($rate)
     {
-        $rate->load(['farmers:id,farmer_code,name,phone,animal_type,rate_chart_id', 'slabs']);
+        $rateChart = $this->resolveRateChart($rate);
+        if (!$rateChart) {
+            return response()->json([
+                'success' => false,
+                'message' => "Rate Chart not found for ID/Code: '{$rate}'.",
+            ], 404);
+        }
+
+        $rateChart->load(['farmers:id,farmer_code,name,phone,animal_type,rate_chart_id', 'slabs']);
         return response()->json([
             'success' => true,
-            'data' => $rate,
+            'data' => $rateChart,
         ]);
     }
 
@@ -1073,8 +1144,16 @@ class ProcurementApiController extends Controller
      * PUT /api/v1/procurement/rate-charts/{rate}
      * Update an existing Rate Chart.
      */
-    public function rateChartsUpdate(Request $request, RateChart $rate)
+    public function rateChartsUpdate(Request $request, $rate)
     {
+        $rateChart = $this->resolveRateChart($rate);
+        if (!$rateChart) {
+            return response()->json([
+                'success' => false,
+                'message' => "Rate Chart not found for ID/Code: '{$rate}'.",
+            ], 404);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'category' => 'nullable|string|in:collection,milk_sale,chilling_center',
@@ -1100,10 +1179,10 @@ class ProcurementApiController extends Controller
             'snf_rules' => 'nullable',
         ]);
 
-        $validated['category'] = $validated['category'] ?? $rate->category ?? 'collection';
-        $validated['format'] = $validated['format'] ?? $rate->format ?? 'fat_clr';
-        $validated['type'] = $validated['type'] ?? $rate->type ?? 'rate_per_kg';
-        $validated['status'] = $validated['status'] ?? $rate->status ?? 'active';
+        $validated['category'] = $validated['category'] ?? $rateChart->category ?? 'collection';
+        $validated['format'] = $validated['format'] ?? $rateChart->format ?? 'fat_clr';
+        $validated['type'] = $validated['type'] ?? $rateChart->type ?? 'rate_per_kg';
+        $validated['status'] = $validated['status'] ?? $rateChart->status ?? 'active';
 
         foreach (['fat_steps', 'snf_steps', 'fat_rules', 'snf_rules'] as $field) {
             if ($request->has($field)) {
@@ -1117,18 +1196,18 @@ class ProcurementApiController extends Controller
             if ($validated['is_default']) {
                 RateChart::where('milk_type', $validated['milk_type'])
                     ->where('category', $validated['category'])
-                    ->where('id', '!=', $rate->id)
+                    ->where('id', '!=', $rateChart->id)
                     ->update(['is_default' => false]);
             }
         }
 
-        $rate->update($validated);
-        AuditLog::log('Updated Rate Chart (API)', 'RateChart', $rate->id);
+        $rateChart->update($validated);
+        AuditLog::log('Updated Rate Chart (API)', 'RateChart', $rateChart->id);
 
         return response()->json([
             'success' => true,
-            'message' => "Rate chart '{$rate->name}' updated successfully.",
-            'data' => $rate->fresh(),
+            'message' => "Rate chart '{$rateChart->name}' updated successfully.",
+            'data' => $rateChart->fresh(),
         ]);
     }
 
@@ -1136,16 +1215,24 @@ class ProcurementApiController extends Controller
      * DELETE /api/v1/procurement/rate-charts/{rate}
      * Delete a Rate Chart and unassign farmers/centers.
      */
-    public function rateChartsDestroy(RateChart $rate)
+    public function rateChartsDestroy($rate)
     {
-        $name = $rate->name;
-        $id = $rate->id;
-
-        Farmer::where('rate_chart_id', $rate->id)->update(['rate_chart_id' => null]);
-        if (Schema::hasColumn('collection_centers', 'rate_chart_id')) {
-            CollectionCenter::where('rate_chart_id', $rate->id)->update(['rate_chart_id' => null]);
+        $rateChart = $this->resolveRateChart($rate);
+        if (!$rateChart) {
+            return response()->json([
+                'success' => false,
+                'message' => "Rate Chart not found for ID/Code: '{$rate}'.",
+            ], 404);
         }
-        $rate->delete();
+
+        $name = $rateChart->name;
+        $id = $rateChart->id;
+
+        Farmer::where('rate_chart_id', $rateChart->id)->update(['rate_chart_id' => null]);
+        if (Schema::hasColumn('collection_centers', 'rate_chart_id')) {
+            CollectionCenter::where('rate_chart_id', $rateChart->id)->update(['rate_chart_id' => null]);
+        }
+        $rateChart->delete();
 
         AuditLog::log('Deleted Rate Chart (API)', 'RateChart', $id);
 
@@ -1159,8 +1246,16 @@ class ProcurementApiController extends Controller
      * POST /api/v1/procurement/rate-charts/{rate}/assign
      * Assign Rate Chart to Farmers and/or Collection Centers.
      */
-    public function rateChartsAssign(Request $request, RateChart $rate)
+    public function rateChartsAssign(Request $request, $rate)
     {
+        $rateChart = $this->resolveRateChart($rate);
+        if (!$rateChart) {
+            return response()->json([
+                'success' => false,
+                'message' => "Rate Chart not found for ID/Code: '{$rate}'.",
+            ], 404);
+        }
+
         $validated = $request->validate([
             'farmer_ids' => 'nullable|array',
             'farmer_ids.*' => 'exists:farmers,id',
@@ -1168,25 +1263,25 @@ class ProcurementApiController extends Controller
             'center_ids.*' => 'exists:collection_centers,id',
         ]);
 
-        Farmer::where('rate_chart_id', $rate->id)->update(['rate_chart_id' => null]);
+        Farmer::where('rate_chart_id', $rateChart->id)->update(['rate_chart_id' => null]);
         if (!empty($validated['farmer_ids'])) {
-            Farmer::whereIn('id', $validated['farmer_ids'])->update(['rate_chart_id' => $rate->id]);
+            Farmer::whereIn('id', $validated['farmer_ids'])->update(['rate_chart_id' => $rateChart->id]);
         }
 
         if (Schema::hasColumn('collection_centers', 'rate_chart_id')) {
-            CollectionCenter::where('rate_chart_id', $rate->id)->update(['rate_chart_id' => null]);
+            CollectionCenter::where('rate_chart_id', $rateChart->id)->update(['rate_chart_id' => null]);
             if (!empty($validated['center_ids'])) {
-                CollectionCenter::whereIn('id', $validated['center_ids'])->update(['rate_chart_id' => $rate->id]);
+                CollectionCenter::whereIn('id', $validated['center_ids'])->update(['rate_chart_id' => $rateChart->id]);
             }
         }
 
-        AuditLog::log('Assigned Rate Chart (API)', 'RateChart', $rate->id);
+        AuditLog::log('Assigned Rate Chart (API)', 'RateChart', $rateChart->id);
 
         return response()->json([
             'success' => true,
-            'message' => "Rate chart '{$rate->name}' assigned successfully.",
+            'message' => "Rate chart '{$rateChart->name}' assigned successfully.",
             'data' => [
-                'rate_chart_id' => $rate->id,
+                'rate_chart_id' => $rateChart->id,
                 'assigned_farmers_count' => count($validated['farmer_ids'] ?? []),
                 'assigned_centers_count' => count($validated['center_ids'] ?? []),
             ],
@@ -1456,15 +1551,38 @@ class ProcurementApiController extends Controller
     }
 
     /**
+     * Helper to resolve FarmerSettlement by ID or Settlement Number
+     */
+    protected function resolveSettlement($id): ?FarmerSettlement
+    {
+        if ($id instanceof FarmerSettlement) {
+            return $id;
+        }
+
+        return FarmerSettlement::where('id', $id)
+            ->orWhere('settlement_number', $id)
+            ->orWhere('id', (int) $id)
+            ->first();
+    }
+
+    /**
      * GET /api/v1/procurement/settlements/{settlement}
      * View single farmer settlement details.
      */
-    public function settlementsShow(FarmerSettlement $settlement)
+    public function settlementsShow($settlement)
     {
-        $settlement->load(['farmer', 'settler']);
+        $item = $this->resolveSettlement($settlement);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer settlement not found for ID/Number: '{$settlement}'.",
+            ], 404);
+        }
+
+        $item->load(['farmer', 'settler']);
         return response()->json([
             'success' => true,
-            'data' => $settlement,
+            'data' => $item,
         ]);
     }
 
@@ -1472,11 +1590,19 @@ class ProcurementApiController extends Controller
      * DELETE /api/v1/procurement/settlements/{settlement}
      * Delete a farmer settlement record.
      */
-    public function settlementsDestroy(FarmerSettlement $settlement)
+    public function settlementsDestroy($settlement)
     {
-        $num = $settlement->settlement_number;
-        $id = $settlement->id;
-        $settlement->delete();
+        $item = $this->resolveSettlement($settlement);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer settlement not found for ID/Number: '{$settlement}'.",
+            ], 404);
+        }
+
+        $num = $item->settlement_number;
+        $id = $item->id;
+        $item->delete();
 
         AuditLog::log('Deleted Farmer Settlement (API)', 'FarmerSettlement', $id, ['settlement_number' => $num]);
 
@@ -1625,15 +1751,38 @@ class ProcurementApiController extends Controller
     }
 
     /**
+     * Helper to resolve FarmerAdvance by ID or Voucher/Advance Number
+     */
+    protected function resolveAdvance($id): ?FarmerAdvance
+    {
+        if ($id instanceof FarmerAdvance) {
+            return $id;
+        }
+
+        return FarmerAdvance::where('id', $id)
+            ->orWhere('voucher_no', $id)
+            ->orWhere('id', (int) $id)
+            ->first();
+    }
+
+    /**
      * GET /api/v1/procurement/advances/{advance}
      * View single advance details with repayments.
      */
-    public function advancesShow(FarmerAdvance $advance)
+    public function advancesShow($advance)
     {
-        $advance->load(['farmer', 'repayments']);
+        $item = $this->resolveAdvance($advance);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer advance not found for ID/Voucher: '{$advance}'.",
+            ], 404);
+        }
+
+        $item->load(['farmer', 'repayments']);
         return response()->json([
             'success' => true,
-            'data' => $advance,
+            'data' => $item,
         ]);
     }
 
@@ -1641,8 +1790,16 @@ class ProcurementApiController extends Controller
      * PUT /api/v1/procurement/advances/{advance}
      * Update an existing farmer advance.
      */
-    public function advancesUpdate(Request $request, FarmerAdvance $advance)
+    public function advancesUpdate(Request $request, $advance)
     {
+        $item = $this->resolveAdvance($advance);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer advance not found for ID/Voucher: '{$advance}'.",
+            ], 404);
+        }
+
         $validated = $request->validate([
             'advance_date' => 'required|date',
             'voucher_no' => 'nullable|string|max:50',
@@ -1654,31 +1811,31 @@ class ProcurementApiController extends Controller
         ]);
 
         $amount = (float) $validated['amount'];
-        $paidAmount = isset($validated['paid_amount']) ? (float) $validated['paid_amount'] : (float) $advance->paid_amount;
+        $paidAmount = isset($validated['paid_amount']) ? (float) $validated['paid_amount'] : (float) $item->paid_amount;
         $status = $paidAmount >= $amount ? 'recovered' : ($paidAmount > 0 ? 'partial' : 'pending');
 
-        $advance->update([
+        $item->update([
             'advance_date' => $validated['advance_date'],
-            'voucher_no' => $validated['voucher_no'] ?? $advance->voucher_no,
+            'voucher_no' => $validated['voucher_no'] ?? $item->voucher_no,
             'amount' => $amount,
-            'interest_rate' => (float) ($validated['interest_rate'] ?? $advance->interest_rate),
+            'interest_rate' => (float) ($validated['interest_rate'] ?? $item->interest_rate),
             'paid_amount' => $paidAmount,
             'deducted_amount' => $paidAmount,
-            'payment_mode' => $validated['payment_mode'] ?? $advance->payment_mode,
-            'notes' => $validated['notes'] ?? $advance->notes,
+            'payment_mode' => $validated['payment_mode'] ?? $item->payment_mode,
+            'notes' => $validated['notes'] ?? $item->notes,
             'status' => $status,
         ]);
 
-        AuditLog::log('Updated Farmer Advance (API)', 'FarmerAdvance', $advance->id, [
-            'voucher' => $advance->voucher_no,
+        AuditLog::log('Updated Farmer Advance (API)', 'FarmerAdvance', $item->id, [
+            'voucher' => $item->voucher_no,
             'amount' => $amount,
             'paid' => $paidAmount,
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => "Advance Voucher #{$advance->voucher_no} updated successfully.",
-            'data' => $advance->fresh(['farmer', 'repayments']),
+            'message' => "Advance Voucher #{$item->voucher_no} updated successfully.",
+            'data' => $item->fresh(['farmer', 'repayments']),
         ]);
     }
 
@@ -1686,11 +1843,19 @@ class ProcurementApiController extends Controller
      * DELETE /api/v1/procurement/advances/{advance}
      * Delete an advance record.
      */
-    public function advancesDestroy(FarmerAdvance $advance)
+    public function advancesDestroy($advance)
     {
-        $voucher = $advance->voucher_no;
-        $id = $advance->id;
-        $advance->delete();
+        $item = $this->resolveAdvance($advance);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer advance not found for ID/Voucher: '{$advance}'.",
+            ], 404);
+        }
+
+        $voucher = $item->voucher_no;
+        $id = $item->id;
+        $item->delete();
 
         AuditLog::log('Deleted Farmer Advance (API)', 'FarmerAdvance', $id, ['voucher' => $voucher]);
 
@@ -1777,10 +1942,18 @@ class ProcurementApiController extends Controller
      * GET /api/v1/procurement/advances/ledger/{farmer}
      * View complete advance ledger for a specific farmer.
      */
-    public function advancesLedger(Farmer $farmer)
+    public function advancesLedger($farmer)
     {
+        $farmerRecord = $this->resolveFarmer($farmer);
+        if (!$farmerRecord) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer record not found for ID/Code: '{$farmer}'.",
+            ], 404);
+        }
+
         $advances = FarmerAdvance::with('repayments')
-            ->where('farmer_id', $farmer->id)
+            ->where('farmer_id', $farmerRecord->id)
             ->orderBy('advance_date', 'desc')
             ->get();
 
@@ -1794,9 +1967,9 @@ class ProcurementApiController extends Controller
             'success' => true,
             'data' => [
                 'farmer' => [
-                    'id' => $farmer->id,
-                    'farmer_code' => $farmer->farmer_code,
-                    'name' => $farmer->name,
+                    'id' => $farmerRecord->id,
+                    'farmer_code' => $farmerRecord->farmer_code,
+                    'name' => $farmerRecord->name,
                     'phone' => $farmer->phone,
                 ],
                 'summary' => [
@@ -1943,15 +2116,37 @@ class ProcurementApiController extends Controller
     }
 
     /**
+     * Helper to resolve FarmerDeduction by ID
+     */
+    protected function resolveDeduction($id): ?FarmerDeduction
+    {
+        if ($id instanceof FarmerDeduction) {
+            return $id;
+        }
+
+        return FarmerDeduction::where('id', $id)
+            ->orWhere('id', (int) $id)
+            ->first();
+    }
+
+    /**
      * GET /api/v1/procurement/deductions/{deduction}
      * View single deduction record.
      */
-    public function deductionsShow(FarmerDeduction $deduction)
+    public function deductionsShow($deduction)
     {
-        $deduction->load('farmer');
+        $item = $this->resolveDeduction($deduction);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer deduction record not found for ID: '{$deduction}'.",
+            ], 404);
+        }
+
+        $item->load('farmer');
         return response()->json([
             'success' => true,
-            'data' => $deduction,
+            'data' => $item,
         ]);
     }
 
@@ -1959,8 +2154,16 @@ class ProcurementApiController extends Controller
      * PUT /api/v1/procurement/deductions/{deduction}
      * Update an existing deduction record.
      */
-    public function deductionsUpdate(Request $request, FarmerDeduction $deduction)
+    public function deductionsUpdate(Request $request, $deduction)
     {
+        $item = $this->resolveDeduction($deduction);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer deduction record not found for ID: '{$deduction}'.",
+            ], 404);
+        }
+
         $validated = $request->validate([
             'entry_date' => 'required|date',
             'deduction_type' => 'required|string|max:100',
@@ -1969,10 +2172,10 @@ class ProcurementApiController extends Controller
             'comments' => 'nullable|string|max:1000',
         ]);
 
-        $farmer = $deduction->farmer;
+        $farmer = $item->farmer;
         if ($farmer) {
-            $oldAmount = (float) $deduction->amount;
-            $revertedBalance = $deduction->transaction_type === 'given'
+            $oldAmount = (float) $item->amount;
+            $revertedBalance = $item->transaction_type === 'given'
                 ? ($farmer->current_balance + $oldAmount)
                 : ($farmer->current_balance - $oldAmount);
 
@@ -1984,13 +2187,13 @@ class ProcurementApiController extends Controller
             $farmer->update(['current_balance' => $newBalance]);
         }
 
-        $deduction->update($validated);
-        AuditLog::log('Updated Farmer Deduction (API)', 'FarmerDeduction', $deduction->id);
+        $item->update($validated);
+        AuditLog::log('Updated Farmer Deduction (API)', 'FarmerDeduction', $item->id);
 
         return response()->json([
             'success' => true,
             'message' => 'Deduction updated successfully.',
-            'data' => $deduction->fresh('farmer'),
+            'data' => $item->fresh('farmer'),
         ]);
     }
 
@@ -1998,23 +2201,31 @@ class ProcurementApiController extends Controller
      * DELETE /api/v1/procurement/deductions/{deduction}
      * Delete a deduction entry and revert farmer balance.
      */
-    public function deductionsDestroy(FarmerDeduction $deduction)
+    public function deductionsDestroy($deduction)
     {
-        $farmer = $deduction->farmer;
+        $item = $this->resolveDeduction($deduction);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer deduction record not found for ID: '{$deduction}'.",
+            ], 404);
+        }
+
+        $farmer = $item->farmer;
         if ($farmer) {
-            $oldAmount = (float) $deduction->amount;
-            $revertedBalance = $deduction->transaction_type === 'given'
+            $oldAmount = (float) $item->amount;
+            $revertedBalance = $item->transaction_type === 'given'
                 ? ($farmer->current_balance + $oldAmount)
                 : ($farmer->current_balance - $oldAmount);
             $farmer->update(['current_balance' => $revertedBalance]);
         }
 
         FarmerLedger::where('reference_type', 'deduction')
-            ->where('reference_id', $deduction->id)
+            ->where('reference_id', $item->id)
             ->delete();
 
-        $id = $deduction->id;
-        $deduction->delete();
+        $id = $item->id;
+        $item->delete();
 
         AuditLog::log('Deleted Farmer Deduction (API)', 'FarmerDeduction', $id);
 
@@ -2028,9 +2239,17 @@ class ProcurementApiController extends Controller
      * GET /api/v1/procurement/deductions/farmer/{farmer}
      * Get all deductions for a specific farmer.
      */
-    public function deductionsFarmerHistory(Farmer $farmer)
+    public function deductionsFarmerHistory($farmer)
     {
-        $deductions = FarmerDeduction::where('farmer_id', $farmer->id)
+        $farmerRecord = $this->resolveFarmer($farmer);
+        if (!$farmerRecord) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer record not found for ID/Code: '{$farmer}'.",
+            ], 404);
+        }
+
+        $deductions = FarmerDeduction::where('farmer_id', $farmerRecord->id)
             ->orderBy('entry_date', 'desc')
             ->orderBy('id', 'desc')
             ->get();
@@ -2042,10 +2261,10 @@ class ProcurementApiController extends Controller
             'success' => true,
             'data' => [
                 'farmer' => [
-                    'id' => $farmer->id,
-                    'farmer_code' => $farmer->farmer_code,
-                    'name' => $farmer->name,
-                    'phone' => $farmer->phone,
+                    'id' => $farmerRecord->id,
+                    'farmer_code' => $farmerRecord->farmer_code,
+                    'name' => $farmerRecord->name,
+                    'phone' => $farmerRecord->phone,
                 ],
                 'summary' => [
                     'total_given' => $totalGiven,
@@ -2295,28 +2514,51 @@ class ProcurementApiController extends Controller
     }
 
     /**
+     * Helper to resolve FarmerInvoice by ID or Invoice Number
+     */
+    protected function resolveInvoice($id): ?FarmerInvoice
+    {
+        if ($id instanceof FarmerInvoice) {
+            return $id;
+        }
+
+        return FarmerInvoice::where('id', $id)
+            ->orWhere('invoice_number', $id)
+            ->orWhere('id', (int) $id)
+            ->first();
+    }
+
+    /**
      * GET /api/v1/procurement/farmer-invoices/{invoice}
      * View single farmer invoice with breakdown of collections, deductions, and advances.
      */
-    public function invoicesShow(FarmerInvoice $invoice)
+    public function invoicesShow($invoice)
     {
-        $invoice->load('farmer');
-        $start = Carbon::parse($invoice->period_start)->format('Y-m-d');
-        $end = Carbon::parse($invoice->period_end)->format('Y-m-d');
+        $item = $this->resolveInvoice($invoice);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer invoice not found for ID/Number: '{$invoice}'.",
+            ], 404);
+        }
 
-        $collections = MilkCollection::where('farmer_id', $invoice->farmer_id)
+        $item->load('farmer');
+        $start = Carbon::parse($item->period_start)->format('Y-m-d');
+        $end = Carbon::parse($item->period_end)->format('Y-m-d');
+
+        $collections = MilkCollection::where('farmer_id', $item->farmer_id)
             ->whereBetween('collection_date', [$start, $end])
             ->orderBy('collection_date')
             ->get();
 
         $deductions = Schema::hasTable('farmer_deductions')
-            ? FarmerDeduction::where('farmer_id', $invoice->farmer_id)
+            ? FarmerDeduction::where('farmer_id', $item->farmer_id)
                 ->whereBetween('entry_date', [$start, $end])
                 ->get()
             : collect();
 
         $advances = Schema::hasTable('farmer_advances')
-            ? FarmerAdvance::where('farmer_id', $invoice->farmer_id)
+            ? FarmerAdvance::where('farmer_id', $item->farmer_id)
                 ->whereBetween('advance_date', [$start, $end])
                 ->get()
             : collect();
@@ -2324,7 +2566,7 @@ class ProcurementApiController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'invoice' => $invoice,
+                'invoice' => $item,
                 'collections' => $collections,
                 'deductions' => $deductions,
                 'advances' => $advances,
@@ -2336,12 +2578,20 @@ class ProcurementApiController extends Controller
      * GET /api/v1/procurement/farmer-invoices/{invoice}/preview
      * Return JSON preview payload for invoice verification modal / slip.
      */
-    public function invoicesPreview(FarmerInvoice $invoice)
+    public function invoicesPreview($invoice)
     {
-        $invoice->load('farmer');
+        $item = $this->resolveInvoice($invoice);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer invoice not found for ID/Number: '{$invoice}'.",
+            ], 404);
+        }
+
+        $item->load('farmer');
         return response()->json([
             'success' => true,
-            'data' => $invoice,
+            'data' => $item,
         ]);
     }
 
@@ -2349,8 +2599,16 @@ class ProcurementApiController extends Controller
      * POST /api/v1/procurement/farmer-invoices/{invoice}/verify-save
      * Verify, adjust credits/deductions, and save/approve a farmer invoice.
      */
-    public function invoicesVerifyAndSave(Request $request, FarmerInvoice $invoice)
+    public function invoicesVerifyAndSave(Request $request, $invoice)
     {
+        $item = $this->resolveInvoice($invoice);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer invoice not found for ID/Number: '{$invoice}'.",
+            ], 404);
+        }
+
         $validated = $request->validate([
             'stationary_deduction' => 'nullable|numeric|min:0',
             'feed_deduction' => 'nullable|numeric|min:0',
@@ -2366,25 +2624,25 @@ class ProcurementApiController extends Controller
             'payment_reference' => 'nullable|string|max:255',
         ]);
 
-        $stationary = (float) ($validated['stationary_deduction'] ?? $invoice->stationary_deduction);
-        $feed = (float) ($validated['feed_deduction'] ?? $invoice->feed_deduction);
-        $advance = (float) ($validated['advance_deduction'] ?? $invoice->advance_deduction);
-        $otherDed = (float) ($validated['other_deduction'] ?? $invoice->other_deduction);
+        $stationary = (float) ($validated['stationary_deduction'] ?? $item->stationary_deduction);
+        $feed = (float) ($validated['feed_deduction'] ?? $item->feed_deduction);
+        $advance = (float) ($validated['advance_deduction'] ?? $item->advance_deduction);
+        $otherDed = (float) ($validated['other_deduction'] ?? $item->other_deduction);
 
-        $otherCred = (float) ($validated['other_credit'] ?? $invoice->other_credit);
-        $transport = (float) ($validated['transport_credit'] ?? $invoice->transport_credit);
-        $subsidy = (float) ($validated['subsidy_credit'] ?? $invoice->subsidy_credit);
-        $incentive = (float) ($validated['incentive_credit'] ?? $invoice->incentive_credit);
-        $roundOff = (float) ($validated['round_off'] ?? $invoice->round_off ?? 0);
+        $otherCred = (float) ($validated['other_credit'] ?? $item->other_credit);
+        $transport = (float) ($validated['transport_credit'] ?? $item->transport_credit);
+        $subsidy = (float) ($validated['subsidy_credit'] ?? $item->subsidy_credit);
+        $incentive = (float) ($validated['incentive_credit'] ?? $item->incentive_credit);
+        $roundOff = (float) ($validated['round_off'] ?? $item->round_off ?? 0);
 
-        $milkAmount = (float) $invoice->milk_amount;
+        $milkAmount = (float) $item->milk_amount;
         $totalDeduction = round($stationary + $feed + $advance + $otherDed, 2);
         $totalCredit = round($otherCred + $transport + $subsidy + $incentive, 2);
         $totalAmount = round($milkAmount + $totalCredit, 2);
         $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);
         $netPayment = round(max(0, $totalAmount - $totalDeduction + $roundOff), 2);
 
-        $invoice->update([
+        $item->update([
             'stationary_deduction' => $stationary,
             'feed_deduction' => $feed,
             'advance_deduction' => $advance,
@@ -2401,19 +2659,19 @@ class ProcurementApiController extends Controller
             'net_payment' => $netPayment,
             'status' => $validated['status'] ?? 'generated',
             'is_edited' => true,
-            'payment_mode' => $validated['payment_mode'] ?? $invoice->payment_mode,
-            'payment_reference' => $validated['payment_reference'] ?? $invoice->payment_reference,
+            'payment_mode' => $validated['payment_mode'] ?? $item->payment_mode,
+            'payment_reference' => $validated['payment_reference'] ?? $item->payment_reference,
         ]);
 
-        AuditLog::log('Verified & Saved Farmer Invoice (API)', 'FarmerInvoice', $invoice->id, [
-            'invoice_number' => $invoice->invoice_number,
+        AuditLog::log('Verified & Saved Farmer Invoice (API)', 'FarmerInvoice', $item->id, [
+            'invoice_number' => $item->invoice_number,
             'net_payment' => $netPayment,
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => "Invoice #{$invoice->invoice_number} verified and saved successfully.",
-            'data' => $invoice->fresh('farmer'),
+            'message' => "Invoice #{$item->invoice_number} verified and saved successfully.",
+            'data' => $item->fresh('farmer'),
         ]);
     }
 
@@ -2471,11 +2729,19 @@ class ProcurementApiController extends Controller
      * DELETE /api/v1/procurement/farmer-invoices/{invoice}
      * Delete a single farmer invoice.
      */
-    public function invoicesDestroy(FarmerInvoice $invoice)
+    public function invoicesDestroy($invoice)
     {
-        $num = $invoice->invoice_number;
-        $id = $invoice->id;
-        $invoice->delete();
+        $item = $this->resolveInvoice($invoice);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => "Farmer invoice not found for ID/Number: '{$invoice}'.",
+            ], 404);
+        }
+
+        $num = $item->invoice_number;
+        $id = $item->id;
+        $item->delete();
 
         AuditLog::log('Deleted Farmer Invoice (API)', 'FarmerInvoice', $id, ['invoice_number' => $num]);
 
