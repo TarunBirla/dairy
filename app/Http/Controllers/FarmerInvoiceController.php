@@ -135,6 +135,33 @@ class FarmerInvoiceController extends Controller
             $otherCredit = round((float) $deductions->where('transaction_type', 'received')->sum('amount'), 2);
         }
 
+        // Dynamically wire Addition Types configured in Center Information (e.g. Subsidy 1.00/ltr, Transport 1.00/ltr)
+        try {
+            $settingRow = \App\Models\SystemSetting::where('key', 'center_addition_types')->first();
+            if ($settingRow && !empty($settingRow->value)) {
+                $additionTypes = json_decode($settingRow->value, true);
+                if (is_array($additionTypes)) {
+                    foreach ($additionTypes as $at) {
+                        $name = strtolower(trim($at['name'] ?? ''));
+                        $val = trim($at['value'] ?? '');
+                        if (str_ends_with($val, '/ltr')) {
+                            $ratePerLtr = (float) str_replace('/ltr', '', $val);
+                            $amt = round($totalQuantity * $ratePerLtr, 2);
+                            if (str_contains($name, 'transport')) {
+                                $transportCredit += $amt;
+                            } elseif (str_contains($name, 'subsidy')) {
+                                $subsidyCredit += $amt;
+                            } elseif (str_contains($name, 'incentive')) {
+                                $incentiveCredit += $amt;
+                            } else {
+                                $otherCredit += $amt;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
+
         // Include unpaid product purchases (ProductSale) in feedDeduction
         if (Schema::hasTable('product_sales')) {
             $farmerCode = $farmer ? $farmer->farmer_code : null;

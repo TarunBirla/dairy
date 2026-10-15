@@ -127,6 +127,27 @@ class ProductSaleController extends Controller
      */
     public function store(Request $request)
     {
+        // Resilient normalization for diverse form submissions
+        $rate = $request->input('rate', $request->input('unit_price'));
+        $saleDate = $request->input('sale_date', now()->format('Y-m-d'));
+        $paymentMode = $request->input('payment_mode', $request->input('payment_method', 'Ledger'));
+        if (strcasecmp($paymentMode, 'Credit') === 0) {
+            $paymentMode = 'Ledger';
+        }
+        $paidAmount = (float) $request->input('paid_amount', 0);
+        $qty = (float) $request->input('quantity', 1);
+        $total = round($qty * (float) ($rate ?? 0), 2);
+        $isPaid = $request->has('is_paid') ? (string) $request->input('is_paid') : (($paidAmount >= $total && $total > 0) ? '1' : '0');
+        $unit = $request->input('unit', 'kg');
+
+        $request->merge([
+            'rate' => $rate,
+            'sale_date' => $saleDate,
+            'payment_mode' => $paymentMode,
+            'is_paid' => $isPaid,
+            'unit' => $unit,
+        ]);
+
         $validated = $request->validate([
             'sale_date' => 'required|date',
             'farmer_id' => 'nullable|exists:farmers,id',

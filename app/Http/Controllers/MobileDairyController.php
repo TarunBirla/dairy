@@ -758,22 +758,38 @@ class MobileDairyController extends Controller
      */
     public function storeProductSale(Request $request, Farmer $farmer)
     {
+        // Normalize incoming fields
+        $rate = $request->input('rate', $request->input('unit_price', 0));
+        $saleDate = $request->input('sale_date', now()->format('Y-m-d'));
+        $paymentMode = $request->input('payment_mode', $request->input('payment_method', 'Ledger'));
+        if ($paymentMode === 'Credit') {
+            $paymentMode = 'Ledger';
+        }
+        $paidAmountInput = (float) $request->input('paid_amount', 0);
+        $qty = (float) $request->input('quantity', 1);
+        $total = round($qty * (float) $rate, 2);
+        $isPaid = $request->has('is_paid') ? (bool) $request->input('is_paid') : ($paidAmountInput >= $total && $total > 0);
+
+        $request->merge([
+            'rate' => $rate,
+            'sale_date' => $saleDate,
+            'payment_mode' => $paymentMode,
+            'is_paid' => $isPaid ? '1' : '0',
+        ]);
+
         $validated = $request->validate([
             'product_id' => 'required|exists:products,id',
             'sale_date' => 'required|date',
             'quantity' => 'required|numeric|min:0.01',
             'rate' => 'required|numeric|min:0',
-            'payment_mode' => 'required|string|in:Cash,UPI,Bank Transfer,Ledger',
+            'payment_mode' => 'required|string',
             'is_paid' => 'required|in:0,1',
             'remarks' => 'nullable|string|max:500',
         ]);
 
         $product = Product::findOrFail($validated['product_id']);
-        $qty = (float) $validated['quantity'];
-        $rate = (float) $validated['rate'];
-        $total = round($qty * $rate, 2);
-        $isPaid = (bool) $validated['is_paid'];
-        $paidAmount = $isPaid ? $total : 0.00;
+        $total = round($qty * (float) $validated['rate'], 2);
+        $paidAmount = $isPaid ? $total : min($paidAmountInput, $total);
         $remainingAmount = round($total - $paidAmount, 2);
 
         // Check stock
@@ -983,6 +999,25 @@ class MobileDairyController extends Controller
             $loanRecovery = round((float) $advs->sum(fn($a) => $a->principal_balance), 2);
         }
 
+        // Dynamically wire Addition Types configured in Center Information (Subsidy 1.00/ltr, Transport 1.00/ltr, etc.)
+        $extraAdditions = 0.00;
+        try {
+            $settingRow = \App\Models\SystemSetting::where('key', 'center_addition_types')->first();
+            if ($settingRow && !empty($settingRow->value)) {
+                $additionTypes = json_decode($settingRow->value, true);
+                if (is_array($additionTypes)) {
+                    foreach ($additionTypes as $at) {
+                        $val = trim($at['value'] ?? '');
+                        if (str_ends_with($val, '/ltr')) {
+                            $ratePerLtr = (float) str_replace('/ltr', '', $val);
+                            $extraAdditions += round($totalQty * $ratePerLtr, 2);
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        $totalCredit = round($totalCredit + $extraAdditions, 2);
         $totalDeduction = round($feedDeduction + $stationaryDeduction + $loanRecovery, 2);
         $totalAmount = round($milkAmount + $totalCredit, 2);
         $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);

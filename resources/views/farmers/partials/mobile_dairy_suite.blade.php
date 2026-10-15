@@ -1247,16 +1247,22 @@
             </div>
             <form action="{{ route('mobile-dairy.products.store', $farmer->id) }}" method="POST" class="space-y-4">
                 @csrf
-                <div class="space-y-1">
-                    <label class="text-[11px] font-bold text-slate-700">Select Product *</label>
-                    <select name="product_id" @change="onProductChange($event)" required class="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300">
-                        <option value="">-- Choose Product --</option>
-                        @foreach($products as $prod)
-                            <option value="{{ $prod->id }}" data-price="{{ $prod->price ?? $prod->selling_price }}">
-                                {{ $prod->name }} (₹{{ number_format($prod->price ?? $prod->selling_price, 2) }})
-                            </option>
-                        @endforeach
-                    </select>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-700">Sale Date *</label>
+                        <input type="date" name="sale_date" value="{{ date('Y-m-d') }}" required class="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-700">Select Product *</label>
+                        <select name="product_id" @change="onProductChange($event)" required class="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300">
+                            <option value="">-- Choose Product --</option>
+                            @foreach($products as $prod)
+                                <option value="{{ $prod->id }}" data-price="{{ $prod->price ?? $prod->selling_price }}">
+                                    {{ $prod->name }} (₹{{ number_format($prod->price ?? $prod->selling_price, 2) }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
                 </div>
                 <div class="grid grid-cols-3 gap-3">
                     <div class="space-y-1">
@@ -1265,7 +1271,9 @@
                     </div>
                     <div class="space-y-1">
                         <label class="text-[11px] font-bold text-slate-700">Price (₹) *</label>
-                        <input type="number" step="0.01" name="unit_price" x-model="pPrice" required class="w-full text-xs font-black px-3 py-2 rounded-xl border border-slate-300">
+                        <input type="number" step="0.01" name="rate" x-model="pPrice" required class="w-full text-xs font-black px-3 py-2 rounded-xl border border-slate-300">
+                        <input type="hidden" name="unit_price" :value="pPrice">
+                        <input type="hidden" name="unit" value="kg">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[11px] font-bold text-slate-700">Total (₹)</label>
@@ -1278,16 +1286,23 @@
                     <div class="space-y-1">
                         <label class="text-[11px] font-bold text-slate-700">Paid Now (₹)</label>
                         <input type="number" step="0.01" name="paid_amount" x-model="pPaid" placeholder="0.00" class="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300">
-                        <span class="text-[10px] text-slate-400">Leave 0 for full credit purchase</span>
+                        <span class="text-[10px] text-slate-400">Leave 0 for milk bill deduction</span>
+                        <input type="hidden" name="is_paid" :value="(parseFloat(pPaid) >= parseFloat(pTotal) && parseFloat(pTotal) > 0) ? '1' : '0'">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[11px] font-bold text-slate-700">Payment Mode</label>
-                        <select name="payment_method" class="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-slate-300">
-                            <option value="Credit">Credit (Milk Deduction)</option>
+                        <select name="payment_mode" class="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-slate-300">
+                            <option value="Ledger">Ledger (Milk Bill Deduction)</option>
                             <option value="Cash">Cash</option>
                             <option value="UPI">UPI</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
                         </select>
+                        <input type="hidden" name="payment_method" value="Ledger">
                     </div>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[11px] font-bold text-slate-700">Remarks / Note</label>
+                    <input type="text" name="remarks" placeholder="Optional purchase notes..." class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300">
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" @click="showProductModal = false" class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50">Cancel</button>
