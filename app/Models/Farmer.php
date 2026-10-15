@@ -135,4 +135,10 @@ class Farmer extends Model
     {
         return $this->hasMany(ProductSale::class);
     }
+
+    public function emergencyFunds()
+    {
+        return $this->hasMany(FarmerEmergencyFund::class);
+    }
 }
+

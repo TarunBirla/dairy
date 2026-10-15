@@ -255,6 +255,13 @@ class FarmerController extends Controller
             $request->input('passbook_type')
         );
 
+        $mobileDairyData = [];
+        try {
+            $mobileDairyData = app(\App\Http\Controllers\MobileDairyController::class)->buildFarmerSuiteData($farmer, $request);
+        } catch (\Throwable $e) {
+            // Safe fallback
+        }
+
         return view('farmers.show', array_merge(compact(
             'farmer',
             'collections',
@@ -269,7 +276,8 @@ class FarmerController extends Controller
             'totalPurchasePaid',
             'totalPurchaseUnpaid',
             'paidPurchasesCount',
-            'unpaidPurchasesCount'
+            'unpaidPurchasesCount',
+            'mobileDairyData'
         ), $passbookData));
     }
 

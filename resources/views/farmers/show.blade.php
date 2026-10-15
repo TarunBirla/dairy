@@ -140,6 +140,11 @@
             <i data-lucide="book-open-check" class="w-3.5 h-3.5"></i>
             <span>All Passbook Detail ({{ count($passbookEntries) }})</span>
         </button>
+        <button @click="tab = 'mobile_dairy'" :class="tab === 'mobile_dairy' ? 'border-b-2 border-emerald-600 text-emerald-700 bg-emerald-50/50 rounded-t-lg' : 'text-slate-500 hover:text-slate-700'" class="pb-3 px-2.5 transition flex items-center gap-1.5 cursor-pointer font-bold text-emerald-800">
+            <i data-lucide="smartphone" class="w-3.5 h-3.5 text-emerald-600"></i>
+            <span>Mobile Dairy (8-in-1 Suite)</span>
+            <span class="px-1.5 py-0.2 rounded-full text-[9px] bg-emerald-600 text-white font-extrabold tracking-wider uppercase">Pro</span>
+        </button>
     </div>
 
     <!-- TAB 1: Milk Collections -->
@@ -665,6 +670,14 @@
                 </table>
             </div>
         </div>
+    </div>
+
+    <!-- TAB 6: Mobile Dairy Software (8-in-1 Suite) -->
+    <div x-show="tab === 'mobile_dairy'" x-cloak class="space-y-6">
+        @include('farmers.partials.mobile_dairy_suite', [
+            'farmer' => $farmer,
+            'suite' => $mobileDairyData ?? []
+        ])
     </div>
 
     <!-- Issue Advance Modal -->

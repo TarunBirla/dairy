@@ -41,6 +41,7 @@ use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\DriverController;
 use App\Http\Controllers\VehicleAdvanceController;
 use App\Http\Controllers\LoadUnloadController;
+use App\Http\Controllers\MobileDairyController;
 
 // Public Website Pages
 Route::get('/', [WebsiteController::class, 'home'])->name('home');
@@ -478,6 +479,25 @@ Route::middleware('auth')->group(function () {
         Route::put('/{farmer}', [FarmerController::class, 'update'])->name('update');
         Route::delete('/{farmer}', [FarmerController::class, 'destroy'])->name('destroy');
         Route::post('/{farmer}/advance', [FarmerController::class, 'storeAdvance'])->name('advance.store');
+        Route::get('/{farmer}/mobile-dairy', [MobileDairyController::class, 'show'])->name('mobile-dairy');
+    });
+
+    // Mobile Dairy Management Suite (8-in-1 Dedicated Software)
+    Route::prefix('mobile-dairy')->name('mobile-dairy.')->group(function () {
+        Route::get('/', [MobileDairyController::class, 'index'])->name('index');
+        Route::get('/farmer/{farmer}', [MobileDairyController::class, 'show'])->name('farmer');
+        Route::post('/calc-rate', [MobileDairyController::class, 'calculateRate'])->name('calc-rate');
+        Route::post('/milk-entry/{farmer}', [MobileDairyController::class, 'storeMilkEntry'])->name('milk-entry.store');
+        Route::put('/milk-entry/{collection}', [MobileDairyController::class, 'updateMilkEntry'])->name('milk-entry.update');
+        Route::post('/loans/{farmer}', [MobileDairyController::class, 'storeLoan'])->name('loans.store');
+        Route::post('/loans/{loan}/repayment', [MobileDairyController::class, 'storeLoanRepayment'])->name('loans.repayment');
+        Route::post('/deductions/{farmer}', [MobileDairyController::class, 'storeDeduction'])->name('deductions.store');
+        Route::post('/products/{farmer}', [MobileDairyController::class, 'storeProductSale'])->name('products.store');
+        Route::post('/emergency/{farmer}', [MobileDairyController::class, 'storeEmergencyFund'])->name('emergency.store');
+        Route::post('/emergency/{emergencyFund}/recovery', [MobileDairyController::class, 'recordEmergencyRecovery'])->name('emergency.recovery');
+        Route::post('/invoices/{farmer}', [MobileDairyController::class, 'generateInvoice'])->name('invoices.store');
+        Route::post('/invoices/{invoice}/mark-paid', [MobileDairyController::class, 'markInvoicePaid'])->name('invoices.mark-paid');
+        Route::get('/invoices/{invoice}/print', [MobileDairyController::class, 'printSlip'])->name('invoices.print');
     });
 
     // Farmer Advances & Loan Management (Matching Reference Media)
