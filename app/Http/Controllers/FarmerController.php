@@ -111,6 +111,11 @@ class FarmerController extends Controller
         $nextNum = Farmer::max('id') + 1;
         $nextCode = 'FMR' . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
 
+        $farmerWiseAdditions = \App\Services\CenterAdditionDeductionService::getFarmerWiseAdditions();
+        $farmerWiseDeductions = \App\Services\CenterAdditionDeductionService::getFarmerWiseDeductions();
+        $allFarmersAdditions = \App\Services\CenterAdditionDeductionService::getAllFarmersAdditions();
+        $allFarmersDeductions = \App\Services\CenterAdditionDeductionService::getAllFarmersDeductions();
+
         return view('farmers.index', compact(
             'farmers',
             'totalFarmers',
@@ -120,7 +125,11 @@ class FarmerController extends Controller
             'centers',
             'rateCharts',
             'routes',
-            'nextCode'
+            'nextCode',
+            'farmerWiseAdditions',
+            'farmerWiseDeductions',
+            'allFarmersAdditions',
+            'allFarmersDeductions'
         ));
     }
 
@@ -136,7 +145,22 @@ class FarmerController extends Controller
         $nextNum = Farmer::max('id') + 1;
         $nextCode = 'FMR' . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
 
-        return view('farmers.create', compact('branches', 'centers', 'rateCharts', 'routes', 'nextCode'));
+        $farmerWiseAdditions = \App\Services\CenterAdditionDeductionService::getFarmerWiseAdditions();
+        $farmerWiseDeductions = \App\Services\CenterAdditionDeductionService::getFarmerWiseDeductions();
+        $allFarmersAdditions = \App\Services\CenterAdditionDeductionService::getAllFarmersAdditions();
+        $allFarmersDeductions = \App\Services\CenterAdditionDeductionService::getAllFarmersDeductions();
+
+        return view('farmers.create', compact(
+            'branches',
+            'centers',
+            'rateCharts',
+            'routes',
+            'nextCode',
+            'farmerWiseAdditions',
+            'farmerWiseDeductions',
+            'allFarmersAdditions',
+            'allFarmersDeductions'
+        ));
     }
 
     /**
@@ -171,10 +195,40 @@ class FarmerController extends Controller
             'installment' => 'nullable|numeric|min:0',
             'etc_amount' => 'nullable|numeric|min:0',
             'grant_amount' => 'nullable|numeric|min:0',
+            'extra_rates' => 'nullable|array',
             'status' => 'nullable|in:active,inactive,blocked',
         ]);
 
         $validated['status'] = $validated['status'] ?? 'active';
+
+        // Process dynamic farmer-wise additions & deductions
+        $extraRates = [];
+        if ($request->has('extra_rates') && is_array($request->input('extra_rates'))) {
+            foreach ($request->input('extra_rates') as $k => $v) {
+                $cleanK = trim($k);
+                if ($cleanK !== '') {
+                    $extraRates[$cleanK] = ($v !== '' && $v !== null) ? (float)$v : 0.0;
+                }
+            }
+        }
+        $validated['extra_rates'] = $extraRates;
+
+        // Two-way sync with legacy columns if present
+        $legacySync = [
+            'anamat' => ['Anamat'],
+            'building_fund' => ['Building fund', 'Building Fund'],
+            'grant_amount' => ['Grant', 'Grant Amount'],
+            'installment' => ['Installment'],
+            'etc_amount' => ['Etc', 'Etc Amount'],
+        ];
+        foreach ($legacySync as $col => $catNames) {
+            foreach ($catNames as $catName) {
+                if (isset($extraRates[$catName])) {
+                    $validated[$col] = $extraRates[$catName];
+                    break;
+                }
+            }
+        }
 
         // Photo file handling
         if ($request->hasFile('photo')) {
@@ -614,7 +668,22 @@ class FarmerController extends Controller
         $rateCharts = RateChart::where('status', 'active')->get();
         $routes = \App\Models\DeliveryRoute::orderBy('name')->get();
 
-        return view('farmers.edit', compact('farmer', 'branches', 'centers', 'rateCharts', 'routes'));
+        $farmerWiseAdditions = \App\Services\CenterAdditionDeductionService::getFarmerWiseAdditions();
+        $farmerWiseDeductions = \App\Services\CenterAdditionDeductionService::getFarmerWiseDeductions();
+        $allFarmersAdditions = \App\Services\CenterAdditionDeductionService::getAllFarmersAdditions();
+        $allFarmersDeductions = \App\Services\CenterAdditionDeductionService::getAllFarmersDeductions();
+
+        return view('farmers.edit', compact(
+            'farmer',
+            'branches',
+            'centers',
+            'rateCharts',
+            'routes',
+            'farmerWiseAdditions',
+            'farmerWiseDeductions',
+            'allFarmersAdditions',
+            'allFarmersDeductions'
+        ));
     }
 
     /**
@@ -649,8 +718,38 @@ class FarmerController extends Controller
             'installment' => 'nullable|numeric|min:0',
             'etc_amount' => 'nullable|numeric|min:0',
             'grant_amount' => 'nullable|numeric|min:0',
+            'extra_rates' => 'nullable|array',
             'status' => 'required|in:active,inactive,blocked',
         ]);
+
+        // Process dynamic farmer-wise additions & deductions
+        $extraRates = is_array($farmer->extra_rates) ? $farmer->extra_rates : [];
+        if ($request->has('extra_rates') && is_array($request->input('extra_rates'))) {
+            foreach ($request->input('extra_rates') as $k => $v) {
+                $cleanK = trim($k);
+                if ($cleanK !== '') {
+                    $extraRates[$cleanK] = ($v !== '' && $v !== null) ? (float)$v : 0.0;
+                }
+            }
+        }
+        $validated['extra_rates'] = $extraRates;
+
+        // Two-way sync with legacy columns if present
+        $legacySync = [
+            'anamat' => ['Anamat'],
+            'building_fund' => ['Building fund', 'Building Fund'],
+            'grant_amount' => ['Grant', 'Grant Amount'],
+            'installment' => ['Installment'],
+            'etc_amount' => ['Etc', 'Etc Amount'],
+        ];
+        foreach ($legacySync as $col => $catNames) {
+            foreach ($catNames as $catName) {
+                if (isset($extraRates[$catName])) {
+                    $validated[$col] = $extraRates[$catName];
+                    break;
+                }
+            }
+        }
 
         if ($request->hasFile('photo')) {
             $destPath = public_path('uploads/farmers');

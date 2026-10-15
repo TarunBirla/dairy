@@ -274,24 +274,120 @@
             </div>
         </div>
 
-        <!-- SECTION 4: FINANCIAL & SECURITY DEPOSIT (ANAMAT) / वित्तीय विवरण एवं अमानत -->
+        <!-- SECTION 4: EXTRA INFORMATION (DYNAMIC ADDITIONS & DEDUCTIONS) / अतिरिक्त जानकारी -->
+        <div class="bg-slate-50/70 rounded-2xl p-5 border border-slate-200/80 space-y-4">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                <div class="flex items-center gap-2 text-emerald-800 font-bold text-xs uppercase tracking-wider">
+                    <i data-lucide="sliders" class="w-4 h-4 text-emerald-600"></i>
+                    <span>Extra Information / अतिरिक्त जानकारी (Dynamic Additions & Deductions)</span>
+                </div>
+                <a href="{{ route('settings.center-information') }}" target="_blank" class="text-[11px] text-emerald-700 hover:underline flex items-center gap-1 font-semibold">
+                    <i data-lucide="settings" class="w-3 h-3"></i>
+                    <span>Center Settings</span>
+                </a>
+            </div>
+
+            <p class="text-xs text-slate-500">
+                The fields below are dynamically generated based on categories configured as <strong>"Farmer Wise"</strong> in <strong>Settings → Center Information</strong>.
+                Categories configured for <strong>"All Farmers"</strong> are managed centrally and applied automatically.
+            </p>
+
+            @php
+                $hasFarmerWiseAdditions = !empty($farmerWiseAdditions);
+                $hasFarmerWiseDeductions = !empty($farmerWiseDeductions);
+            @endphp
+
+            @if($hasFarmerWiseAdditions)
+                <div class="space-y-2 pt-1">
+                    <h4 class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="plus-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
+                        <span>Farmer-Wise Additions / किसान-वार जोड़ (Incentive, Subsidy, etc.)</span>
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+                        @foreach($farmerWiseAdditions as $add)
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-700 mb-1">
+                                    {{ $add['name'] }} (₹ {{ $add['unit'] ? '/ ' . ltrim($add['unit'], '/') : '' }})
+                                </label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" min="0" 
+                                           name="extra_rates[{{ $add['name'] }}]" 
+                                           value="{{ old('extra_rates.' . $add['name'], $farmer->getFarmerWiseRate($add['name'])) }}" 
+                                           placeholder="0.00"
+                                           class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition font-semibold text-slate-900">
+                                </div>
+                                <span class="text-[10px] text-slate-400">Applied per {{ ltrim($add['unit'] ?? 'ltr', '/') }} for this farmer</span>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            @if($hasFarmerWiseDeductions)
+                <div class="space-y-2 pt-2 border-t border-slate-200/60">
+                    <h4 class="text-[11px] font-bold text-rose-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="minus-circle" class="w-3.5 h-3.5 text-rose-600"></i>
+                        <span>Farmer-Wise Deductions / किसान-वार कटौती (Building Fund, Grant, etc.)</span>
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+                        @foreach($farmerWiseDeductions as $ded)
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-700 mb-1">
+                                    {{ $ded['name'] }} (₹ {{ $ded['unit'] ? '/ ' . ltrim($ded['unit'], '/') : '' }})
+                                </label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" min="0" 
+                                           name="extra_rates[{{ $ded['name'] }}]" 
+                                           value="{{ old('extra_rates.' . $ded['name'], $farmer->getFarmerWiseRate($ded['name'])) }}" 
+                                           placeholder="0.00"
+                                           class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition font-semibold text-slate-900">
+                                </div>
+                                <span class="text-[10px] text-slate-400">Applied as {{ $ded['unit'] ?? 'fixed' }} deduction</span>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            @if(!$hasFarmerWiseAdditions && !$hasFarmerWiseDeductions)
+                <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800 flex items-center gap-2">
+                    <i data-lucide="info" class="w-4 h-4 text-amber-600 shrink-0"></i>
+                    <span>All Addition and Deduction types are currently configured as <strong>"All Farmers"</strong> under Center Information. No farmer-specific fields are required.</span>
+                </div>
+            @endif
+
+            <!-- Central "All Farmers" Notice Banner for Transparency -->
+            @if(!empty($allFarmersAdditions) || !empty($allFarmersDeductions))
+                <div class="p-3 bg-slate-100/80 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                    <div class="flex items-center gap-1.5 font-bold text-slate-700">
+                        <i data-lucide="globe" class="w-3.5 h-3.5 text-emerald-600"></i>
+                        <span>Center-Wide Auto Rules (All Farmers):</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2 pt-0.5">
+                        @foreach($allFarmersAdditions as $afa)
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-bold">
+                                + {{ $afa['name'] }}: ₹{{ $afa['amount'] }}{{ $afa['unit'] ?? '/ltr' }}
+                            </span>
+                        @endforeach
+                        @foreach($allFarmersDeductions as $afd)
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded text-[10px] font-bold">
+                                - {{ $afd['name'] }}: ₹{{ $afd['amount'] }}{{ $afd['unit'] ?? '/ltr' }}
+                            </span>
+                        @endforeach
+                    </div>
+                    <span class="text-[10px] text-slate-400 block">These center-wide rates apply automatically to all milk collections and cannot be overridden individually.</span>
+                </div>
+            @endif
+        </div>
+
+        <!-- SECTION 5: ACCOUNT STATUS, BRANCH & ADDRESS / स्थिति एवं पता -->
         <div class="bg-slate-50/70 rounded-2xl p-5 border border-slate-200/80 space-y-3.5">
             <div class="flex items-center gap-2 pb-2 border-b border-slate-200 text-emerald-800 font-bold text-xs uppercase tracking-wider">
-                <i data-lucide="badge-indian-rupee" class="w-4 h-4 text-emerald-600"></i>
-                <span>Financial & Anamat Deposit / वित्तीय विवरण एवं अमानत</span>
+                <i data-lucide="map-pin" class="w-4 h-4 text-emerald-600"></i>
+                <span>Account Status & Address / स्थिति एवं पता</span>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 pt-1">
-                <!-- Anamat Deposit -->
-                <div>
-                    <label class="block text-[11px] font-semibold text-slate-700 mb-1">
-                        Anamat / अमानत (₹)
-                    </label>
-                    <input type="number" step="0.01" name="anamat" value="{{ old('anamat', $farmer->anamat ?? '0.00') }}" placeholder="0.00"
-                           class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition">
-                    <span class="text-[10px] text-slate-400">Security deposit balance</span>
-                </div>
-
                 <!-- Status -->
                 <div>
                     <label class="block text-[11px] font-semibold text-slate-700 mb-1">
@@ -315,6 +411,16 @@
                             <option value="{{ $b->id }}" {{ old('branch_id', $farmer->branch_id) == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
                         @endforeach
                     </select>
+                </div>
+
+                <!-- Anamat / Security Deposit (if not in deductions) -->
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Anamat / अमानत (₹)
+                    </label>
+                    <input type="number" step="0.01" name="anamat" value="{{ old('anamat', $farmer->anamat ?? '0.00') }}" placeholder="0.00"
+                           class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition">
+                    <span class="text-[10px] text-slate-400">Security deposit balance</span>
                 </div>
             </div>
 

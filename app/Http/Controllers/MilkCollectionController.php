@@ -41,18 +41,20 @@ class MilkCollectionController extends Controller
             ? trim($centerDetails['vehicle_route'])
             : null;
 
-        $additionTypes = json_decode(SystemSetting::get('center_addition_types', '[]'), true) ?: [];
-        $deductionTypes = json_decode(SystemSetting::get('center_deduction_types', '[]'), true) ?: [];
+        $additionTypes = \App\Services\CenterAdditionDeductionService::getAdditionTypes();
+        $deductionTypes = \App\Services\CenterAdditionDeductionService::getDeductionTypes();
 
         $perLiterAddition = 0.0;
         foreach ($additionTypes as $add) {
-            $perLiterAddition += (float) ($add['rate'] ?? 0);
+            if ($add['is_all_farmers'] && (str_contains(strtolower($add['unit'] ?? ''), 'ltr') || str_contains(strtolower($add['unit'] ?? ''), 'liter'))) {
+                $perLiterAddition += (float) $add['amount'];
+            }
         }
 
         $perLiterDeduction = 0.0;
         foreach ($deductionTypes as $ded) {
-            if (($ded['enabled'] ?? true) !== false) {
-                $perLiterDeduction += (float) ($ded['rate'] ?? 0);
+            if ($ded['is_all_farmers'] && (str_contains(strtolower($ded['unit'] ?? ''), 'ltr') || str_contains(strtolower($ded['unit'] ?? ''), 'liter'))) {
+                $perLiterDeduction += (float) $ded['amount'];
             }
         }
 
@@ -663,7 +665,21 @@ class MilkCollectionController extends Controller
         $resolved = $this->resolveCollectionRate($fat, $snf, $clr, $milkType, $farmer, $centerId, $shift);
         $stats = $this->getShiftAndPreviousStats($collectionDate, $shift, $farmerId);
 
-        return response()->json(array_merge($resolved, $stats));
+        $qty = (float) $request->get('quantity_liters', 0);
+        $rate = (float) ($resolved['rate'] ?? 0);
+        $gross = round($qty * $rate, 2);
+        $charges = \App\Services\CenterAdditionDeductionService::calculateForCollection($farmer, $qty, $gross);
+
+        $bonus = $charges['total_additions'];
+        $deduction = $charges['total_deductions'];
+        $net = max(0, round($gross + $bonus - $deduction, 2));
+
+        return response()->json(array_merge($resolved, $stats, [
+            'charges' => $charges,
+            'suggested_bonus' => $bonus,
+            'suggested_deduction' => $deduction,
+            'net_amount' => $net,
+        ]));
     }
 
     /**
@@ -711,16 +727,18 @@ class MilkCollectionController extends Controller
         $qty = (float) $validated['quantity_liters'];
         $gross = round($qty * $appliedRate, 2);
 
-        // Include center per-liter additions/deductions if bonus/deduction not manually overridden
+        $charges = \App\Services\CenterAdditionDeductionService::calculateForCollection($farmer, $qty, $gross);
+
+        // Include center additions/deductions (all farmers + farmer wise) if bonus/deduction not manually overridden
         $bonus = isset($validated['bonus']) && $validated['bonus'] !== ''
             ? (float) $validated['bonus']
-            : round($qty * $config['per_liter_addition'], 2);
+            : $charges['total_additions'];
 
         $deduction = isset($validated['deduction']) && $validated['deduction'] !== ''
             ? (float) $validated['deduction']
-            : round($qty * $config['per_liter_deduction'], 2);
+            : $charges['total_deductions'];
 
-        $net = round($gross + $bonus - $deduction, 2);
+        $net = max(0, round($gross + $bonus - $deduction, 2));
 
         $receiptNumber = 'COL-' . (MilkCollection::max('id') + 1001);
 
@@ -847,9 +865,14 @@ class MilkCollectionController extends Controller
 
         $qty = (float) $validated['quantity_liters'];
         $gross = round($qty * $appliedRate, 2);
-        $bonus = (float) ($validated['bonus'] ?? 0);
-        $deduction = (float) ($validated['deduction'] ?? 0);
-        $newNet = round($gross + $bonus - $deduction, 2);
+        $charges = \App\Services\CenterAdditionDeductionService::calculateForCollection($newFarmer, $qty, $gross);
+        $bonus = isset($validated['bonus']) && $validated['bonus'] !== ''
+            ? (float) $validated['bonus']
+            : $charges['total_additions'];
+        $deduction = isset($validated['deduction']) && $validated['deduction'] !== ''
+            ? (float) $validated['deduction']
+            : $charges['total_deductions'];
+        $newNet = max(0, round($gross + $bonus - $deduction, 2));
 
         // Revert old net from old farmer balance
         if ($oldFarmer) {

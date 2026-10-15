@@ -135,28 +135,27 @@ class FarmerInvoiceController extends Controller
             $otherCredit = round((float) $deductions->where('transaction_type', 'received')->sum('amount'), 2);
         }
 
-        // Dynamically wire Addition Types configured in Center Information (e.g. Subsidy 1.00/ltr, Transport 1.00/ltr)
+        // Dynamically wire Addition Types configured in Center Information (All Farmers + Farmer Wise)
         try {
-            $settingRow = \App\Models\SystemSetting::where('key', 'center_addition_types')->first();
-            if ($settingRow && !empty($settingRow->value)) {
-                $additionTypes = json_decode($settingRow->value, true);
-                if (is_array($additionTypes)) {
-                    foreach ($additionTypes as $at) {
-                        $name = strtolower(trim($at['name'] ?? ''));
-                        $val = trim($at['value'] ?? '');
-                        if (str_ends_with($val, '/ltr')) {
-                            $ratePerLtr = (float) str_replace('/ltr', '', $val);
-                            $amt = round($totalQuantity * $ratePerLtr, 2);
-                            if (str_contains($name, 'transport')) {
-                                $transportCredit += $amt;
-                            } elseif (str_contains($name, 'subsidy')) {
-                                $subsidyCredit += $amt;
-                            } elseif (str_contains($name, 'incentive')) {
-                                $incentiveCredit += $amt;
-                            } else {
-                                $otherCredit += $amt;
-                            }
-                        }
+            $existingBonusSum = (float) $collections->sum('bonus');
+            if ($existingBonusSum <= 0 && $totalQuantity > 0) {
+                $rawGross = round((float) $collections->sum(function ($c) {
+                    $rate = (float) ($c->applied_rate ?: $c->calculated_rate ?: 0);
+                    return (float) $c->quantity_liters * $rate;
+                }), 2);
+                $charges = \App\Services\CenterAdditionDeductionService::calculateForCollection($farmer, $totalQuantity, $rawGross);
+                foreach ($charges['additions'] as $add) {
+                    $name = strtolower($add['name'] ?? '');
+                    $amt = (float) ($add['amount'] ?? 0);
+                    if ($amt <= 0) continue;
+                    if (str_contains($name, 'transport')) {
+                        $transportCredit += $amt;
+                    } elseif (str_contains($name, 'subsidy')) {
+                        $subsidyCredit += $amt;
+                    } elseif (str_contains($name, 'incentive')) {
+                        $incentiveCredit += $amt;
+                    } else {
+                        $otherCredit += $amt;
                     }
                 }
             }

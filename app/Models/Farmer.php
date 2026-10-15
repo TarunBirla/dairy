@@ -40,6 +40,7 @@ class Farmer extends Model
         'installment',
         'etc_amount',
         'grant_amount',
+        'extra_rates',
         'status',
     ];
 
@@ -52,7 +53,45 @@ class Farmer extends Model
         'installment' => 'decimal:2',
         'etc_amount' => 'decimal:2',
         'grant_amount' => 'decimal:2',
+        'extra_rates' => 'array',
     ];
+
+    /**
+     * Get farmer-specific rate/amount for a category configured as Farmer Wise.
+     * Supports exact match, case-insensitive match, and legacy database columns.
+     */
+    public function getFarmerWiseRate(string $categoryName, float $default = 0.0): float
+    {
+        $key = trim($categoryName);
+        $rates = is_array($this->extra_rates) ? $this->extra_rates : [];
+
+        // 1. Direct match in extra_rates
+        if (isset($rates[$key]) && is_numeric($rates[$key])) {
+            return (float) $rates[$key];
+        }
+
+        // 2. Case-insensitive match in extra_rates
+        foreach ($rates as $k => $v) {
+            if (strcasecmp(trim($k), $key) === 0 && is_numeric($v)) {
+                return (float) $v;
+            }
+        }
+
+        // 3. Fallback to legacy columns
+        $legacyMap = [
+            'anamat' => 'anamat',
+            'building fund' => 'building_fund',
+            'installment' => 'installment',
+            'etc' => 'etc_amount',
+            'grant' => 'grant_amount',
+        ];
+        $lower = strtolower($key);
+        if (isset($legacyMap[$lower]) && isset($this->{$legacyMap[$lower]}) && is_numeric($this->{$legacyMap[$lower]})) {
+            return (float) $this->{$legacyMap[$lower]};
+        }
+
+        return (float) $default;
+    }
 
     public function getPhotoUrlAttribute()
     {

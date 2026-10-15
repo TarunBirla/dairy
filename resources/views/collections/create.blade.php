@@ -313,7 +313,7 @@
                 if (this.config.per_liter_deduction > 0) {
                     this.deduction = parseFloat((qty * this.config.per_liter_deduction).toFixed(2));
                 }
-                this.calculateTotal();
+                this.updateRate();
             },
 
             onFatChange() {
@@ -356,6 +356,7 @@
             },
 
             updateRate() {
+                const qty = parseFloat(this.liters) || 0;
                 fetch('{{ route("collections.calc-rate") }}', {
                     method: 'POST',
                     headers: {
@@ -370,7 +371,8 @@
                         milk_type: this.milkType,
                         shift: this.shift,
                         farmer_id: this.farmerId,
-                        collection_center_id: this.centerId
+                        collection_center_id: this.centerId,
+                        quantity_liters: qty
                     })
                 })
                 .then(res => res.json())
@@ -379,6 +381,10 @@
                     this.chartName = data.chart_name || 'Rate Chart';
                     if (this.config.auto_snf && data.snf > 0) this.snf = parseFloat(data.snf);
                     if (this.config.auto_clr && data.clr > 0) this.clr = parseFloat(data.clr);
+                    if (data.charges) {
+                        this.bonus = parseFloat(data.suggested_bonus || 0);
+                        this.deduction = parseFloat(data.suggested_deduction || 0);
+                    }
                     this.calculateTotal();
                 })
                 .catch(() => {

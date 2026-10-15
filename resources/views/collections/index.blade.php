@@ -1128,6 +1128,7 @@ function milkCollectionManager() {
                 this.form.milk_type = farmer.animal_type;
             }
             this.farmerDropdownOpen = false;
+            this.applyPerLiterCharges();
             this.triggerRateCalculation();
             this.$nextTick(() => {
                 const qInput = document.getElementById('collection_quantity_input');
@@ -1189,16 +1190,87 @@ function milkCollectionManager() {
         onQuantityChange() {
             this.applyPerLiterCharges();
             this.recalculateTotals();
+            this.triggerRateCalculation();
         },
 
         applyPerLiterCharges() {
             const qty = parseFloat(this.form.quantity_liters) || 0;
-            if (this.config.per_liter_addition > 0) {
-                this.form.bonus = parseFloat((qty * this.config.per_liter_addition).toFixed(2));
+            const gross = (parseFloat(this.form.applied_rate) || 0) * qty;
+            const farmer = this.allFarmers.find(f => String(f.id) === String(this.form.farmer_id));
+
+            let totalAdd = 0;
+            let totalDed = 0;
+
+            if (Array.isArray(this.config.addition_types) && this.config.addition_types.length > 0) {
+                this.config.addition_types.forEach(add => {
+                    let rate = 0;
+                    if (add.is_all_farmers) {
+                        rate = parseFloat(add.amount) || 0;
+                    } else if (farmer) {
+                        let fRates = farmer.extra_rates || {};
+                        let key = add.name || '';
+                        let lKey = key.toLowerCase().trim();
+                        if (typeof fRates[key] !== 'undefined') {
+                            rate = parseFloat(fRates[key]) || 0;
+                        } else if (typeof fRates[lKey] !== 'undefined') {
+                            rate = parseFloat(fRates[lKey]) || 0;
+                        }
+                    }
+
+                    if (rate > 0) {
+                        const unit = (add.unit || '').toLowerCase();
+                        if (unit.includes('ltr') || unit.includes('liter')) {
+                            totalAdd += qty * rate;
+                        } else if (unit.includes('%')) {
+                            totalAdd += (gross * rate) / 100;
+                        } else {
+                            totalAdd += rate;
+                        }
+                    }
+                });
+            } else if (this.config.per_liter_addition > 0) {
+                totalAdd += qty * this.config.per_liter_addition;
             }
-            if (this.config.per_liter_deduction > 0) {
-                this.form.deduction = parseFloat((qty * this.config.per_liter_deduction).toFixed(2));
+
+            if (Array.isArray(this.config.deduction_types) && this.config.deduction_types.length > 0) {
+                this.config.deduction_types.forEach(ded => {
+                    let rate = 0;
+                    if (ded.is_all_farmers) {
+                        rate = parseFloat(ded.amount) || 0;
+                    } else if (farmer) {
+                        let fRates = farmer.extra_rates || {};
+                        let key = ded.name || '';
+                        let lKey = key.toLowerCase().trim();
+                        if (typeof fRates[key] !== 'undefined') {
+                            rate = parseFloat(fRates[key]) || 0;
+                        } else if (typeof fRates[lKey] !== 'undefined') {
+                            rate = parseFloat(fRates[lKey]) || 0;
+                        } else if (lKey.includes('building') && typeof farmer.building_fund !== 'undefined') {
+                            rate = parseFloat(farmer.building_fund) || 0;
+                        } else if (lKey.includes('grant') && typeof farmer.grant_amount !== 'undefined') {
+                            rate = parseFloat(farmer.grant_amount) || 0;
+                        } else if (lKey.includes('installment') && typeof farmer.installment !== 'undefined') {
+                            rate = parseFloat(farmer.installment) || 0;
+                        }
+                    }
+
+                    if (rate > 0) {
+                        const unit = (ded.unit || '').toLowerCase();
+                        if (unit.includes('ltr') || unit.includes('liter')) {
+                            totalDed += qty * rate;
+                        } else if (unit.includes('%')) {
+                            totalDed += (gross * rate) / 100;
+                        } else {
+                            totalDed += rate;
+                        }
+                    }
+                });
+            } else if (this.config.per_liter_deduction > 0) {
+                totalDed += qty * this.config.per_liter_deduction;
             }
+
+            this.form.bonus = parseFloat(totalAdd.toFixed(2));
+            this.form.deduction = parseFloat(totalDed.toFixed(2));
         },
 
         onFatChange() {
@@ -1268,6 +1340,7 @@ function milkCollectionManager() {
             const collectionDate = this.form.collection_date || '{{ $today }}';
             const farmerId = this.form.farmer_id || null;
             const centerId = this.form.collection_center_id || null;
+            const qty = parseFloat(this.form.quantity_liters) || 0;
 
             fetch('{{ route("collections.calc-rate") }}', {
                 method: 'POST',
@@ -1284,7 +1357,8 @@ function milkCollectionManager() {
                     shift: shift,
                     collection_date: collectionDate,
                     farmer_id: farmerId,
-                    collection_center_id: centerId
+                    collection_center_id: centerId,
+                    quantity_liters: qty
                 })
             })
             .then(res => res.json())
@@ -1303,6 +1377,10 @@ function milkCollectionManager() {
                     }
                     if (this.config.auto_clr && data.clr > 0) {
                         this.form.clr = parseFloat(data.clr);
+                    }
+                    if (data.charges) {
+                        this.form.bonus = parseFloat(data.suggested_bonus || 0);
+                        this.form.deduction = parseFloat(data.suggested_deduction || 0);
                     }
                     this.rateChartFeedback = (data.chart_name || 'Rate Chart') + ' = ₹' + Number(data.rate).toFixed(2) + '/L';
                     this.applyLiveStatsResponse(data);

@@ -212,6 +212,7 @@
                                 'installment' => $farmer->installment ?? 0,
                                 'etc_amount' => $farmer->etc_amount ?? 0,
                                 'grant_amount' => $farmer->grant_amount ?? 0,
+                                'extra_rates' => $farmer->extra_rates ?: [],
                                 'current_balance' => $farmer->current_balance ?? 0,
                                 'status' => $farmer->status,
                             ];
@@ -624,59 +625,87 @@
                     </div>
                 </div>
 
-                <!-- SECTION 4: FINANCIAL DETAILS / वित्तीय विवरण -->
+                <!-- SECTION 4: EXTRA INFORMATION (DYNAMIC ADDITIONS & DEDUCTIONS) / अतिरिक्त जानकारी -->
                 <div class="bg-slate-50/60 rounded-xl p-4 border border-slate-200/80 space-y-3">
-                    <div class="flex items-center gap-2 pb-2 border-b border-slate-200 text-emerald-800 font-bold text-xs uppercase tracking-wider">
-                        <i data-lucide="badge-indian-rupee" class="w-4 h-4 text-emerald-600"></i>
-                        <span>FINANCIAL DETAILS / वित्तीय विवरण</span>
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                        <div class="flex items-center gap-2 text-emerald-800 font-bold text-xs uppercase tracking-wider">
+                            <i data-lucide="sliders" class="w-4 h-4 text-emerald-600"></i>
+                            <span>EXTRA INFORMATION / अतिरिक्त जानकारी (Dynamic Additions & Deductions)</span>
+                        </div>
+                        <a href="{{ route('settings.center-information') }}" target="_blank" class="text-[10px] text-emerald-700 hover:underline flex items-center gap-1 font-semibold">
+                            <i data-lucide="settings" class="w-3 h-3"></i>
+                            <span>Center Settings</span>
+                        </a>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 pt-1">
-                        <!-- Anamat -->
-                        <div>
-                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">
-                                Anamat / अमानत (₹)
-                            </label>
-                            <input type="number" step="0.01" name="anamat" x-model="form.anamat" placeholder="Enter Anamat"
-                                   class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none">
-                        </div>
+                    <p class="text-[11px] text-slate-500">
+                        Only categories configured as <strong>"Farmer Wise"</strong> in Center Information are shown below. "All Farmers" rates are applied automatically.
+                    </p>
 
-                        <!-- Building Fund -->
-                        <div>
-                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">
-                                Building Fund (₹)
-                            </label>
-                            <input type="number" step="0.01" name="building_fund" x-model="form.building_fund" placeholder="Enter Building Fund"
-                                   class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+                    @if(!empty($farmerWiseAdditions))
+                        <div class="space-y-1.5 pt-1">
+                            <span class="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">Farmer-Wise Additions (+):</span>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                @foreach($farmerWiseAdditions as $add)
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-slate-700 mb-1">
+                                            {{ $add['name'] }} (₹ {{ $add['unit'] ? '/ ' . ltrim($add['unit'], '/') : '' }})
+                                        </label>
+                                        <input type="number" step="0.01" min="0" 
+                                               name="extra_rates[{{ $add['name'] }}]" 
+                                               x-model="form.extra_rates['{{ $add['name'] }}']" 
+                                               placeholder="0.00"
+                                               class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none font-semibold">
+                                        <span class="text-[9px] text-slate-400">Applied per {{ ltrim($add['unit'] ?? 'ltr', '/') }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
                         </div>
+                    @endif
 
-                        <!-- Installment -->
-                        <div>
-                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">
-                                Installment / किस्त (₹)
-                            </label>
-                            <input type="number" step="0.01" name="installment" x-model="form.installment" placeholder="Setup Installment"
-                                   class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+                    @if(!empty($farmerWiseDeductions))
+                        <div class="space-y-1.5 pt-2 border-t border-slate-200/60">
+                            <span class="text-[10px] font-bold text-rose-800 uppercase tracking-wider block">Farmer-Wise Deductions (-):</span>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                @foreach($farmerWiseDeductions as $ded)
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-slate-700 mb-1">
+                                            {{ $ded['name'] }} (₹ {{ $ded['unit'] ? '/ ' . ltrim($ded['unit'], '/') : '' }})
+                                        </label>
+                                        <input type="number" step="0.01" min="0" 
+                                               name="extra_rates[{{ $ded['name'] }}]" 
+                                               x-model="form.extra_rates['{{ $ded['name'] }}']" 
+                                               placeholder="0.00"
+                                               class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none font-semibold">
+                                        <span class="text-[9px] text-slate-400">Applied as {{ $ded['unit'] ?? 'fixed' }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
                         </div>
+                    @endif
 
-                        <!-- Etc -->
-                        <div>
-                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">
-                                Etc / अन्य कटौती (₹)
-                            </label>
-                            <input type="number" step="0.01" name="etc_amount" x-model="form.etc_amount" placeholder="Enter Etc Amount"
-                                   class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+                    @if(empty($farmerWiseAdditions) && empty($farmerWiseDeductions))
+                        <div class="p-2.5 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-800">
+                            All addition and deduction types are configured as "All Farmers". No individual inputs required.
                         </div>
+                    @endif
 
-                        <!-- Grant -->
-                        <div>
-                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">
-                                Grant / अनुदान (₹)
-                            </label>
-                            <input type="number" step="0.01" name="grant_amount" x-model="form.grant_amount" placeholder="Enter Grant"
-                                   class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+                    <!-- Central All-Farmers Transparency Notice -->
+                    @if(!empty($allFarmersAdditions) || !empty($allFarmersDeductions))
+                        <div class="p-2.5 bg-slate-100 rounded-lg text-[10px] text-slate-600 flex flex-wrap gap-1.5 items-center">
+                            <span class="font-bold text-slate-700">Center-Wide (All Farmers):</span>
+                            @foreach($allFarmersAdditions as $afa)
+                                <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-bold">
+                                    + {{ $afa['name'] }}: ₹{{ $afa['amount'] }}{{ $afa['unit'] ?? '/ltr' }}
+                                </span>
+                            @endforeach
+                            @foreach($allFarmersDeductions as $afd)
+                                <span class="bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded font-bold">
+                                    - {{ $afd['name'] }}: ₹{{ $afd['amount'] }}{{ $afd['unit'] ?? '/ltr' }}
+                                </span>
+                            @endforeach
                         </div>
-                    </div>
+                    @endif
                 </div>
 
                 <!-- Modal Actions -->
@@ -929,6 +958,7 @@ function farmerManager() {
             installment: '0.00',
             etc_amount: '0.00',
             grant_amount: '0.00',
+            extra_rates: {},
             status: 'active'
         },
 
@@ -954,6 +984,11 @@ function farmerManager() {
         openEditModal(item) {
             this.isEditMode = true;
             this.formAction = `/farmers/${item.id}`;
+            const extra = { ...(item.extra_rates || {}) };
+            if (item.building_fund && !extra['Building fund']) extra['Building fund'] = item.building_fund;
+            if (item.grant_amount && !extra['Grant']) extra['Grant'] = item.grant_amount;
+            if (item.anamat && !extra['Anamat']) extra['Anamat'] = item.anamat;
+
             this.form = {
                 id: item.id,
                 farmer_code: item.farmer_code || '',
@@ -981,6 +1016,7 @@ function farmerManager() {
                 installment: item.installment || '0.00',
                 etc_amount: item.etc_amount || '0.00',
                 grant_amount: item.grant_amount || '0.00',
+                extra_rates: extra,
                 status: item.status || 'active'
             };
             this.showModal = true;
@@ -1036,6 +1072,7 @@ function farmerManager() {
                 installment: '0.00',
                 etc_amount: '0.00',
                 grant_amount: '0.00',
+                extra_rates: {},
                 status: 'active'
             };
         }

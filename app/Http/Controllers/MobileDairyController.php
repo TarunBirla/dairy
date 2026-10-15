@@ -426,7 +426,11 @@ class MobileDairyController extends Controller
         $calcRate = $this->resolveMilkRate($farmer, $validated['milk_type'], $fat, $snf, $clr);
         $appliedRate = (!empty($validated['rate']) && (float) $validated['rate'] > 0) ? (float) $validated['rate'] : $calcRate;
         $qty = (float) $validated['quantity_liters'];
-        $netAmount = round($qty * $appliedRate, 2);
+        $grossAmount = round($qty * $appliedRate, 2);
+        $charges = \App\Services\CenterAdditionDeductionService::calculateForCollection($farmer, $qty, $grossAmount);
+        $bonus = $charges['total_additions'];
+        $deduction = $charges['total_deductions'];
+        $netAmount = max(0, round($grossAmount + $bonus - $deduction, 2));
 
         $receiptNumber = 'MC-' . strtoupper(substr($validated['shift'], 0, 1)) . '-' . date('ymd', strtotime($date)) . '-' . str_pad((MilkCollection::max('id') + 1), 4, '0', STR_PAD_LEFT);
 
@@ -445,9 +449,9 @@ class MobileDairyController extends Controller
                 'clr' => $clr > 0 ? $clr : null,
                 'calculated_rate' => $calcRate,
                 'applied_rate' => $appliedRate,
-                'gross_amount' => $netAmount,
-                'bonus' => 0.00,
-                'deduction' => 0.00,
+                'gross_amount' => $grossAmount,
+                'bonus' => $bonus,
+                'deduction' => $deduction,
                 'net_amount' => $netAmount,
                 'payment_status' => 'pending',
                 'notes' => $validated['remarks'] ?? null,
