@@ -29,7 +29,7 @@
             <div class="bg-white rounded border border-slate-200 overflow-hidden shadow-2xs">
                 <div class="px-3.5 py-2.5 bg-[#f8faff] border-b border-slate-200 flex items-center justify-between">
                     <span class="text-xs font-bold text-[#002e79]">Center</span>
-                    <button type="button" @click="showEditCenterModal = true" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition">
+                    <button type="button" @click="openEditCenterModal()" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition cursor-pointer">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                         Edit
                     </button>
@@ -99,7 +99,7 @@
             <div class="bg-white rounded border border-slate-200 overflow-hidden shadow-2xs">
                 <div class="px-3.5 py-2.5 bg-[#f8faff] border-b border-slate-200 flex items-center justify-between">
                     <span class="text-xs font-bold text-[#002e79]">Billing Info</span>
-                    <button type="button" @click="showEditBillingModal = true" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition">
+                    <button type="button" @click="openEditBillingModal()" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition cursor-pointer">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                         Edit
                     </button>
@@ -143,10 +143,10 @@
                 <div class="px-3.5 py-2.5 bg-[#f8faff] border-b border-slate-200 flex items-center justify-between">
                     <span class="text-xs font-bold text-[#002e79]">Subscription</span>
                     <div class="flex items-center gap-3">
-                        <button type="button" @click="showPayNowModal = true" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-0.5 transition">
+                        <button type="button" @click="openPayNowModal()" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-0.5 transition cursor-pointer">
                             <span>₹</span> Pay Now
                         </button>
-                        <button type="button" @click="showHistoryModal = true" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition">
+                        <button type="button" @click="openHistoryModal()" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition cursor-pointer">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             History
                         </button>
@@ -175,11 +175,11 @@
                 <div class="px-3.5 py-2.5 bg-[#f8faff] border-b border-slate-200 flex items-center justify-between">
                     <span class="text-xs font-bold text-[#002e79]">Location</span>
                     <div class="flex items-center gap-3">
-                        <a :href="'https://www.google.com/maps?q=' + locationInfo.latitude + ',' + locationInfo.longitude" target="_blank" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition">
+                        <a :href="'https://www.google.com/maps?q=' + locationInfo.latitude + ',' + locationInfo.longitude" target="_blank" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition cursor-pointer">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                             View On Map
                         </a>
-                        <button type="button" @click="showEditLocationModal = true" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition">
+                        <button type="button" @click="openEditLocationModal()" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition cursor-pointer">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                             Edit
                         </button>
@@ -198,7 +198,7 @@
             </div>
 
             <!-- Addition Type Card (Matching Image 5) -->
-            <div class="bg-white rounded border border-slate-200 overflow-hidden shadow-2xs">
+            <div class="bg-white rounded border border-slate-200 shadow-2xs relative">
                 <div class="px-3.5 py-2.5 bg-[#f8faff] border-b border-slate-200 flex items-center justify-between">
                     <span class="text-xs font-bold text-[#4338ca]">Addition Type</span>
                     <button type="button" @click.stop="openAddAdditionModal()" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition cursor-pointer">
@@ -208,20 +208,20 @@
                 <div class="divide-y divide-slate-100 text-xs">
                     <template x-for="(item, idx) in additionTypes" :key="'add-' + idx">
                         <div class="px-3.5 py-2 flex items-center justify-between hover:bg-slate-50 transition relative">
-                            <span class="w-1/2 font-medium text-slate-800" x-text="item.name"></span>
-                            <span class="w-1/3 text-slate-600 font-mono text-[11px]" x-text="item.value"></span>
+                            <span class="w-1/2 font-medium text-slate-800 cursor-pointer" @click="openEditAddition(idx)" x-text="item.name"></span>
+                            <span class="w-1/3 text-slate-600 font-mono text-[11px] cursor-pointer" @click="openEditAddition(idx)" x-text="item.value"></span>
                             
                             <!-- 3-Dots Action Menu Matching Image 5 -->
                             <div class="relative">
                                 <button type="button" @click.stop="toggleItemMenu('addition', idx)" class="text-slate-400 hover:text-slate-800 p-1 rounded font-bold text-base leading-none cursor-pointer">
                                     &#8942;
                                 </button>
-                                <div x-show="activeItemMenu === 'addition-' + idx" @click.outside="activeItemMenu = null" x-cloak class="absolute right-0 top-6 z-30 bg-white border border-slate-200 rounded-lg shadow-xl py-1 w-28 text-xs font-semibold">
-                                    <button type="button" @click.stop="activeItemMenu = null; openEditAddition(idx)" class="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-indigo-900 flex items-center gap-2">
+                                <div x-show="activeItemMenu === 'addition-' + idx" @click.outside="activeItemMenu = null" x-cloak class="absolute right-0 top-6 z-40 bg-white border border-slate-200 rounded-lg shadow-xl py-1 w-28 text-xs font-semibold">
+                                    <button type="button" @click.stop="activeItemMenu = null; openEditAddition(idx)" class="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-indigo-900 flex items-center gap-2 cursor-pointer">
                                         <svg class="w-3.5 h-3.5 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                                         Edit
                                     </button>
-                                    <button type="button" @click.stop="activeItemMenu = null; deleteAddition(idx)" class="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-indigo-900 flex items-center gap-2">
+                                    <button type="button" @click.stop="activeItemMenu = null; deleteAddition(idx)" class="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-indigo-900 flex items-center gap-2 cursor-pointer">
                                         <svg class="w-3.5 h-3.5 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                         Delete
                                     </button>
@@ -233,30 +233,30 @@
             </div>
 
             <!-- Deduction Type Card (Matching Image 5) -->
-            <div class="bg-white rounded border border-slate-200 overflow-hidden shadow-2xs">
+            <div class="bg-white rounded border border-slate-200 shadow-2xs relative">
                 <div class="px-3.5 py-2.5 bg-[#f8faff] border-b border-slate-200 flex items-center justify-between">
                     <span class="text-xs font-bold text-[#4338ca]">Deduction Type</span>
                     <button type="button" @click.stop="openAddDeductionModal()" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition cursor-pointer">
                         <span class="text-base leading-none font-bold">+</span> Add Deduction
                     </button>
                 </div>
-                <div class="divide-y divide-slate-100 text-xs max-h-[420px] overflow-y-auto">
+                <div class="divide-y divide-slate-100 text-xs">
                     <template x-for="(item, idx) in deductionTypes" :key="'ded-' + idx">
                         <div class="px-3.5 py-2 flex items-center justify-between hover:bg-slate-50 transition relative">
-                            <span class="w-1/2 font-medium text-slate-800" x-text="item.name"></span>
-                            <span class="w-1/3 text-slate-600 font-mono text-[11px]" x-text="item.value"></span>
+                            <span class="w-1/2 font-medium text-slate-800 cursor-pointer" @click="openEditDeduction(idx)" x-text="item.name"></span>
+                            <span class="w-1/3 text-slate-600 font-mono text-[11px] cursor-pointer" @click="openEditDeduction(idx)" x-text="item.value"></span>
                             
                             <!-- 3-Dots Action Menu Matching Image 5 -->
                             <div class="relative">
                                 <button type="button" @click.stop="toggleItemMenu('deduction', idx)" class="text-slate-400 hover:text-slate-800 p-1 rounded font-bold text-base leading-none cursor-pointer">
                                     &#8942;
                                 </button>
-                                <div x-show="activeItemMenu === 'deduction-' + idx" @click.outside="activeItemMenu = null" x-cloak class="absolute right-0 top-6 z-30 bg-white border border-slate-200 rounded-lg shadow-xl py-1 w-28 text-xs font-semibold">
-                                    <button type="button" @click.stop="activeItemMenu = null; openEditDeduction(idx)" class="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-indigo-900 flex items-center gap-2">
+                                <div x-show="activeItemMenu === 'deduction-' + idx" @click.outside="activeItemMenu = null" x-cloak class="absolute right-0 top-6 z-40 bg-white border border-slate-200 rounded-lg shadow-xl py-1 w-28 text-xs font-semibold">
+                                    <button type="button" @click.stop="activeItemMenu = null; openEditDeduction(idx)" class="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-indigo-900 flex items-center gap-2 cursor-pointer">
                                         <svg class="w-3.5 h-3.5 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                                         Edit
                                     </button>
-                                    <button type="button" @click.stop="activeItemMenu = null; deleteDeduction(idx)" class="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-indigo-900 flex items-center gap-2">
+                                    <button type="button" @click.stop="activeItemMenu = null; deleteDeduction(idx)" class="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-indigo-900 flex items-center gap-2 cursor-pointer">
                                         <svg class="w-3.5 h-3.5 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                         Delete
                                     </button>
@@ -2667,6 +2667,8 @@
                 </div>
             </form>
         </div>
+    </div>
+
     <!-- 1. Edit Center Details Modal (Matching Image 1) -->
     <div x-show="showEditCenterModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showEditCenterModal = false"></div>
@@ -3643,6 +3645,30 @@ function centerInformationApp() {
                 console.error(err);
                 alert('Error saving annual bonus print settings: ' + err.message);
             }
+        },
+
+        openEditCenterModal() {
+            this.centerDetailsData = JSON.parse(JSON.stringify(this.centerDetails));
+            this.showEditCenterModal = true;
+        },
+
+        openEditBillingModal() {
+            this.billingInfoData = JSON.parse(JSON.stringify(this.billingInfo));
+            this.showEditBillingModal = true;
+        },
+
+        openEditLocationModal() {
+            this.locationInfoData = JSON.parse(JSON.stringify(this.locationInfo));
+            this.showEditLocationModal = true;
+        },
+
+        openPayNowModal() {
+            this.showPayNowModal = true;
+        },
+
+        openHistoryModal() {
+            this.historySearch = '';
+            this.showHistoryModal = true;
         },
 
         async saveCenterDetails() {
