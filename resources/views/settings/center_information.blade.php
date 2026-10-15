@@ -63,7 +63,7 @@
                     <div class="px-3.5 py-2 flex items-center justify-between">
                         <span class="w-1/2 font-semibold text-slate-700">Vehicle Route</span>
                         <div class="w-1/2 flex items-center justify-between gap-2">
-                            <span class="text-slate-800 font-medium" x-text="(centerDetails.vehicle_route && centerDetails.vehicle_route !== '-') ? centerDetails.vehicle_route : '{{ isset($routes) && $routes->isNotEmpty() ? $routes->pluck('name')->implode(', ') : '-' }}'"></span>
+                            <span class="text-slate-800 font-medium" x-text="(centerDetails.vehicle_route && centerDetails.vehicle_route !== '-') ? centerDetails.vehicle_route : defaultVehicleRoute"></span>
                             <a href="{{ route('delivery.routes') }}" class="text-[11px] font-semibold text-blue-600 hover:text-blue-800 shrink-0 underline">+ Routes</a>
                         </div>
                     </div>
@@ -180,7 +180,7 @@
             <div class="bg-white rounded border border-slate-200 overflow-hidden shadow-2xs">
                 <div class="px-3.5 py-2.5 bg-[#f8faff] border-b border-slate-200 flex items-center justify-between">
                     <span class="text-xs font-bold text-[#002e79]">Addition Type</span>
-                    <button type="button" @click="openAddAdditionModal()" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition">
+                    <button type="button" @click.stop="openAddAdditionModal()" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition cursor-pointer">
                         + Add Extra Payment
                     </button>
                 </div>
@@ -189,7 +189,7 @@
                         <div class="px-3.5 py-2 flex items-center justify-between hover:bg-slate-50 transition">
                             <span class="w-1/2 font-medium text-slate-800" x-text="item.name"></span>
                             <span class="w-1/3 text-slate-600 font-mono text-[11px]" x-text="item.value"></span>
-                            <button type="button" @click="openItemAction('addition', idx)" class="text-slate-400 hover:text-slate-700 p-1 rounded font-bold text-sm leading-none">
+                            <button type="button" @click.stop="openItemAction('addition', idx)" class="text-slate-400 hover:text-slate-700 p-1 rounded font-bold text-sm leading-none cursor-pointer">
                                 &#8942;
                             </button>
                         </div>
@@ -201,7 +201,7 @@
             <div class="bg-white rounded border border-slate-200 overflow-hidden shadow-2xs">
                 <div class="px-3.5 py-2.5 bg-[#f8faff] border-b border-slate-200 flex items-center justify-between">
                     <span class="text-xs font-bold text-[#002e79]">Deduction Type</span>
-                    <button type="button" @click="openAddDeductionModal()" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition">
+                    <button type="button" @click.stop="openAddDeductionModal()" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition cursor-pointer">
                         + Add Deduction
                     </button>
                 </div>
@@ -210,7 +210,7 @@
                         <div class="px-3.5 py-2 flex items-center justify-between hover:bg-slate-50 transition">
                             <span class="w-1/2 font-medium text-slate-800" x-text="item.name"></span>
                             <span class="w-1/3 text-slate-600 font-mono text-[11px]" x-text="item.value"></span>
-                            <button type="button" @click="openItemAction('deduction', idx)" class="text-slate-400 hover:text-slate-700 p-1 rounded font-bold text-sm leading-none">
+                            <button type="button" @click.stop="openItemAction('deduction', idx)" class="text-slate-400 hover:text-slate-700 p-1 rounded font-bold text-sm leading-none cursor-pointer">
                                 &#8942;
                             </button>
                         </div>
@@ -2826,8 +2826,9 @@
     </div>
 
     <!-- Add Extra Payment Modal -->
-    <div x-show="showAddAdditionModal" x-cloak class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden text-xs" @click.outside="showAddAdditionModal = false">
+    <div x-show="showAddAdditionModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showAddAdditionModal = false"></div>
+        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden text-xs relative z-10" @click.stop>
             <div class="bg-[#002e79] text-white px-5 py-3.5 flex items-center justify-between font-bold">
                 <h4>Add Extra Payment</h4>
                 <button type="button" @click="showAddAdditionModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
@@ -2861,8 +2862,9 @@
     </div>
 
     <!-- Add Deduction Modal -->
-    <div x-show="showAddDeductionModal" x-cloak class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden text-xs" @click.outside="showAddDeductionModal = false">
+    <div x-show="showAddDeductionModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showAddDeductionModal = false"></div>
+        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden text-xs relative z-10" @click.stop>
             <div class="bg-[#002e79] text-white px-5 py-3.5 flex items-center justify-between font-bold">
                 <h4>Add Deduction Type</h4>
                 <button type="button" @click="showAddDeductionModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
@@ -2898,8 +2900,9 @@
     </div>
 
     <!-- Row Action (Edit / Delete) Modal -->
-    <div x-show="showItemActionModal" x-cloak class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-xs w-full overflow-hidden text-xs" @click.outside="showItemActionModal = false">
+    <div x-show="showItemActionModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showItemActionModal = false"></div>
+        <div class="bg-white rounded-xl shadow-2xl max-w-xs w-full overflow-hidden text-xs relative z-10" @click.stop>
             <div class="bg-[#002e79] text-white px-4 py-3 flex items-center justify-between font-bold">
                 <span x-text="'Manage: ' + selectedItemData.name"></span>
                 <button type="button" @click="showItemActionModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
@@ -2951,6 +2954,8 @@ function centerInformationApp() {
         locationInfo: {!! json_encode($locationInfo) !!},
         locationInfoData: { ...{!! json_encode($locationInfo) !!} },
 
+        defaultVehicleRoute: {!! json_encode(isset($routes) && $routes->isNotEmpty() ? $routes->pluck('name')->implode(', ') : '-') !!},
+
         additionTypes: {!! json_encode($additionTypes) !!},
         deductionTypes: {!! json_encode($deductionTypes) !!},
 
@@ -2958,8 +2963,8 @@ function centerInformationApp() {
         newDeduction: { name: '', value: '0.00', unit: '/ltr' },
 
         // Settings Values
-        collectionType: '{{ $settings["collection_type"] ?? "FAT only" }}',
-        milkType: '{{ $settings["milk_type"] ?? "Cow, Buffalo" }}',
+        collectionType: {!! json_encode($settings["collection_type"] ?? "FAT only") !!},
+        milkType: {!! json_encode($settings["milk_type"] ?? "Cow, Buffalo") !!},
         collectionShift: {!! json_encode($settings["collection_shift"] ?? "Auto (Morning + Evening)") !!},
         showPreviousCollection: {!! json_encode($settings["show_previous_collection"] ?? "Yesterday's both shift") !!},
         collectionInput: {!! json_encode($settings["collection_input"] ?? "Manual + Automatic") !!},
@@ -2978,8 +2983,8 @@ function centerInformationApp() {
         centerNameInSms: {!! json_encode($settings["center_name_in_sms"] ?? "SHRE GOPAL DAIR") !!},
         customCenterNameInSms: {!! json_encode($settings["center_name_in_sms"] ?? "SHRE GOPAL DAIR") !!},
 
-        selectedSmsTypes: ({!! json_encode($settings["sms_type"] ?? "Farmer App , SIM Card , Server SMS Pack") !!}).split(',').map(s => s.trim()),
-        selectedSendSmsFor: ({!! json_encode($settings["send_sms_for"] ?? "Collection , Feed , Invoice Payment , Loan , Loan Installment , Milk Sale , Milk Receive , Milk Dispatch") !!}).split(',').map(s => s.trim()),
+        selectedSmsTypes: (({!! json_encode($settings["sms_type"] ?? "Farmer App , SIM Card , Server SMS Pack") !!}) || '').split(',').map(s => s.trim()).filter(Boolean),
+        selectedSendSmsFor: (({!! json_encode($settings["send_sms_for"] ?? "Collection , Feed , Invoice Payment , Loan , Loan Installment , Milk Sale , Milk Receive , Milk Dispatch") !!}) || '').split(',').map(s => s.trim()).filter(Boolean),
         selectedFarmerAppLinkInSms: {!! json_encode($settings["farmer_app_link_in_sms"] ?? "On") !!},
         selectedTotalInCollectionSms: {!! json_encode($settings["total_in_collection_sms"] ?? "On") !!},
 
@@ -3004,27 +3009,27 @@ function centerInformationApp() {
         paymentRegisterFormat: {!! json_encode($paymentRegisterSetting["format"] ?? "Format-1") !!},
         showPaymentRegisterPreview: false,
         paymentRegisterData: {
-            signature_column: '{{ $paymentRegisterSetting["signature_column"] ?? "On" }}',
-            zero_amount_column: '{{ $paymentRegisterSetting["zero_amount_column"] ?? "Off" }}',
-            farmer_name_english: '{{ $paymentRegisterSetting["farmer_name_english"] ?? "Off" }}',
-            format: '{{ $paymentRegisterSetting["format"] ?? "Format-1" }}'
+            signature_column: {!! json_encode($paymentRegisterSetting["signature_column"] ?? "On") !!},
+            zero_amount_column: {!! json_encode($paymentRegisterSetting["zero_amount_column"] ?? "Off") !!},
+            farmer_name_english: {!! json_encode($paymentRegisterSetting["farmer_name_english"] ?? "Off") !!},
+            format: {!! json_encode($paymentRegisterSetting["format"] ?? "Format-1") !!}
         },
 
-        invoicePrintFormat: {!! json_encode($invoicePrintSetting["printer"] ?? "Laser") !!} + ' ' + {!! json_encode($invoicePrintSetting["format"] ?? "Format-1") !!},
+        invoicePrintFormat: {!! json_encode(($invoicePrintSetting["printer"] ?? "Laser") . ' ' . ($invoicePrintSetting["format"] ?? "Format-1")) !!},
         invoicePrintData: {
-            language: '{{ $invoicePrintSetting["language"] ?? "English" }}',
-            per_paper: '{{ $invoicePrintSetting["per_paper"] ?? "One Bill" }}',
+            language: {!! json_encode($invoicePrintSetting["language"] ?? "English") !!},
+            per_paper: {!! json_encode($invoicePrintSetting["per_paper"] ?? "One Bill") !!},
             fat: {{ isset($invoicePrintSetting['fat']) ? ($invoicePrintSetting['fat'] ? 'true' : 'false') : 'true' }},
             snf: {{ isset($invoicePrintSetting['snf']) ? ($invoicePrintSetting['snf'] ? 'true' : 'false') : 'true' }},
             clr: {{ isset($invoicePrintSetting['clr']) ? ($invoicePrintSetting['clr'] ? 'true' : 'false') : 'true' }},
-            food_details: '{{ $invoicePrintSetting["food_details"] ?? "On" }}',
-            advance_details: '{{ $invoicePrintSetting["advance_details"] ?? "On" }}',
-            average_in_invoice: '{{ $invoicePrintSetting["average_in_invoice"] ?? "On" }}',
-            plant_name: '{{ $invoicePrintSetting["plant_name"] ?? "Gopal Dairy" }}',
-            separate_cow_buff: '{{ $invoicePrintSetting["separate_cow_buff"] ?? "On" }}',
-            number_in_language: '{{ $invoicePrintSetting["number_in_language"] ?? "On" }}',
-            printer: '{{ $invoicePrintSetting["printer"] ?? "Laser" }}',
-            format: '{{ $invoicePrintSetting["format"] ?? "Format-1" }}'
+            food_details: {!! json_encode($invoicePrintSetting["food_details"] ?? "On") !!},
+            advance_details: {!! json_encode($invoicePrintSetting["advance_details"] ?? "On") !!},
+            average_in_invoice: {!! json_encode($invoicePrintSetting["average_in_invoice"] ?? "On") !!},
+            plant_name: {!! json_encode($invoicePrintSetting["plant_name"] ?? "Gopal Dairy") !!},
+            separate_cow_buff: {!! json_encode($invoicePrintSetting["separate_cow_buff"] ?? "On") !!},
+            number_in_language: {!! json_encode($invoicePrintSetting["number_in_language"] ?? "On") !!},
+            printer: {!! json_encode($invoicePrintSetting["printer"] ?? "Laser") !!},
+            format: {!! json_encode($invoicePrintSetting["format"] ?? "Format-1") !!}
         },
 
         // Rate Chart Settings Values
@@ -3069,11 +3074,11 @@ function centerInformationApp() {
         ],
         milkSalePrintFormat: {!! json_encode($settings["milk_sale_print_format"] ?? "Not Available") !!},
         milkSalePrintData: {
-            language: '{{ $settings["milk_sale_print_language"] ?? "English" }}',
-            number_in_language: '{{ $settings["milk_sale_print_number_in_lang"] ?? "On" }}',
-            printer: '{{ $settings["milk_sale_print_printer"] ?? "Laser" }}',
-            format: '{{ $settings["milk_sale_print_format_type"] ?? "Format-1" }}',
-            note: '{{ $settings["milk_sale_print_note"] ?? "" }}'
+            language: {!! json_encode($settings["milk_sale_print_language"] ?? "English") !!},
+            number_in_language: {!! json_encode($settings["milk_sale_print_number_in_lang"] ?? "On") !!},
+            printer: {!! json_encode($settings["milk_sale_print_printer"] ?? "Laser") !!},
+            format: {!! json_encode($settings["milk_sale_print_format_type"] ?? "Format-1") !!},
+            note: {!! json_encode($settings["milk_sale_print_note"] ?? "") !!}
         },
 
         // Other Settings Values
@@ -3085,8 +3090,8 @@ function centerInformationApp() {
         selectedClrLactoFormat: {!! json_encode($settings["clr_lacto_format"] ?? "One digit(00)") !!},
         contactDetailsSummary: {!! json_encode($settings["contact_details_summary"] ?? "Owner Name: Mobile") !!},
         contactDetailsData: {
-            name: '{{ $settings["contact_details_name"] ?? ($center->operator->name ?? "Owner Name") }}',
-            phone: '{{ $settings["contact_details_phone"] ?? ($center->operator->phone ?? "9876543210") }}'
+            name: {!! json_encode($settings["contact_details_name"] ?? ($center->operator->name ?? "Owner Name")) !!},
+            phone: {!! json_encode($settings["contact_details_phone"] ?? ($center->operator->phone ?? "9876543210")) !!}
         },
         fatFormat: {!! json_encode($settings["fat_format"] ?? "Round Down") !!},
         selectedFatFormat: {!! json_encode($settings["fat_format"] ?? "Round Down") !!},
@@ -3097,15 +3102,15 @@ function centerInformationApp() {
         centerLogoStatus: {!! json_encode($settings["center_logo_status"] ?? "Center Logo") !!},
         annualBonusPrintStatus: {!! json_encode($settings["annual_bonus_print_status"] ?? "Not Available") !!},
         annualBonusData: {
-            language: '{{ $settings["annual_bonus_language"] ?? "English" }}',
-            per_paper: '{{ $settings["annual_bonus_per_paper"] ?? "One Bill" }}',
-            advance_details: '{{ $settings["annual_bonus_adv_details"] ?? "On" }}',
-            previous_date: '{{ $settings["annual_bonus_prev_date"] ?? "On" }}',
-            previous_upcoming_balance: '{{ $settings["annual_bonus_prev_upcoming"] ?? "On" }}',
-            amount_column: '{{ $settings["annual_bonus_amt_col"] ?? "On" }}',
-            return_details: '{{ $settings["annual_bonus_return_det"] ?? "On" }}',
-            order_by: '{{ $settings["annual_bonus_order_by"] ?? "Order By Date - Descending" }}',
-            bill_note: '{{ $settings["annual_bonus_note"] ?? "" }}'
+            language: {!! json_encode($settings["annual_bonus_language"] ?? "English") !!},
+            per_paper: {!! json_encode($settings["annual_bonus_per_paper"] ?? "One Bill") !!},
+            advance_details: {!! json_encode($settings["annual_bonus_adv_details"] ?? "On") !!},
+            previous_date: {!! json_encode($settings["annual_bonus_prev_date"] ?? "On") !!},
+            previous_upcoming_balance: {!! json_encode($settings["annual_bonus_prev_upcoming"] ?? "On") !!},
+            amount_column: {!! json_encode($settings["annual_bonus_amt_col"] ?? "On") !!},
+            return_details: {!! json_encode($settings["annual_bonus_return_det"] ?? "On") !!},
+            order_by: {!! json_encode($settings["annual_bonus_order_by"] ?? "Order By Date - Descending") !!},
+            bill_note: {!! json_encode($settings["annual_bonus_note"] ?? "") !!}
         },
 
         // Radio & Form states
@@ -3118,13 +3123,13 @@ function centerInformationApp() {
             'FAT + SNF + Auto CLR',
             'Liter Only'
         ],
-        selectedCollectionType: '{{ $settings["collection_type"] ?? "FAT only" }}',
-        selectedMilkTypes: '{{ $settings["milk_type"] ?? "Cow, Buffalo" }}'.split(',').map(s => s.trim()),
-        selectedCollectionShift: '{{ $settings["collection_shift"] ?? "Auto (Morning + Evening)" }}',
-        selectedPreviousCollection: '{{ $settings["show_previous_collection"] ?? "Yesterday\'s both shift" }}',
-        selectedCollectionInput: '{{ $settings["collection_input"] ?? "Manual + Automatic" }}',
-        selectedOfflineCollection: '{{ $settings["offline_collection"] ?? "On" }}',
-        selectedRouteWiseCollection: '{{ $settings["route_wise_collection"] ?? "On" }}',
+        selectedCollectionType: {!! json_encode($settings["collection_type"] ?? "FAT only") !!},
+        selectedMilkTypes: (({!! json_encode($settings["milk_type"] ?? "Cow, Buffalo") !!}) || '').split(',').map(s => s.trim()).filter(Boolean),
+        selectedCollectionShift: {!! json_encode($settings["collection_shift"] ?? "Auto (Morning + Evening)") !!},
+        selectedPreviousCollection: {!! json_encode($settings["show_previous_collection"] ?? "Yesterday's both shift") !!},
+        selectedCollectionInput: {!! json_encode($settings["collection_input"] ?? "Manual + Automatic") !!},
+        selectedOfflineCollection: {!! json_encode($settings["offline_collection"] ?? "On") !!},
+        selectedRouteWiseCollection: {!! json_encode($settings["route_wise_collection"] ?? "On") !!},
 
         // Shift Time Models
         morningStartHour: '01',
@@ -3143,7 +3148,7 @@ function centerInformationApp() {
 
         // Print Settings Object
         printSettings: {
-            language: '{{ $printSetting["language"] ?? "English" }}',
+            language: {!! json_encode($printSetting["language"] ?? "English") !!},
             fat: {{ isset($printSetting['fat']) ? ($printSetting['fat'] ? 'true' : 'false') : 'true' }},
             amount: {{ isset($printSetting['amount']) ? ($printSetting['amount'] ? 'true' : 'false') : 'false' }},
             snf: {{ isset($printSetting['snf']) ? ($printSetting['snf'] ? 'true' : 'false') : 'true' }},
@@ -3154,20 +3159,20 @@ function centerInformationApp() {
             center_logo: {{ isset($printSetting['center_logo']) ? ($printSetting['center_logo'] ? 'true' : 'false') : 'false' }},
             rate: {{ isset($printSetting['rate']) ? ($printSetting['rate'] ? 'true' : 'false') : 'true' }},
             number_in_language: {{ isset($printSetting['number_in_language']) ? ($printSetting['number_in_language'] ? 'true' : 'false') : 'false' }},
-            note: '{{ $printSetting["note"] ?? "" }}',
-            format: '{{ $printSetting["format"] ?? "Format-2" }}'
+            note: {!! json_encode($printSetting["note"] ?? "") !!},
+            format: {!! json_encode($printSetting["format"] ?? "Format-2") !!}
         },
 
         // Bonus Penalty Object
         bonusPenaltyData: {
-            cow_morning_type: '{{ $bonusPenalty["cow_morning_type"] ?? "Bonus" }}',
-            cow_morning_rate: '{{ $bonusPenalty["cow_morning_rate"] ?? "0.00" }}',
-            buff_morning_type: '{{ $bonusPenalty["buff_morning_type"] ?? "Bonus" }}',
-            buff_morning_rate: '{{ $bonusPenalty["buff_morning_rate"] ?? "0.00" }}',
-            cow_evening_type: '{{ $bonusPenalty["cow_evening_type"] ?? "Bonus" }}',
-            cow_evening_rate: '{{ $bonusPenalty["cow_evening_rate"] ?? "0.00" }}',
-            buff_evening_type: '{{ $bonusPenalty["buff_evening_type"] ?? "Bonus" }}',
-            buff_evening_rate: '{{ $bonusPenalty["buff_evening_rate"] ?? "0.00" }}'
+            cow_morning_type: {!! json_encode($bonusPenalty["cow_morning_type"] ?? "Bonus") !!},
+            cow_morning_rate: {!! json_encode($bonusPenalty["cow_morning_rate"] ?? "0.00") !!},
+            buff_morning_type: {!! json_encode($bonusPenalty["buff_morning_type"] ?? "Bonus") !!},
+            buff_morning_rate: {!! json_encode($bonusPenalty["buff_morning_rate"] ?? "0.00") !!},
+            cow_evening_type: {!! json_encode($bonusPenalty["cow_evening_type"] ?? "Bonus") !!},
+            cow_evening_rate: {!! json_encode($bonusPenalty["cow_evening_rate"] ?? "0.00") !!},
+            buff_evening_type: {!! json_encode($bonusPenalty["buff_evening_type"] ?? "Bonus") !!},
+            buff_evening_rate: {!! json_encode($bonusPenalty["buff_evening_rate"] ?? "0.00") !!}
         },
 
         openModal(type) {
@@ -3580,8 +3585,17 @@ function centerInformationApp() {
             }
             this.showItemActionModal = false;
         }
-    }
+    };
 }
+
+if (typeof Alpine !== 'undefined') {
+    Alpine.data('centerInformationApp', centerInformationApp);
+} else {
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('centerInformationApp', centerInformationApp);
+    });
+}
+window.centerInformationApp = centerInformationApp;
 </script>
 @endpush
 @endsection
