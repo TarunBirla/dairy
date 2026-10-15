@@ -2076,7 +2076,7 @@ class ProcurementApiController extends Controller
                     'id' => $farmerRecord->id,
                     'farmer_code' => $farmerRecord->farmer_code,
                     'name' => $farmerRecord->name,
-                    'phone' => $farmer->phone,
+                    'phone' => $farmerRecord->phone,
                 ],
                 'summary' => [
                     'total_advance' => $totalAdvance,
