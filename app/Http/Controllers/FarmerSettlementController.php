@@ -14,19 +14,116 @@ use Carbon\Carbon;
 
 class FarmerSettlementController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $settlements = FarmerSettlement::with('farmer')->latest()->paginate(15);
-        $totalSettledAmount = FarmerSettlement::where('status', 'paid')->sum('paid_amount');
-        $farmers = Farmer::where('status', 'active')->get();
+        // 00 wale farmer show nhi hoge, plus & minus wale hoge
+        $pendingFarmersQuery = Farmer::where('status', 'active')
+            ->where(function ($q) {
+                $q->where('current_balance', '>', 0.001)
+                  ->orWhere('current_balance', '<', -0.001);
+            });
 
-        return view('farmers.settlements.index', compact('settlements', 'totalSettledAmount', 'farmers'));
+        // Search in pending farmers
+        $search = $request->get('search');
+        if (!empty($search)) {
+            $pendingFarmersQuery->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('farmer_code', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere('village', 'like', "%{$search}%");
+            });
+        }
+
+        // Type filter: plus (payable) or minus (advance)
+        $balanceType = $request->get('balance_type', 'all');
+        if ($balanceType === 'payable') {
+            $pendingFarmersQuery->where('current_balance', '>', 0.001);
+        } elseif ($balanceType === 'advance') {
+            $pendingFarmersQuery->where('current_balance', '<', -0.001);
+        }
+
+        $pendingFarmers = $pendingFarmersQuery->orderBy('id', 'asc')->get();
+
+        // Calculate summary metrics for all active non-zero balance farmers
+        $allActiveNonZero = Farmer::where('status', 'active')
+            ->where(function ($q) {
+                $q->where('current_balance', '>', 0.001)
+                  ->orWhere('current_balance', '<', -0.001);
+            })->get();
+
+        $totalPayable = (float) $allActiveNonZero->where('current_balance', '>', 0)->sum('current_balance');
+        $totalAdvanceDue = abs((float) $allActiveNonZero->where('current_balance', '<', 0)->sum('current_balance'));
+        $totalEligibleCount = $allActiveNonZero->count();
+
+        // Past settlements
+        $settlementsQuery = FarmerSettlement::with('farmer');
+        if ($request->filled('history_farmer_id')) {
+            $settlementsQuery->where('farmer_id', $request->history_farmer_id);
+        }
+        $settlements = $settlementsQuery->latest('id')->paginate(15)->withQueryString();
+        $totalSettledAmount = (float) FarmerSettlement::where('status', 'paid')->sum('paid_amount');
+
+        $farmers = $allActiveNonZero;
+        $activeTab = $request->get('tab', 'pending');
+
+        return view('farmers.settlements.index', compact(
+            'pendingFarmers',
+            'settlements',
+            'totalSettledAmount',
+            'farmers',
+            'allActiveNonZero',
+            'totalPayable',
+            'totalAdvanceDue',
+            'totalEligibleCount',
+            'balanceType',
+            'search',
+            'activeTab'
+        ));
     }
 
     public function create(Request $request)
     {
-        $farmers = Farmer::where('status', 'active')->get();
-        $selectedFarmer = $request->filled('farmer_id') ? Farmer::find($request->farmer_id) : null;
+        // 00 wale farmer show nhi hoge, plus & minus wale hoge
+        $farmers = Farmer::where('status', 'active')
+            ->where(function ($q) {
+                $q->where('current_balance', '>', 0.001)
+                  ->orWhere('current_balance', '<', -0.001);
+            })
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $totalFarmers = $farmers->count();
+
+        // If no farmer_id is provided, auto-select the first farmer
+        $selectedFarmer = null;
+        if ($request->filled('farmer_id')) {
+            $selectedFarmer = $farmers->firstWhere('id', (int)$request->farmer_id);
+            if (!$selectedFarmer) {
+                $selectedFarmer = Farmer::find($request->farmer_id);
+            }
+        }
+
+        if (!$selectedFarmer && $farmers->isNotEmpty()) {
+            $selectedFarmer = $farmers->first();
+        }
+
+        // Determine current index (1-based), previous farmer, and next farmer
+        $currentIndex = 1;
+        $prevFarmer = null;
+        $nextFarmer = null;
+
+        if ($selectedFarmer && $totalFarmers > 0) {
+            $farmerIndex = $farmers->search(function ($item) use ($selectedFarmer) {
+                return $item->id == $selectedFarmer->id;
+            });
+
+            if ($farmerIndex !== false) {
+                $currentIndex = $farmerIndex + 1;
+                $prevFarmer = $farmerIndex > 0 ? $farmers[$farmerIndex - 1] : null;
+                $nextFarmer = $farmerIndex < ($totalFarmers - 1) ? $farmers[$farmerIndex + 1] : null;
+            }
+        }
+
         $periodStart = $request->get('start_date', Carbon::now()->startOfMonth()->format('Y-m-d'));
         $periodEnd = $request->get('end_date', Carbon::today()->format('Y-m-d'));
 
@@ -41,14 +138,27 @@ class FarmerSettlementController extends Controller
                 ->where('payment_status', 'pending')
                 ->get();
 
-            $totalLiters = $collections->sum('quantity_liters');
-            $grossAmount = $collections->sum('net_amount');
-            $pendingAdvance = FarmerAdvance::where('farmer_id', $selectedFarmer->id)
+            $totalLiters = (float) $collections->sum('quantity_liters');
+            $grossAmount = (float) $collections->sum('net_amount');
+            $pendingAdvance = (float) FarmerAdvance::where('farmer_id', $selectedFarmer->id)
                 ->where('status', 'pending')
                 ->sum('amount');
         }
 
-        return view('farmers.settlements.create', compact('farmers', 'selectedFarmer', 'periodStart', 'periodEnd', 'collections', 'totalLiters', 'grossAmount', 'pendingAdvance'));
+        return view('farmers.settlements.create', compact(
+            'farmers',
+            'selectedFarmer',
+            'totalFarmers',
+            'currentIndex',
+            'prevFarmer',
+            'nextFarmer',
+            'periodStart',
+            'periodEnd',
+            'collections',
+            'totalLiters',
+            'grossAmount',
+            'pendingAdvance'
+        ));
     }
 
     public function store(Request $request)
