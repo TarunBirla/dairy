@@ -315,16 +315,37 @@ class MobileDairyController extends Controller
         }
 
         if ($chart) {
-            $slab = DB::table('rate_chart_slabs')
-                ->where('rate_chart_id', $chart->id)
-                ->where('fat_min', '<=', $fat)
-                ->where('fat_max', '>=', $fat)
-                ->where('snf_min', '<=', $snf)
-                ->where('snf_max', '>=', $snf)
-                ->first();
+            try {
+                $calculated = $chart->calculateRate($fat, $snf, $clr);
+                if ($calculated > 0) {
+                    return (float) $calculated;
+                }
+            } catch (\Throwable $e) {
+                // Ignore and try direct slab query
+            }
 
-            if ($slab && (float) $slab->rate > 0) {
-                return (float) $slab->rate;
+            try {
+                if (Schema::hasTable('rate_chart_slabs')) {
+                    $slabQuery = DB::table('rate_chart_slabs')->where('rate_chart_id', $chart->id);
+                    if (Schema::hasColumn('rate_chart_slabs', 'fat_from')) {
+                        $slabQuery->where('fat_from', '<=', $fat)->where('fat_to', '>=', $fat);
+                    } elseif (Schema::hasColumn('rate_chart_slabs', 'fat_min')) {
+                        $slabQuery->where('fat_min', '<=', $fat)->where('fat_max', '>=', $fat);
+                    }
+
+                    if (Schema::hasColumn('rate_chart_slabs', 'snf_from')) {
+                        $slabQuery->where('snf_from', '<=', $snf)->where('snf_to', '>=', $snf);
+                    } elseif (Schema::hasColumn('rate_chart_slabs', 'snf_min')) {
+                        $slabQuery->where('snf_min', '<=', $snf)->where('snf_max', '>=', $snf);
+                    }
+
+                    $slab = $slabQuery->first();
+                    if ($slab && isset($slab->rate) && (float) $slab->rate > 0) {
+                        return (float) $slab->rate;
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Ignore and fall through to fallback formula
             }
         }
 
