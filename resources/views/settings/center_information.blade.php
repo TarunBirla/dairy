@@ -2947,46 +2947,49 @@
         </div>
     </div>
 
-    <!-- Step 1: Select Addition Type Modal (Image 4 - Add Extra Payment) -->
+    <!-- Add / Edit Extra Payment Modal (Exact Match to Mobile Dairy Images 1 & 2) -->
     <div x-show="showAddAdditionModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showAddAdditionModal = false"></div>
         <div class="bg-white rounded-lg shadow-2xl max-w-sm w-full overflow-hidden text-xs relative z-10" @click.stop>
-            <div class="bg-[#98d8c8] text-slate-800 px-5 py-3 flex items-center justify-between font-bold text-sm border-b border-slate-200">
-                <span>Add Extra Payment</span>
-                <button type="button" @click="showAddAdditionModal = false" class="text-slate-600 hover:text-slate-900 text-xl font-bold leading-none cursor-pointer">&times;</button>
-            </div>
-            <div class="p-5 space-y-4">
-                <div class="space-y-1.5">
-                    <label class="block font-semibold text-slate-700">Addition Type:</label>
-                    <select x-model="selectedNewAdditionType" @change="onSelectAdditionType($event.target.value)" class="w-full px-3 py-2 border border-slate-300 rounded focus:border-[#388e7e] outline-none bg-white">
-                        <option value="">Select Addition Type</option>
-                        <option value="Misc. Add - Manual">Misc. Add - Manual</option>
-                        <option value="Commission In Percent/Invoice">Commission In Percent/Invoice</option>
-                        <option value="Incentive/Liter">Incentive/Liter</option>
-                        <option value="Subsidy/Liter">Subsidy/Liter</option>
-                        <option value="Transport/Liter">Transport/Liter</option>
-                        <option value="Other Payment Cr">Other Payment Cr</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Step 2: Configure / Edit Addition Modal (Image 5 style) -->
-    <div x-show="showConfigureAdditionModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showConfigureAdditionModal = false"></div>
-        <div class="bg-white rounded-lg shadow-2xl max-w-sm w-full overflow-hidden text-xs relative z-10" @click.stop>
+            <!-- Header matching Image 1 & 2 -->
             <div class="bg-[#98d8c8] text-slate-800 px-5 py-3 flex items-center justify-between font-bold text-sm border-b border-slate-200">
                 <span x-text="currentAdditionForm.is_edit ? 'Edit Extra Payment' : 'Add Extra Payment'"></span>
-                <button type="button" @click="showConfigureAdditionModal = false" class="text-slate-600 hover:text-slate-900 text-xl font-bold leading-none cursor-pointer">&times;</button>
+                <button type="button" @click="showAddAdditionModal = false" class="text-slate-600 hover:text-slate-900 text-xl font-bold leading-none cursor-pointer">&times;</button>
             </div>
+
             <form @submit.prevent="saveAdditionForm()" class="p-5 space-y-4">
-                <div class="space-y-1">
-                    <label class="block font-semibold text-slate-700">Addition Type:</label>
-                    <input type="text" x-model="currentAdditionForm.name" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#388e7e] outline-none">
+                <!-- Dropdown Row matching Image 1 & 2 -->
+                <div class="flex items-center gap-3">
+                    <label class="font-medium text-slate-600 shrink-0 text-xs">Addition Type:</label>
+                    <div class="relative flex-1" @click.outside="additionDropdownOpen = false">
+                        <button type="button" 
+                                @click="additionDropdownOpen = !additionDropdownOpen" 
+                                class="w-full flex items-center justify-between px-3 py-1.5 bg-white border-[1.5px] border-[#009688] rounded text-xs text-left cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#009688]">
+                            <span :class="currentAdditionForm.name ? 'text-slate-800 font-medium' : 'text-slate-600'" 
+                                  x-text="currentAdditionForm.name || 'Tap To Select'"></span>
+                            <svg class="w-4 h-4 text-slate-600 transition-transform shrink-0" :class="additionDropdownOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        
+                        <!-- Floating Dropdown Menu matching Image 2 -->
+                        <div x-show="additionDropdownOpen" 
+                             x-cloak 
+                             class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded shadow-xl z-50 py-1 text-xs max-h-48 overflow-y-auto">
+                            <template x-for="opt in availableAdditionTypes" :key="opt">
+                                <div @click="selectAdditionType(opt)" 
+                                     class="px-3 py-2 text-slate-800 hover:bg-slate-50 cursor-pointer transition flex items-center justify-between"
+                                     :class="currentAdditionForm.name === opt ? 'bg-emerald-50 text-[#009688] font-semibold' : ''">
+                                    <span x-text="opt"></span>
+                                    <span x-show="currentAdditionForm.name === opt" class="text-[#009688]">✓</span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="space-y-2">
+                <!-- Fields that appear when a type is chosen -->
+                <div x-show="currentAdditionForm.name" class="space-y-3 pt-1 border-t border-slate-100">
                     <div class="flex items-center gap-6">
                         <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
                             <input type="radio" value="all_farmers" x-model="currentAdditionForm.farmer_type" class="text-[#388e7e] focus:ring-[#388e7e]">
@@ -2997,71 +3000,78 @@
                             <span>Farmer Wise</span>
                         </label>
                     </div>
+
+                    <div x-show="currentAdditionForm.farmer_type === 'all_farmers'" class="flex items-center gap-3">
+                        <label class="font-medium text-slate-600 shrink-0 text-xs">Amount:</label>
+                        <input type="number" step="0.01" x-model="currentAdditionForm.amount" class="flex-1 px-3 py-1.5 border border-slate-300 rounded focus:border-[#009688] outline-none">
+                    </div>
+
+                    <div class="p-2.5 bg-slate-50 border border-slate-200 rounded text-slate-600 text-[11px] leading-relaxed">
+                        <template x-if="currentAdditionForm.farmer_type === 'all_farmers'">
+                            <span>For all farmers <strong class="text-slate-800" x-text="(currentAdditionForm.amount || '0.00') + (currentAdditionForm.unit || '/liter')"></strong> <strong class="text-slate-800" x-text="currentAdditionForm.name"></strong> will be added to the milk amount</span>
+                        </template>
+                        <template x-if="currentAdditionForm.farmer_type === 'farmer_wise'">
+                            <span>For <strong class="text-slate-800" x-text="currentAdditionForm.name"></strong>, extra payment will be specified individually for each farmer</span>
+                        </template>
+                    </div>
                 </div>
 
-                <div x-show="currentAdditionForm.farmer_type === 'all_farmers'" class="space-y-1">
-                    <label class="block font-semibold text-slate-700">Amount:</label>
-                    <input type="number" step="0.01" x-model="currentAdditionForm.amount" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#388e7e] outline-none">
-                </div>
-
-                <div class="p-2.5 bg-slate-50 border border-slate-200 rounded text-slate-600 text-[11px] leading-relaxed">
-                    <template x-if="currentAdditionForm.farmer_type === 'all_farmers'">
-                        <span>For all farmers <strong class="text-slate-800" x-text="(currentAdditionForm.amount || '0.00') + (currentAdditionForm.unit || '/liter')"></strong> <strong class="text-slate-800" x-text="currentAdditionForm.name"></strong> will be added to the milk amount</span>
-                    </template>
-                    <template x-if="currentAdditionForm.farmer_type === 'farmer_wise'">
-                        <span>For <strong class="text-slate-800" x-text="currentAdditionForm.name"></strong>, extra payment will be specified individually for each farmer</span>
-                    </template>
-                </div>
-
-                <div class="pt-3 flex justify-end gap-3 border-t border-slate-100">
-                    <button type="button" @click="resetAdditionForm()" class="px-6 py-2 rounded bg-[#cfd8dc] text-slate-700 hover:bg-[#b0bec5] font-semibold text-xs cursor-pointer transition">Reset</button>
-                    <button type="submit" class="px-7 py-2 rounded bg-[#388e7e] hover:bg-[#2e7d6f] text-white font-semibold text-xs shadow-xs cursor-pointer transition" x-text="currentAdditionForm.is_edit ? 'Update' : 'Save'"></button>
+                <!-- Footer Buttons matching Image 1 & 2 -->
+                <div class="pt-3 flex items-center justify-center gap-4">
+                    <button type="button" @click="resetAdditionForm()" class="px-6 py-1.5 rounded bg-[#dce2e6] hover:bg-[#cfd8dc] text-slate-700 font-semibold text-xs transition cursor-pointer">
+                        Reset
+                    </button>
+                    <button type="submit" class="px-7 py-1.5 rounded bg-[#358376] hover:bg-[#2c6e63] text-white font-semibold text-xs shadow-xs transition cursor-pointer">
+                        Save
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Step 1: Select Deduction Type Modal (Image 5 style) -->
+    <!-- Add / Edit Deduction Modal (Exact Match to Mobile Dairy Images 3 & 4) -->
     <div x-show="showAddDeductionModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showAddDeductionModal = false"></div>
         <div class="bg-white rounded-lg shadow-2xl max-w-sm w-full overflow-hidden text-xs relative z-10" @click.stop>
-            <div class="bg-[#98d8c8] text-slate-800 px-5 py-3 flex items-center justify-between font-bold text-sm border-b border-slate-200">
-                <span>Add Deduction</span>
-                <button type="button" @click="showAddDeductionModal = false" class="text-slate-600 hover:text-slate-900 text-xl font-bold leading-none cursor-pointer">&times;</button>
-            </div>
-            <div class="p-5 space-y-4">
-                <div class="space-y-1.5">
-                    <label class="block font-semibold text-slate-700">Deduction Type:</label>
-                    <select x-model="selectedNewDeductionType" @change="onSelectDeductionType($event.target.value)" class="w-full px-3 py-2 border border-slate-300 rounded focus:border-[#388e7e] outline-none bg-white">
-                        <option value="">Select Deduction Type</option>
-                        <option value="TDS 194Q - Manual">TDS 194Q - Manual</option>
-                        <option value="Anamat/Liter">Anamat/Liter</option>
-                        <option value="Cattle Feed/Invoice">Cattle Feed/Invoice</option>
-                        <option value="Doctor Fee/Invoice">Doctor Fee/Invoice</option>
-                        <option value="Share/Liter">Share/Liter</option>
-                        <option value="Transport/Liter">Transport/Liter</option>
-                        <option value="Other Deduction Dr">Other Deduction Dr</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Step 2: Configure / Edit Deduction Modal (Image 5) -->
-    <div x-show="showConfigureDeductionModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showConfigureDeductionModal = false"></div>
-        <div class="bg-white rounded-lg shadow-2xl max-w-sm w-full overflow-hidden text-xs relative z-10" @click.stop>
+            <!-- Header matching Image 3 & 4 -->
             <div class="bg-[#98d8c8] text-slate-800 px-5 py-3 flex items-center justify-between font-bold text-sm border-b border-slate-200">
                 <span x-text="currentDeductionForm.is_edit ? 'Edit Deduction' : 'Add Deduction'"></span>
-                <button type="button" @click="showConfigureDeductionModal = false" class="text-slate-600 hover:text-slate-900 text-xl font-bold leading-none cursor-pointer">&times;</button>
+                <button type="button" @click="showAddDeductionModal = false" class="text-slate-600 hover:text-slate-900 text-xl font-bold leading-none cursor-pointer">&times;</button>
             </div>
+
             <form @submit.prevent="saveDeductionForm()" class="p-5 space-y-4">
-                <div class="space-y-1">
-                    <label class="block font-semibold text-slate-700">Deduction Type:</label>
-                    <input type="text" x-model="currentDeductionForm.name" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#388e7e] outline-none">
+                <!-- Dropdown Row matching Image 3 & 4 -->
+                <div class="flex items-center gap-3">
+                    <label class="font-medium text-slate-600 shrink-0 text-xs">Deduction Type:</label>
+                    <div class="relative flex-1" @click.outside="deductionDropdownOpen = false">
+                        <button type="button" 
+                                @click="deductionDropdownOpen = !deductionDropdownOpen" 
+                                class="w-full flex items-center justify-between px-3 py-1.5 bg-white border-[1.5px] border-[#009688] rounded text-xs text-left cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#009688]">
+                            <span :class="currentDeductionForm.name ? 'text-slate-800 font-medium' : 'text-slate-600'" 
+                                  x-text="currentDeductionForm.name || 'Tap To Select'"></span>
+                            <svg class="w-4 h-4 text-slate-600 transition-transform shrink-0" :class="deductionDropdownOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        
+                        <!-- Floating Dropdown Menu matching Image 3 -->
+                        <div x-show="deductionDropdownOpen" 
+                             x-cloak 
+                             class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded shadow-xl z-50 py-1 text-xs max-h-48 overflow-y-auto">
+                            <template x-for="opt in availableDeductionTypes" :key="opt">
+                                <div @click="selectDeductionType(opt)" 
+                                     class="px-3 py-2 text-slate-800 hover:bg-slate-50 cursor-pointer transition flex items-center justify-between"
+                                     :class="currentDeductionForm.name === opt ? 'bg-emerald-50 text-[#009688] font-semibold' : ''">
+                                    <span x-text="opt"></span>
+                                    <span x-show="currentDeductionForm.name === opt" class="text-[#009688]">✓</span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="space-y-2">
+                <!-- Fields that appear when a type is chosen -->
+                <div x-show="currentDeductionForm.name" class="space-y-3 pt-1 border-t border-slate-100">
                     <div class="flex items-center gap-6">
                         <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
                             <input type="radio" value="all_farmers" x-model="currentDeductionForm.farmer_type" class="text-[#388e7e] focus:ring-[#388e7e]">
@@ -3072,34 +3082,39 @@
                             <span>Farmer Wise</span>
                         </label>
                     </div>
+
+                    <div x-show="currentDeductionForm.farmer_type === 'all_farmers'" class="flex items-center gap-3">
+                        <label class="font-medium text-slate-600 shrink-0 text-xs">Amount:</label>
+                        <input type="number" step="0.01" x-model="currentDeductionForm.amount" class="flex-1 px-3 py-1.5 border border-slate-300 rounded focus:border-[#009688] outline-none">
+                    </div>
+
+                    <div class="p-2.5 bg-slate-50 border border-slate-200 rounded text-slate-600 text-[11px] leading-relaxed">
+                        <template x-if="currentDeductionForm.farmer_type === 'all_farmers'">
+                            <span>For all farmers <strong class="text-slate-800" x-text="(currentDeductionForm.amount || '0.00') + (currentDeductionForm.unit || '/liter')"></strong> <strong class="text-slate-800" x-text="currentDeductionForm.name"></strong> will be deducted from the milk amount</span>
+                        </template>
+                        <template x-if="currentDeductionForm.farmer_type === 'farmer_wise'">
+                            <span>For <strong class="text-slate-800" x-text="currentDeductionForm.name"></strong>, deduction will be specified individually for each farmer</span>
+                        </template>
+                    </div>
+
+                    <!-- Auto Reset Checkbox Matching Image 5 -->
+                    <div class="space-y-1 pt-1">
+                        <label class="flex items-start gap-2 cursor-pointer text-slate-700">
+                            <input type="checkbox" x-model="currentDeductionForm.auto_reset" class="w-4 h-4 mt-0.5 rounded text-[#009688] focus:ring-[#009688]">
+                            <span class="text-[11px] leading-tight font-medium">I want to automatically set <strong x-text="currentDeductionForm.name"></strong> to 0.00 on the below-mentioned reset date.</span>
+                        </label>
+                        <p class="text-[10px] text-slate-500 pl-6">Note: The deduction amount will be automatically set to 0.00 on the specified reset date.</p>
+                    </div>
                 </div>
 
-                <div x-show="currentDeductionForm.farmer_type === 'all_farmers'" class="space-y-1">
-                    <label class="block font-semibold text-slate-700">Amount:</label>
-                    <input type="number" step="0.01" x-model="currentDeductionForm.amount" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#388e7e] outline-none">
-                </div>
-
-                <div class="p-2.5 bg-slate-50 border border-slate-200 rounded text-slate-600 text-[11px] leading-relaxed">
-                    <template x-if="currentDeductionForm.farmer_type === 'all_farmers'">
-                        <span>For all farmers <strong class="text-slate-800" x-text="(currentDeductionForm.amount || '0.00') + (currentDeductionForm.unit || '/liter')"></strong> <strong class="text-slate-800" x-text="currentDeductionForm.name"></strong> will be deducted from the milk amount</span>
-                    </template>
-                    <template x-if="currentDeductionForm.farmer_type === 'farmer_wise'">
-                        <span>For <strong class="text-slate-800" x-text="currentDeductionForm.name"></strong>, deduction will be specified individually for each farmer</span>
-                    </template>
-                </div>
-
-                <!-- Auto Reset Checkbox Matching Image 5 -->
-                <div class="space-y-1 pt-1">
-                    <label class="flex items-start gap-2 cursor-pointer text-slate-700">
-                        <input type="checkbox" x-model="currentDeductionForm.auto_reset" class="w-4 h-4 mt-0.5 rounded text-[#388e7e] focus:ring-[#388e7e]">
-                        <span class="text-[11px] leading-tight font-medium">I want to automatically set <strong x-text="currentDeductionForm.name"></strong> to 0.00 on the below-mentioned reset date.</span>
-                    </label>
-                    <p class="text-[10px] text-slate-500 pl-6">Note: The deduction amount will be automatically set to 0.00 on the specified reset date.</p>
-                </div>
-
-                <div class="pt-3 flex justify-end gap-3 border-t border-slate-100">
-                    <button type="button" @click="resetDeductionForm()" class="px-6 py-2 rounded bg-[#cfd8dc] text-slate-700 hover:bg-[#b0bec5] font-semibold text-xs cursor-pointer transition">Reset</button>
-                    <button type="submit" class="px-7 py-2 rounded bg-[#388e7e] hover:bg-[#2e7d6f] text-white font-semibold text-xs shadow-xs cursor-pointer transition" x-text="currentDeductionForm.is_edit ? 'Update' : 'Save'"></button>
+                <!-- Footer Buttons matching Image 3 & 4 -->
+                <div class="pt-3 flex items-center justify-center gap-4">
+                    <button type="button" @click="resetDeductionForm()" class="px-6 py-1.5 rounded bg-[#dce2e6] hover:bg-[#cfd8dc] text-slate-700 font-semibold text-xs transition cursor-pointer">
+                        Reset
+                    </button>
+                    <button type="submit" class="px-7 py-1.5 rounded bg-[#358376] hover:bg-[#2c6e63] text-white font-semibold text-xs shadow-xs transition cursor-pointer">
+                        Save
+                    </button>
                 </div>
             </form>
         </div>
@@ -3123,13 +3138,30 @@ function centerInformationApp() {
         showPayNowModal: false,
         showHistoryModal: false,
         showAddAdditionModal: false,
-        showConfigureAdditionModal: false,
         showAddDeductionModal: false,
-        showConfigureDeductionModal: false,
+        additionDropdownOpen: false,
+        deductionDropdownOpen: false,
         activeItemMenu: null,
         historySearch: '',
-        selectedNewAdditionType: '',
-        selectedNewDeductionType: '',
+
+        availableAdditionTypes: [
+            'Misc. Add - Manual',
+            'Commission In Percent/Invoice',
+            'Incentive/Liter',
+            'Subsidy/Liter',
+            'Transport/Liter',
+            'Other Payment Cr'
+        ],
+
+        availableDeductionTypes: [
+            'TDS 194Q - Manual',
+            'Anamat/Liter',
+            'Cattle Feed/Invoice',
+            'Doctor Fee/Invoice',
+            'Share/Liter',
+            'Transport/Liter',
+            'Other Deduction Dr'
+        ],
 
         subscriptionHistory: [
             { subscription: 'Advance Plan - One Year - 3200', from_date: '05/04/2026', to_date: '05/04/2027', transaction_date: '03/04/2026' },
@@ -3764,22 +3796,23 @@ function centerInformationApp() {
 
         // --- Addition Type Methods ---
         openAddAdditionModal() {
-            this.selectedNewAdditionType = '';
-            this.showAddAdditionModal = true;
-        },
-
-        onSelectAdditionType(val) {
-            if (!val) return;
+            this.additionDropdownOpen = false;
             this.currentAdditionForm = {
                 is_edit: false,
                 index: null,
-                name: val,
+                name: '',
                 farmer_type: 'all_farmers',
                 amount: '1.00',
-                unit: val.includes('Percent') ? '%' : '/liter'
+                unit: '/liter'
             };
-            this.showAddAdditionModal = false;
-            this.showConfigureAdditionModal = true;
+            this.showAddAdditionModal = true;
+        },
+
+        selectAdditionType(val) {
+            if (!val) return;
+            this.currentAdditionForm.name = val;
+            this.currentAdditionForm.unit = val.includes('Percent') ? '%' : '/liter';
+            this.additionDropdownOpen = false;
         },
 
         openEditAddition(idx) {
@@ -3798,17 +3831,25 @@ function centerInformationApp() {
                 amount: amount || '1.00',
                 unit: item.unit || '/liter'
             };
-            this.showConfigureAdditionModal = true;
+            this.additionDropdownOpen = false;
+            this.showAddAdditionModal = true;
         },
 
         resetAdditionForm() {
-            this.currentAdditionForm.amount = '0.00';
-            this.currentAdditionForm.farmer_type = 'all_farmers';
+            if (this.currentAdditionForm.is_edit) {
+                this.currentAdditionForm.amount = '0.00';
+                this.currentAdditionForm.farmer_type = 'all_farmers';
+            } else {
+                this.currentAdditionForm.name = '';
+                this.currentAdditionForm.amount = '1.00';
+                this.currentAdditionForm.farmer_type = 'all_farmers';
+            }
+            this.additionDropdownOpen = false;
         },
 
         async saveAdditionForm() {
             if (!this.currentAdditionForm.name) {
-                alert('Addition Type name is required');
+                alert('Please select an Addition Type');
                 return;
             }
             const isFarmerWise = this.currentAdditionForm.farmer_type === 'farmer_wise';
@@ -3833,7 +3874,7 @@ function centerInformationApp() {
                     setting_key: 'center_addition_types',
                     setting_value: JSON.stringify(this.additionTypes)
                 });
-                this.showConfigureAdditionModal = false;
+                this.showAddAdditionModal = false;
             } catch (err) {
                 alert('Error saving addition: ' + err.message);
             }
@@ -3855,23 +3896,24 @@ function centerInformationApp() {
 
         // --- Deduction Type Methods ---
         openAddDeductionModal() {
-            this.selectedNewDeductionType = '';
-            this.showAddDeductionModal = true;
-        },
-
-        onSelectDeductionType(val) {
-            if (!val) return;
+            this.deductionDropdownOpen = false;
             this.currentDeductionForm = {
                 is_edit: false,
                 index: null,
-                name: val,
+                name: '',
                 farmer_type: 'all_farmers',
                 amount: '0.00',
-                unit: val.includes('Invoice') ? '/Invoice' : '/liter',
+                unit: '/liter',
                 auto_reset: false
             };
-            this.showAddDeductionModal = false;
-            this.showConfigureDeductionModal = true;
+            this.showAddDeductionModal = true;
+        },
+
+        selectDeductionType(val) {
+            if (!val) return;
+            this.currentDeductionForm.name = val;
+            this.currentDeductionForm.unit = val.includes('Invoice') ? '/Invoice' : '/liter';
+            this.deductionDropdownOpen = false;
         },
 
         openEditDeduction(idx) {
@@ -3891,18 +3933,27 @@ function centerInformationApp() {
                 unit: item.unit || '/liter',
                 auto_reset: !!item.auto_reset
             };
-            this.showConfigureDeductionModal = true;
+            this.deductionDropdownOpen = false;
+            this.showAddDeductionModal = true;
         },
 
         resetDeductionForm() {
-            this.currentDeductionForm.amount = '0.00';
-            this.currentDeductionForm.farmer_type = 'all_farmers';
-            this.currentDeductionForm.auto_reset = false;
+            if (this.currentDeductionForm.is_edit) {
+                this.currentDeductionForm.amount = '0.00';
+                this.currentDeductionForm.farmer_type = 'all_farmers';
+                this.currentDeductionForm.auto_reset = false;
+            } else {
+                this.currentDeductionForm.name = '';
+                this.currentDeductionForm.amount = '0.00';
+                this.currentDeductionForm.farmer_type = 'all_farmers';
+                this.currentDeductionForm.auto_reset = false;
+            }
+            this.deductionDropdownOpen = false;
         },
 
         async saveDeductionForm() {
             if (!this.currentDeductionForm.name) {
-                alert('Deduction Type name is required');
+                alert('Please select a Deduction Type');
                 return;
             }
             const isFarmerWise = this.currentDeductionForm.farmer_type === 'farmer_wise';
@@ -3928,7 +3979,7 @@ function centerInformationApp() {
                     setting_key: 'center_deduction_types',
                     setting_value: JSON.stringify(this.deductionTypes)
                 });
-                this.showConfigureDeductionModal = false;
+                this.showAddDeductionModal = false;
             } catch (err) {
                 alert('Error saving deduction: ' + err.message);
             }
