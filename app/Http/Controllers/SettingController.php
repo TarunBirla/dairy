@@ -80,89 +80,87 @@ class SettingController extends Controller
         $paymentRegisterSetting = json_decode($settings['payment_register_print_settings'] ?? '{}', true);
 
         // Center Details (Mobile Dairy Parity)
-        $centerDetails = json_decode($settings['center_details'] ?? '{}', true);
-        if (empty($centerDetails)) {
-            $centerDetails = [
-                'unique_id' => $center->code ?? 'JC4217',
-                'name_mother_tongue' => 'श्री गोपाल दूध डेयरी बेड़िया',
-                'name_english' => $center->name ?? 'Shree Gopal Dudh Dairy Bediya',
-                'address_mother_tongue' => 'Bediya',
-                'address_english' => 'Bediya, Bediya, Madhya Pradesh',
-                'chilling_center' => '-',
-                'vehicle_route' => '-',
-                'block' => '-',
-            ];
-        }
+        $centerDetailsRaw = json_decode($settings['center_details'] ?? '{}', true) ?: [];
+        $centerDetails = array_merge([
+            'unique_id' => $center->code ?? 'JC4217',
+            'name_mother_tongue' => 'श्री गोपाल दूध डेयरी बेड़िया',
+            'name_english' => $center->name ?? 'Shree Gopal Dudh Dairy Bediya',
+            'village' => 'Bediya',
+            'taluka' => 'Bediya',
+            'district' => 'khargone',
+            'state' => 'Madhya Pradesh',
+            'status' => 'Active',
+            'address_mother_tongue' => 'Bediya',
+            'address_english' => 'Bediya, Bediya, Madhya Pradesh',
+            'chilling_center' => '-',
+            'vehicle_route' => '-',
+            'block' => '-',
+        ], $centerDetailsRaw);
 
-        $billingInfo = json_decode($settings['center_billing_info'] ?? '{}', true);
-        if (empty($billingInfo)) {
-            $billingInfo = [
-                'name' => 'SHREE GOPAL DUDH DAIRY',
-                'address' => '265, BHAIJI BHAWAN, BUS STAND, BEDIYA, Khargone,Madhya Pradesh, 451113',
-                'pincode' => '451113',
-                'phone' => '9753672436',
-                'email' => 'drk.malviya@gmail.com',
-                'gstin' => '23BAZPN5618R1ZN',
-            ];
-        }
+        $billingInfoRaw = json_decode($settings['center_billing_info'] ?? '{}', true) ?: [];
+        $billingInfo = array_merge([
+            'name' => 'SHREE GOPAL DUDH DAIRY',
+            'address' => '265, BHAIJI BHAWAN, BUS STAND, BEDIYA, Khargone,Madhya Pradesh, 451113',
+            'pincode' => '451113',
+            'phone' => '9753672436',
+            'email' => 'drk.malviya@gmail.com',
+            'gstin' => '23BAZPN5618R1ZN',
+        ], $billingInfoRaw);
 
-        $subscriptionInfo = json_decode($settings['center_subscription_info'] ?? '{}', true);
-        if (empty($subscriptionInfo)) {
-            $subscriptionInfo = [
-                'plan' => 'Advance Plan - One Year - 3200',
-                'period' => '05 Apr 2026 To Apr 5, 2027',
-                'status' => 'Active',
-            ];
-        }
+        $subscriptionInfoRaw = json_decode($settings['center_subscription_info'] ?? '{}', true) ?: [];
+        $subscriptionInfo = array_merge([
+            'plan' => 'Advance Plan - One Year - 3200',
+            'period' => '05 Apr 2026 To Apr 5, 2027',
+            'status' => 'Active',
+        ], $subscriptionInfoRaw);
 
-        $locationInfo = json_decode($settings['center_location_info'] ?? '{}', true);
-        if (empty($locationInfo)) {
-            $locationInfo = [
-                'latitude' => '22.04613211165056',
-                'longitude' => '76.03453326970339',
-            ];
-        }
+        $locationInfoRaw = json_decode($settings['center_location_info'] ?? '{}', true) ?: [];
+        $locationInfo = array_merge([
+            'latitude' => '22.04613211165056',
+            'longitude' => '76.03453326970339',
+        ], $locationInfoRaw);
 
         $additionTypes = json_decode($settings['center_addition_types'] ?? '[]', true);
         if (empty($additionTypes)) {
             $additionTypes = [
-                ['name' => 'Subsidy', 'value' => '1.00/ltr'],
-                ['name' => 'Incentive', 'value' => '1.00/ltr'],
-                ['name' => 'Transport', 'value' => '1.00/ltr'],
-                ['name' => 'Other Payment Cr', 'value' => '-'],
-                ['name' => 'Commission', 'value' => '0.00/ltr'],
+                ['name' => 'Incentive', 'value' => 'Farmer Wise', 'farmer_type' => 'farmer_wise', 'amount' => '0', 'unit' => '/ltr'],
+                ['name' => 'Incentive Day', 'value' => '-', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '-'],
+                ['name' => 'Subsidy', 'value' => '1.00/ltr', 'farmer_type' => 'all_farmers', 'amount' => '1.00', 'unit' => '/ltr'],
+                ['name' => 'Transport', 'value' => '1.00/ltr', 'farmer_type' => 'all_farmers', 'amount' => '1.00', 'unit' => '/ltr'],
+                ['name' => 'Other Payment Cr', 'value' => '-', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '-'],
+                ['name' => 'Commission', 'value' => '0.00/ltr', 'farmer_type' => 'all_farmers', 'amount' => '0.00', 'unit' => '/ltr'],
             ];
         }
 
         $deductionTypes = json_decode($settings['center_deduction_types'] ?? '[]', true);
         if (empty($deductionTypes)) {
             $deductionTypes = [
-                ['name' => 'Anamat', 'value' => '0.00/ltr'],
-                ['name' => 'Food', 'value' => '-'],
-                ['name' => 'Advance', 'value' => '-'],
-                ['name' => 'Grocery', 'value' => '-'],
-                ['name' => 'Etc', 'value' => '0.00/ltr'],
-                ['name' => 'Building fund', 'value' => 'Farmer Wise'],
-                ['name' => 'Grant', 'value' => 'Farmer Wise'],
-                ['name' => 'Transport-Dr', 'value' => '0.00/ltr'],
-                ['name' => 'Management Charges C', 'value' => '0.00/Invoice'],
-                ['name' => 'DPMCU', 'value' => '0.00/ltr'],
-                ['name' => 'Penalty', 'value' => '-'],
-                ['name' => 'Doctor', 'value' => '-'],
-                ['name' => 'Contribution', 'value' => '-'],
-                ['name' => 'Diesel Expenses', 'value' => '-'],
-                ['name' => 'Stationary', 'value' => 'Farmer Wise'],
-                ['name' => 'Handling', 'value' => '0.00/ltr'],
-                ['name' => 'Management Charges', 'value' => '0.00/ltr'],
-                ['name' => 'TDS SEC 194Q', 'value' => '-'],
-                ['name' => 'Milk Sale', 'value' => '-'],
-                ['name' => 'Rate Difference', 'value' => '-'],
-                ['name' => 'Other Payment', 'value' => '-'],
-                ['name' => 'Management Other', 'value' => '-'],
-                ['name' => 'Round Off', 'value' => 'Round down'],
-                ['name' => 'Bank Andvance', 'value' => '-'],
-                ['name' => 'Fixed Advance', 'value' => '-'],
-                ['name' => 'In Hand Advance', 'value' => '-'],
+                ['name' => 'Anamat', 'value' => '0.00/ltr', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '/ltr', 'auto_reset' => false],
+                ['name' => 'Food', 'value' => '-', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '-', 'auto_reset' => false],
+                ['name' => 'Advance', 'value' => '-', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '-', 'auto_reset' => false],
+                ['name' => 'Grocery', 'value' => '-', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '-', 'auto_reset' => false],
+                ['name' => 'Etc', 'value' => '0.00/ltr', 'farmer_type' => 'all_farmers', 'amount' => '0.00', 'unit' => '/ltr', 'auto_reset' => false],
+                ['name' => 'Building fund', 'value' => 'Farmer Wise', 'farmer_type' => 'farmer_wise', 'amount' => '0', 'unit' => 'Farmer Wise', 'auto_reset' => false],
+                ['name' => 'Grant', 'value' => 'Farmer Wise', 'farmer_type' => 'farmer_wise', 'amount' => '0', 'unit' => 'Farmer Wise', 'auto_reset' => false],
+                ['name' => 'Transport-Dr', 'value' => '0.00/ltr', 'farmer_type' => 'all_farmers', 'amount' => '0.00', 'unit' => '/ltr', 'auto_reset' => false],
+                ['name' => 'Management Charges C', 'value' => '0.00/Invoice', 'farmer_type' => 'all_farmers', 'amount' => '0.00', 'unit' => '/Invoice', 'auto_reset' => false],
+                ['name' => 'DPMCU', 'value' => '0.00/ltr', 'farmer_type' => 'all_farmers', 'amount' => '0.00', 'unit' => '/ltr', 'auto_reset' => false],
+                ['name' => 'Penalty', 'value' => '-', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '-', 'auto_reset' => false],
+                ['name' => 'Doctor', 'value' => '-', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '-', 'auto_reset' => false],
+                ['name' => 'Contribution', 'value' => '-', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '-', 'auto_reset' => false],
+                ['name' => 'Diesel Expenses', 'value' => '-', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '-', 'auto_reset' => false],
+                ['name' => 'Stationary', 'value' => 'Farmer Wise', 'farmer_type' => 'farmer_wise', 'amount' => '0', 'unit' => 'Farmer Wise', 'auto_reset' => false],
+                ['name' => 'Handling', 'value' => '0.00/ltr', 'farmer_type' => 'all_farmers', 'amount' => '0.00', 'unit' => '/ltr', 'auto_reset' => false],
+                ['name' => 'Management Charges', 'value' => '0.00/ltr', 'farmer_type' => 'all_farmers', 'amount' => '0.00', 'unit' => '/ltr', 'auto_reset' => false],
+                ['name' => 'TDS SEC 194Q', 'value' => '-', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '-', 'auto_reset' => false],
+                ['name' => 'Milk Sale', 'value' => '-', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '-', 'auto_reset' => false],
+                ['name' => 'Rate Difference', 'value' => '-', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '-', 'auto_reset' => false],
+                ['name' => 'Other Payment', 'value' => '-', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '-', 'auto_reset' => false],
+                ['name' => 'Management Other', 'value' => '-', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '-', 'auto_reset' => false],
+                ['name' => 'Round Off', 'value' => 'Round down', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => 'Round down', 'auto_reset' => false],
+                ['name' => 'Bank Andvance', 'value' => '-', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '-', 'auto_reset' => false],
+                ['name' => 'Fixed Advance', 'value' => '-', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '-', 'auto_reset' => false],
+                ['name' => 'In Hand Advance', 'value' => '-', 'farmer_type' => 'all_farmers', 'amount' => '0', 'unit' => '-', 'auto_reset' => false],
             ];
         }
 

@@ -38,7 +38,7 @@
                 <div class="divide-y divide-slate-100 text-xs">
                     <div class="px-3.5 py-2 flex items-start justify-between">
                         <span class="w-1/2 font-semibold text-slate-700">Unique Id</span>
-                        <span class="w-1/2 text-slate-800" x-text="centerDetails.unique_id"></span>
+                        <span class="w-1/2 text-slate-800 font-mono" x-text="centerDetails.unique_id"></span>
                     </div>
                     <div class="px-3.5 py-2 flex items-start justify-between">
                         <span class="w-1/2 font-semibold text-slate-700">Center Name (mother tongue)</span>
@@ -47,6 +47,28 @@
                     <div class="px-3.5 py-2 flex items-start justify-between">
                         <span class="w-1/2 font-semibold text-slate-700">Center Name (English)</span>
                         <span class="w-1/2 text-slate-800" x-text="centerDetails.name_english"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Village</span>
+                        <span class="w-1/2 text-slate-800" x-text="centerDetails.village || 'Bediya'"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Taluka</span>
+                        <span class="w-1/2 text-slate-800" x-text="centerDetails.taluka || 'Bediya'"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">District</span>
+                        <span class="w-1/2 text-slate-800" x-text="centerDetails.district || 'khargone'"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">State</span>
+                        <span class="w-1/2 text-slate-800" x-text="centerDetails.state || 'Madhya Pradesh'"></span>
+                    </div>
+                    <div class="px-3.5 py-2 flex items-start justify-between">
+                        <span class="w-1/2 font-semibold text-slate-700">Status</span>
+                        <span class="w-1/2">
+                            <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" x-text="centerDetails.status || 'Active'"></span>
+                        </span>
                     </div>
                     <div class="px-3.5 py-2 flex items-start justify-between">
                         <span class="w-1/2 font-semibold text-slate-700">Address (mother tongue)</span>
@@ -176,43 +198,71 @@
                 </div>
             </div>
 
-            <!-- Addition Type Card -->
+            <!-- Addition Type Card (Matching Image 5) -->
             <div class="bg-white rounded border border-slate-200 overflow-hidden shadow-2xs">
                 <div class="px-3.5 py-2.5 bg-[#f8faff] border-b border-slate-200 flex items-center justify-between">
-                    <span class="text-xs font-bold text-[#002e79]">Addition Type</span>
+                    <span class="text-xs font-bold text-[#4338ca]">Addition Type</span>
                     <button type="button" @click.stop="openAddAdditionModal()" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition cursor-pointer">
-                        + Add Extra Payment
+                        <span class="text-base leading-none font-bold">+</span> Add Extra Payment
                     </button>
                 </div>
                 <div class="divide-y divide-slate-100 text-xs">
                     <template x-for="(item, idx) in additionTypes" :key="'add-' + idx">
-                        <div class="px-3.5 py-2 flex items-center justify-between hover:bg-slate-50 transition">
+                        <div class="px-3.5 py-2 flex items-center justify-between hover:bg-slate-50 transition relative">
                             <span class="w-1/2 font-medium text-slate-800" x-text="item.name"></span>
                             <span class="w-1/3 text-slate-600 font-mono text-[11px]" x-text="item.value"></span>
-                            <button type="button" @click.stop="openItemAction('addition', idx)" class="text-slate-400 hover:text-slate-700 p-1 rounded font-bold text-sm leading-none cursor-pointer">
-                                &#8942;
-                            </button>
+                            
+                            <!-- 3-Dots Action Menu Matching Image 5 -->
+                            <div class="relative">
+                                <button type="button" @click.stop="toggleItemMenu('addition', idx)" class="text-slate-400 hover:text-slate-800 p-1 rounded font-bold text-base leading-none cursor-pointer">
+                                    &#8942;
+                                </button>
+                                <div x-show="activeItemMenu === 'addition-' + idx" @click.outside="activeItemMenu = null" x-cloak class="absolute right-0 top-6 z-30 bg-white border border-slate-200 rounded-lg shadow-xl py-1 w-28 text-xs font-semibold">
+                                    <button type="button" @click.stop="activeItemMenu = null; openEditAddition(idx)" class="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-indigo-900 flex items-center gap-2">
+                                        <svg class="w-3.5 h-3.5 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                        Edit
+                                    </button>
+                                    <button type="button" @click.stop="activeItemMenu = null; deleteAddition(idx)" class="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-indigo-900 flex items-center gap-2">
+                                        <svg class="w-3.5 h-3.5 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </template>
                 </div>
             </div>
 
-            <!-- Deduction Type Card -->
+            <!-- Deduction Type Card (Matching Image 5) -->
             <div class="bg-white rounded border border-slate-200 overflow-hidden shadow-2xs">
                 <div class="px-3.5 py-2.5 bg-[#f8faff] border-b border-slate-200 flex items-center justify-between">
-                    <span class="text-xs font-bold text-[#002e79]">Deduction Type</span>
+                    <span class="text-xs font-bold text-[#4338ca]">Deduction Type</span>
                     <button type="button" @click.stop="openAddDeductionModal()" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition cursor-pointer">
-                        + Add Deduction
+                        <span class="text-base leading-none font-bold">+</span> Add Deduction
                     </button>
                 </div>
                 <div class="divide-y divide-slate-100 text-xs max-h-[420px] overflow-y-auto">
                     <template x-for="(item, idx) in deductionTypes" :key="'ded-' + idx">
-                        <div class="px-3.5 py-2 flex items-center justify-between hover:bg-slate-50 transition">
+                        <div class="px-3.5 py-2 flex items-center justify-between hover:bg-slate-50 transition relative">
                             <span class="w-1/2 font-medium text-slate-800" x-text="item.name"></span>
                             <span class="w-1/3 text-slate-600 font-mono text-[11px]" x-text="item.value"></span>
-                            <button type="button" @click.stop="openItemAction('deduction', idx)" class="text-slate-400 hover:text-slate-700 p-1 rounded font-bold text-sm leading-none cursor-pointer">
-                                &#8942;
-                            </button>
+                            
+                            <!-- 3-Dots Action Menu Matching Image 5 -->
+                            <div class="relative">
+                                <button type="button" @click.stop="toggleItemMenu('deduction', idx)" class="text-slate-400 hover:text-slate-800 p-1 rounded font-bold text-base leading-none cursor-pointer">
+                                    &#8942;
+                                </button>
+                                <div x-show="activeItemMenu === 'deduction-' + idx" @click.outside="activeItemMenu = null" x-cloak class="absolute right-0 top-6 z-30 bg-white border border-slate-200 rounded-lg shadow-xl py-1 w-28 text-xs font-semibold">
+                                    <button type="button" @click.stop="activeItemMenu = null; openEditDeduction(idx)" class="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-indigo-900 flex items-center gap-2">
+                                        <svg class="w-3.5 h-3.5 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                        Edit
+                                    </button>
+                                    <button type="button" @click.stop="activeItemMenu = null; deleteDeduction(idx)" class="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-indigo-900 flex items-center gap-2">
+                                        <svg class="w-3.5 h-3.5 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </template>
                 </div>
@@ -2618,305 +2668,439 @@
                 </div>
             </form>
         </div>
-    <!-- Edit Center Modal -->
-    <div x-show="showEditCenterModal" x-cloak class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden text-xs" @click.outside="showEditCenterModal = false">
-            <div class="bg-[#002e79] text-white px-5 py-3.5 flex items-center justify-between font-bold">
-                <h4>Edit Center Information</h4>
-                <button type="button" @click="showEditCenterModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+    <!-- 1. Edit Center Details Modal (Matching Image 1) -->
+    <div x-show="showEditCenterModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showEditCenterModal = false"></div>
+        <div class="bg-white rounded-lg shadow-2xl max-w-2xl w-full overflow-hidden text-xs relative z-10" @click.stop>
+            <div class="bg-[#98d8c8] text-slate-800 px-5 py-3 flex items-center justify-between font-bold text-sm border-b border-slate-200">
+                <span>Edit Center Details</span>
+                <button type="button" @click="showEditCenterModal = false" class="text-slate-600 hover:text-slate-900 text-xl font-bold leading-none cursor-pointer">&times;</button>
             </div>
-            <form @submit.prevent="saveCenterDetails()" class="p-5 space-y-3">
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Unique Id</label>
-                    <input type="text" x-model="centerDetailsData.unique_id" readonly class="w-full px-3 py-1.5 border border-slate-200 rounded bg-slate-50 text-slate-500 font-mono">
-                </div>
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Center Name (mother tongue)</label>
-                    <input type="text" x-model="centerDetailsData.name_mother_tongue" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Center Name (English)</label>
-                    <input type="text" x-model="centerDetailsData.name_english" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Address (mother tongue)</label>
-                    <input type="text" x-model="centerDetailsData.address_mother_tongue" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Address (English)</label>
-                    <input type="text" x-model="centerDetailsData.address_english" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
-                </div>
-                <div class="grid grid-cols-3 gap-2">
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Chilling Center</label>
-                        <input type="text" x-model="centerDetailsData.chilling_center" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500" placeholder="-">
-                    </div>
-                    <div>
-                        <div class="flex items-center justify-between mb-1">
-                            <label class="block font-semibold text-slate-700">Vehicle Route</label>
-                            <a href="{{ route('delivery.routes') }}" class="text-[10px] font-bold text-blue-600 hover:underline">+ Add</a>
+            <form @submit.prevent="saveCenterDetails()" class="p-5 space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Left Column -->
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-slate-700 font-semibold mb-1">Unique Id</label>
+                            <input type="text" x-model="centerDetailsData.unique_id" readonly disabled class="w-full px-3 py-2 border border-slate-300 rounded bg-[#cfd8dc]/60 text-slate-700 font-mono font-semibold cursor-not-allowed">
                         </div>
-                        <input type="text" list="center_vehicle_routes_list" x-model="centerDetailsData.vehicle_route" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500" placeholder="Select or type route...">
-                        <datalist id="center_vehicle_routes_list">
-                            @if(isset($routes))
-                                @foreach($routes as $rt)
-                                    <option value="{{ $rt->name }}">{{ $rt->code }} - {{ $rt->area_name }}</option>
-                                @endforeach
-                            @endif
-                        </datalist>
+                        <div>
+                            <label class="block text-slate-700 font-semibold mb-1">Center Name (mother tongue)</label>
+                            <input type="text" x-model="centerDetailsData.name_mother_tongue" class="w-full px-3 py-2 border border-slate-300 rounded focus:border-[#388e7e] focus:ring-1 focus:ring-[#388e7e] outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 font-semibold mb-1">Center Name (English)</label>
+                            <input type="text" x-model="centerDetailsData.name_english" class="w-full px-3 py-2 border border-slate-300 rounded focus:border-[#388e7e] focus:ring-1 focus:ring-[#388e7e] outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 font-semibold mb-1">Vehicle Route</label>
+                            <div class="relative">
+                                <select x-model="centerDetailsData.vehicle_route" class="w-full px-3 py-2 border-2 border-[#388e7e] rounded bg-white text-slate-800 font-medium focus:outline-none appearance-none pr-8">
+                                    <option value="-">-</option>
+                                    @if(isset($routes))
+                                        @foreach($routes as $rt)
+                                            <option value="{{ $rt->name }}">{{ $rt->name }} ({{ $rt->code }})</option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                                <div class="absolute right-2 top-2.5 flex items-center gap-1 pointer-events-none text-slate-400">
+                                    <span class="text-xs">&times;</span>
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 font-semibold mb-1">Block</label>
+                            <div class="relative">
+                                <input type="text" x-model="centerDetailsData.block" placeholder="-" class="w-full px-3 py-2 border border-slate-300 rounded focus:border-[#388e7e] outline-none pr-8">
+                                <div class="absolute right-2 top-2.5 flex items-center gap-1 pointer-events-none text-slate-400">
+                                    <span class="text-xs">&times;</span>
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 font-semibold mb-1">Status</label>
+                            <select x-model="centerDetailsData.status" class="w-full px-3 py-2 border border-slate-300 rounded bg-white text-slate-800 focus:border-[#388e7e] outline-none">
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Block</label>
-                        <input type="text" x-model="centerDetailsData.block" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500" placeholder="-">
+
+                    <!-- Right Column -->
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-slate-700 font-semibold mb-1">Village</label>
+                            <input type="text" x-model="centerDetailsData.village" class="w-full px-3 py-2 border border-slate-300 rounded focus:border-[#388e7e] outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 font-semibold mb-1">Taluka</label>
+                            <input type="text" x-model="centerDetailsData.taluka" class="w-full px-3 py-2 border border-slate-300 rounded focus:border-[#388e7e] outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 font-semibold mb-1">District</label>
+                            <input type="text" x-model="centerDetailsData.district" class="w-full px-3 py-2 border border-slate-300 rounded focus:border-[#388e7e] outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 font-semibold mb-1">State</label>
+                            <select x-model="centerDetailsData.state" class="w-full px-3 py-2 border border-slate-300 rounded bg-white text-slate-800 focus:border-[#388e7e] outline-none">
+                                <option value="Madhya Pradesh">Madhya Pradesh</option>
+                                <option value="Maharashtra">Maharashtra</option>
+                                <option value="Gujarat">Gujarat</option>
+                                <option value="Rajasthan">Rajasthan</option>
+                                <option value="Uttar Pradesh">Uttar Pradesh</option>
+                                <option value="Punjab">Punjab</option>
+                                <option value="Haryana">Haryana</option>
+                                <option value="Bihar">Bihar</option>
+                                <option value="Karnataka">Karnataka</option>
+                                <option value="Delhi">Delhi</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 font-semibold mb-1">Address (mother tongue)</label>
+                            <input type="text" x-model="centerDetailsData.address_mother_tongue" class="w-full px-3 py-2 border border-slate-300 rounded focus:border-[#388e7e] outline-none">
+                        </div>
                     </div>
                 </div>
-                <div class="pt-3 flex justify-end gap-2 font-bold">
-                    <button type="button" @click="showEditCenterModal = false" class="px-4 py-1.5 rounded bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
-                    <button type="submit" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+
+                <!-- Footer Buttons matching Image 1 -->
+                <div class="pt-4 flex justify-end gap-3 border-t border-slate-100">
+                    <button type="button" @click="showEditCenterModal = false" class="px-6 py-2 rounded bg-[#cfd8dc] text-slate-700 hover:bg-[#b0bec5] font-semibold text-xs transition">Cancel</button>
+                    <button type="submit" class="px-7 py-2 rounded bg-[#388e7e] hover:bg-[#2e7d6f] text-white font-semibold text-xs shadow-xs transition">Save</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Edit Billing Info Modal -->
-    <div x-show="showEditBillingModal" x-cloak class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden text-xs" @click.outside="showEditBillingModal = false">
-            <div class="bg-[#002e79] text-white px-5 py-3.5 flex items-center justify-between font-bold">
-                <h4>Edit Billing Info</h4>
-                <button type="button" @click="showEditBillingModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+    <!-- 9. Billing Info Edit Modal (Matching Image 5) -->
+    <div x-show="showEditBillingModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showEditBillingModal = false"></div>
+        <div class="bg-white rounded-lg shadow-2xl max-w-lg w-full overflow-hidden text-xs relative z-10" @click.stop>
+            <div class="bg-[#98d8c8] text-slate-800 px-5 py-3 flex items-center justify-between font-bold text-sm border-b border-slate-200">
+                <span>Billing Info Edit</span>
+                <button type="button" @click="showEditBillingModal = false" class="text-slate-600 hover:text-slate-900 text-xl font-bold leading-none cursor-pointer">&times;</button>
             </div>
             <form @submit.prevent="saveBillingInfo()" class="p-5 space-y-3">
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Name</label>
-                    <input type="text" x-model="billingInfoData.name" required class="w-full px-3 py-1.5 border border-slate-200 rounded uppercase focus:border-blue-500">
+                <div class="grid grid-cols-4 items-center gap-3">
+                    <label class="font-semibold text-slate-700 col-span-1">Name:</label>
+                    <input type="text" x-model="billingInfoData.name" required class="col-span-3 px-3 py-1.5 border border-slate-300 rounded uppercase font-semibold focus:border-[#388e7e] outline-none">
                 </div>
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Address</label>
-                    <textarea x-model="billingInfoData.address" rows="2" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500"></textarea>
+                <div class="grid grid-cols-4 items-center gap-3">
+                    <label class="font-semibold text-slate-700 col-span-1">Address:</label>
+                    <input type="text" x-model="billingInfoData.address" class="col-span-3 px-3 py-1.5 border border-slate-300 rounded focus:border-[#388e7e] outline-none">
                 </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Pincode</label>
-                        <input type="text" x-model="billingInfoData.pincode" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Phone Number</label>
-                        <input type="text" x-model="billingInfoData.phone" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
-                    </div>
+                <div class="grid grid-cols-4 items-center gap-3">
+                    <label class="font-semibold text-slate-700 col-span-1">Pincode:</label>
+                    <input type="text" x-model="billingInfoData.pincode" class="col-span-3 px-3 py-1.5 border border-slate-300 rounded focus:border-[#388e7e] outline-none">
                 </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Email</label>
-                        <input type="email" x-model="billingInfoData.email" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">GSTIN</label>
-                        <input type="text" x-model="billingInfoData.gstin" class="w-full px-3 py-1.5 border border-slate-200 rounded uppercase focus:border-blue-500">
-                    </div>
+                <div class="grid grid-cols-4 items-center gap-3">
+                    <label class="font-semibold text-slate-700 col-span-1">Phone:</label>
+                    <input type="text" x-model="billingInfoData.phone" class="col-span-3 px-3 py-1.5 border border-slate-300 rounded focus:border-[#388e7e] outline-none">
                 </div>
-                <div class="pt-3 flex justify-end gap-2 font-bold">
-                    <button type="button" @click="showEditBillingModal = false" class="px-4 py-1.5 rounded bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
-                    <button type="submit" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+                <div class="grid grid-cols-4 items-center gap-3">
+                    <label class="font-semibold text-slate-700 col-span-1">Email:</label>
+                    <input type="email" x-model="billingInfoData.email" class="col-span-3 px-3 py-1.5 border border-slate-300 rounded focus:border-[#388e7e] outline-none">
+                </div>
+                <div class="grid grid-cols-4 items-center gap-3">
+                    <label class="font-semibold text-slate-700 col-span-1">GSTIN:</label>
+                    <input type="text" x-model="billingInfoData.gstin" class="col-span-3 px-3 py-1.5 border border-slate-300 rounded uppercase font-semibold focus:border-[#388e7e] outline-none">
+                </div>
+
+                <!-- Footer Buttons Matching Image 5 -->
+                <div class="pt-4 flex justify-end gap-3 border-t border-slate-100">
+                    <button type="button" @click="showEditBillingModal = false" class="px-6 py-2 rounded bg-[#cfd8dc] text-slate-700 hover:bg-[#b0bec5] font-semibold text-xs transition">Cancel</button>
+                    <button type="submit" class="px-7 py-2 rounded bg-[#388e7e] hover:bg-[#2e7d6f] text-white font-semibold text-xs shadow-xs transition">Save</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Edit Location Modal -->
-    <div x-show="showEditLocationModal" x-cloak class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden text-xs" @click.outside="showEditLocationModal = false">
-            <div class="bg-[#002e79] text-white px-5 py-3.5 flex items-center justify-between font-bold">
-                <h4>Edit Location Coordinates</h4>
-                <button type="button" @click="showEditLocationModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+    <!-- Update Location Modal (Exact Mobile Dairy Style) -->
+    <div x-show="showEditLocationModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showEditLocationModal = false"></div>
+        <div class="bg-white rounded-lg shadow-2xl max-w-sm w-full overflow-hidden text-xs relative z-10" @click.stop>
+            <div class="bg-[#98d8c8] text-slate-800 px-5 py-3 flex items-center justify-between font-bold text-sm border-b border-slate-200">
+                <span>Update Location</span>
+                <button type="button" @click="showEditLocationModal = false" class="text-slate-600 hover:text-slate-900 text-xl font-bold leading-none cursor-pointer">&times;</button>
             </div>
             <form @submit.prevent="saveLocationInfo()" class="p-5 space-y-3">
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Latitude</label>
-                    <input type="text" x-model="locationInfoData.latitude" required class="w-full px-3 py-1.5 border border-slate-200 rounded font-mono focus:border-blue-500">
+                <div class="space-y-1">
+                    <label class="block font-semibold text-slate-700">Latitude</label>
+                    <input type="text" x-model="locationInfoData.latitude" required class="w-full px-3 py-1.5 border border-slate-300 rounded font-mono focus:border-[#388e7e] outline-none">
                 </div>
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Longitude</label>
-                    <input type="text" x-model="locationInfoData.longitude" required class="w-full px-3 py-1.5 border border-slate-200 rounded font-mono focus:border-blue-500">
+                <div class="space-y-1">
+                    <label class="block font-semibold text-slate-700">Longitude</label>
+                    <input type="text" x-model="locationInfoData.longitude" required class="w-full px-3 py-1.5 border border-slate-300 rounded font-mono focus:border-[#388e7e] outline-none">
                 </div>
                 <div class="pt-1">
-                    <button type="button" @click="getCurrentLocation()" class="w-full py-1.5 px-3 border border-blue-600 text-blue-600 rounded hover:bg-blue-50 font-semibold flex items-center justify-center gap-1.5">
+                    <button type="button" @click="getCurrentLocation()" class="w-full py-1.5 px-3 border border-[#388e7e] text-[#388e7e] hover:bg-[#98d8c8]/20 rounded font-semibold flex items-center justify-center gap-1.5 cursor-pointer">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
                         Get Current GPS Location
                     </button>
                 </div>
-                <div class="pt-3 flex justify-end gap-2 font-bold">
-                    <button type="button" @click="showEditLocationModal = false" class="px-4 py-1.5 rounded bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
-                    <button type="submit" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+                <div class="pt-4 flex justify-end gap-3 border-t border-slate-100">
+                    <button type="button" @click="showEditLocationModal = false" class="px-6 py-2 rounded bg-[#cfd8dc] text-slate-700 hover:bg-[#b0bec5] font-semibold text-xs cursor-pointer transition">Cancel</button>
+                    <button type="submit" class="px-7 py-2 rounded bg-[#388e7e] hover:bg-[#2e7d6f] text-white font-semibold text-xs shadow-xs cursor-pointer transition">Save</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Subscription Pay Now Modal -->
-    <div x-show="showPayNowModal" x-cloak class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden text-xs" @click.outside="showPayNowModal = false">
-            <div class="bg-[#002e79] text-white px-5 py-3.5 flex items-center justify-between font-bold">
-                <h4>Subscription Payment & Renew</h4>
-                <button type="button" @click="showPayNowModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+    <!-- Subscription Pay Now Modal (Image 2 - Payment) -->
+    <div x-show="showPayNowModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showPayNowModal = false"></div>
+        <div class="bg-white rounded-lg shadow-2xl max-w-md w-full overflow-hidden text-xs relative z-10" @click.stop>
+            <div class="bg-[#98d8c8] text-slate-800 px-5 py-3 flex items-center justify-between font-bold text-sm border-b border-slate-200">
+                <span>Payment</span>
+                <button type="button" @click="showPayNowModal = false" class="text-slate-600 hover:text-slate-900 text-xl font-bold leading-none cursor-pointer">&times;</button>
             </div>
             <div class="p-5 space-y-4">
-                <div class="p-3 bg-slate-50 rounded border border-slate-200 space-y-1.5">
-                    <div class="flex justify-between font-semibold">
-                        <span class="text-slate-600">Active Plan:</span>
-                        <span class="text-slate-900 font-bold" x-text="subscriptionInfo.plan"></span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-slate-600">Validity Period:</span>
-                        <span class="text-slate-800" x-text="subscriptionInfo.period"></span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-slate-600">Status:</span>
-                        <span class="text-emerald-700 font-bold" x-text="subscriptionInfo.status"></span>
+                <div>
+                    <h3 class="text-base font-bold text-[#4338ca] mb-3">Select Subscription</h3>
+                    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50/50 space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-2.5">
+                            <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800">
+                                <input type="checkbox" checked disabled class="w-4 h-4 text-[#388e7e] rounded accent-[#388e7e]">
+                                <span>Advance Plan - One Year - 3200</span>
+                            </label>
+                            <span class="font-bold text-slate-800 text-sm">₹ 3,200.00</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-slate-700 font-medium text-[11px] pt-1">
+                            <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span> Standard Plan features</div>
+                            <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span> Multiple collection</div>
+                            <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span> Multiple Ratechart</div>
+                            <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span> Ratechart Download</div>
+                            <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span> Milk Rejection</div>
+                            <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span> Can Management</div>
+                            <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span> 200 Active Farmers</div>
+                            <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span> Unlimited InActive Farmers</div>
+                            <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span> Hardware Automation</div>
+                        </div>
                     </div>
                 </div>
-                <div class="p-4 bg-blue-50 border border-blue-200 rounded text-center space-y-2">
-                    <div class="text-sm font-bold text-blue-900">Annual Renewal: ₹ 3,200 / year</div>
-                    <p class="text-slate-600 text-[11px]">Instant online payment activation for uninterrupted Dairy automation & Farmer SMS sync.</p>
-                </div>
-                <div class="flex justify-end gap-2 font-bold">
-                    <button type="button" @click="showPayNowModal = false" class="px-4 py-1.5 rounded bg-slate-200 text-slate-700 hover:bg-slate-300">Close</button>
-                    <button type="button" @click="alert('Redirecting to Payment Gateway...'); showPayNowModal = false;" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Proceed to Pay</button>
+
+                <div class="pt-3 flex justify-end">
+                    <button type="button" @click="processSubscriptionPay()" class="px-8 py-2.5 rounded bg-[#84b8aa] hover:bg-[#388e7e] text-white font-bold text-xs shadow-xs cursor-pointer transition">
+                        Pay Now
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Subscription History Modal -->
-    <div x-show="showHistoryModal" x-cloak class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden text-xs" @click.outside="showHistoryModal = false">
-            <div class="bg-[#002e79] text-white px-5 py-3.5 flex items-center justify-between font-bold">
-                <h4>Subscription History</h4>
-                <button type="button" @click="showHistoryModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+    <!-- Subscription History Modal (Image 3 - History) -->
+    <div x-show="showHistoryModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showHistoryModal = false"></div>
+        <div class="bg-white rounded-lg shadow-2xl max-w-xl w-full overflow-hidden text-xs relative z-10" @click.stop>
+            <div class="bg-[#98d8c8] text-slate-800 px-5 py-3 flex items-center justify-between font-bold text-sm border-b border-slate-200">
+                <span>History</span>
+                <button type="button" @click="showHistoryModal = false" class="text-slate-600 hover:text-slate-900 text-xl font-bold leading-none cursor-pointer">&times;</button>
             </div>
-            <div class="p-5 space-y-3">
-                <table class="w-full text-left border border-slate-200 rounded overflow-hidden">
-                    <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-                        <tr>
-                            <th class="p-2">Plan</th>
-                            <th class="p-2">Period</th>
-                            <th class="p-2">Amount</th>
-                            <th class="p-2">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100 text-slate-700">
-                        <tr>
-                            <td class="p-2 font-medium" x-text="subscriptionInfo.plan"></td>
-                            <td class="p-2 text-[11px]" x-text="subscriptionInfo.period"></td>
-                            <td class="p-2 font-mono">₹ 3,200</td>
-                            <td class="p-2 text-emerald-700 font-bold">Paid</td>
-                        </tr>
-                        <tr class="bg-slate-50/50">
-                            <td class="p-2 font-medium">Standard Plan - One Year</td>
-                            <td class="p-2 text-[11px]">05 Apr 2025 To 04 Apr 2026</td>
-                            <td class="p-2 font-mono">₹ 2,800</td>
-                            <td class="p-2 text-emerald-700 font-bold">Paid</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <div class="flex justify-end pt-2">
-                    <button type="button" @click="showHistoryModal = false" class="px-4 py-1.5 rounded bg-slate-200 text-slate-700 hover:bg-slate-300 font-bold">Close</button>
+            <div class="p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-base font-bold text-[#4338ca]">Subscription History</h3>
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-600 font-medium">Search:</span>
+                        <input type="text" x-model="historySearch" class="px-2.5 py-1 border border-slate-300 rounded text-xs focus:border-[#388e7e] outline-none">
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto border border-slate-200 rounded">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 border-b border-slate-200 font-semibold text-slate-700">
+                            <tr>
+                                <th class="px-3 py-2.5 cursor-pointer select-none">Subscription <span class="text-slate-400">⇅</span></th>
+                                <th class="px-3 py-2.5 cursor-pointer select-none">From Date <span class="text-slate-400">⇅</span></th>
+                                <th class="px-3 py-2.5 cursor-pointer select-none">To Date <span class="text-slate-400">⇅</span></th>
+                                <th class="px-3 py-2.5 cursor-pointer select-none">Transaction Date <span class="text-slate-400">⇅</span></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-slate-700">
+                            <template x-for="(row, idx) in filteredHistory()" :key="idx">
+                                <tr class="hover:bg-slate-50/80">
+                                    <td class="px-3 py-2 font-medium" x-text="row.subscription"></td>
+                                    <td class="px-3 py-2" x-text="row.from_date"></td>
+                                    <td class="px-3 py-2" x-text="row.to_date"></td>
+                                    <td class="px-3 py-2" x-text="row.transaction_date"></td>
+                                </tr>
+                            </template>
+                            <tr x-show="filteredHistory().length === 0">
+                                <td colspan="4" class="px-3 py-4 text-center text-slate-400">No matching records found</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex items-center justify-between pt-1 text-slate-500 text-[11px]">
+                    <div>
+                        Showing <span x-text="filteredHistory().length > 0 ? 1 : 0"></span> to <span x-text="filteredHistory().length"></span> of <span x-text="subscriptionHistory.length"></span> entries
+                    </div>
+                    <div class="flex gap-1">
+                        <button type="button" class="px-2 py-0.5 border border-slate-200 rounded bg-slate-50 text-slate-400 cursor-not-allowed">Previous</button>
+                        <button type="button" class="px-2 py-0.5 border border-[#388e7e] rounded bg-[#388e7e] text-white font-bold">1</button>
+                        <button type="button" class="px-2 py-0.5 border border-slate-200 rounded bg-slate-50 text-slate-400 cursor-not-allowed">Next</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Add Extra Payment Modal -->
+    <!-- Step 1: Select Addition Type Modal (Image 4 - Add Extra Payment) -->
     <div x-show="showAddAdditionModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showAddAdditionModal = false"></div>
-        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden text-xs relative z-10" @click.stop>
-            <div class="bg-[#002e79] text-white px-5 py-3.5 flex items-center justify-between font-bold">
-                <h4>Add Extra Payment</h4>
-                <button type="button" @click="showAddAdditionModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+        <div class="bg-white rounded-lg shadow-2xl max-w-sm w-full overflow-hidden text-xs relative z-10" @click.stop>
+            <div class="bg-[#98d8c8] text-slate-800 px-5 py-3 flex items-center justify-between font-bold text-sm border-b border-slate-200">
+                <span>Add Extra Payment</span>
+                <button type="button" @click="showAddAdditionModal = false" class="text-slate-600 hover:text-slate-900 text-xl font-bold leading-none cursor-pointer">&times;</button>
             </div>
-            <form @submit.prevent="saveNewAddition()" class="p-5 space-y-3">
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Addition Name *</label>
-                    <input type="text" x-model="newAddition.name" required class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500" placeholder="e.g. Festival Bonus">
+            <div class="p-5 space-y-4">
+                <div class="space-y-1.5">
+                    <label class="block font-semibold text-slate-700">Addition Type:</label>
+                    <select x-model="selectedNewAdditionType" @change="onSelectAdditionType($event.target.value)" class="w-full px-3 py-2 border border-slate-300 rounded focus:border-[#388e7e] outline-none bg-white">
+                        <option value="">Select Addition Type</option>
+                        <option value="Misc. Add - Manual">Misc. Add - Manual</option>
+                        <option value="Commission In Percent/Invoice">Commission In Percent/Invoice</option>
+                        <option value="Incentive/Liter">Incentive/Liter</option>
+                        <option value="Subsidy/Liter">Subsidy/Liter</option>
+                        <option value="Transport/Liter">Transport/Liter</option>
+                        <option value="Other Payment Cr">Other Payment Cr</option>
+                    </select>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Rate / Value</label>
-                        <input type="text" x-model="newAddition.value" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500" placeholder="e.g. 1.00">
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Unit / Criteria</label>
-                        <select x-model="newAddition.unit" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
-                            <option value="/ltr">/ltr</option>
-                            <option value="Flat">Flat</option>
-                            <option value="Farmer Wise">Farmer Wise</option>
-                            <option value="-">-</option>
-                        </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 2: Configure / Edit Addition Modal (Image 5 style) -->
+    <div x-show="showConfigureAdditionModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showConfigureAdditionModal = false"></div>
+        <div class="bg-white rounded-lg shadow-2xl max-w-sm w-full overflow-hidden text-xs relative z-10" @click.stop>
+            <div class="bg-[#98d8c8] text-slate-800 px-5 py-3 flex items-center justify-between font-bold text-sm border-b border-slate-200">
+                <span x-text="currentAdditionForm.is_edit ? 'Edit Extra Payment' : 'Add Extra Payment'"></span>
+                <button type="button" @click="showConfigureAdditionModal = false" class="text-slate-600 hover:text-slate-900 text-xl font-bold leading-none cursor-pointer">&times;</button>
+            </div>
+            <form @submit.prevent="saveAdditionForm()" class="p-5 space-y-4">
+                <div class="space-y-1">
+                    <label class="block font-semibold text-slate-700">Addition Type:</label>
+                    <input type="text" x-model="currentAdditionForm.name" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#388e7e] outline-none">
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center gap-6">
+                        <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                            <input type="radio" value="all_farmers" x-model="currentAdditionForm.farmer_type" class="text-[#388e7e] focus:ring-[#388e7e]">
+                            <span>All Farmers</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                            <input type="radio" value="farmer_wise" x-model="currentAdditionForm.farmer_type" class="text-[#388e7e] focus:ring-[#388e7e]">
+                            <span>Farmer Wise</span>
+                        </label>
                     </div>
                 </div>
-                <div class="pt-3 flex justify-end gap-2 font-bold">
-                    <button type="button" @click="showAddAdditionModal = false" class="px-4 py-1.5 rounded bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
-                    <button type="submit" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+
+                <div x-show="currentAdditionForm.farmer_type === 'all_farmers'" class="space-y-1">
+                    <label class="block font-semibold text-slate-700">Amount:</label>
+                    <input type="number" step="0.01" x-model="currentAdditionForm.amount" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#388e7e] outline-none">
+                </div>
+
+                <div class="p-2.5 bg-slate-50 border border-slate-200 rounded text-slate-600 text-[11px] leading-relaxed">
+                    <template x-if="currentAdditionForm.farmer_type === 'all_farmers'">
+                        <span>For all farmers <strong class="text-slate-800" x-text="(currentAdditionForm.amount || '0.00') + (currentAdditionForm.unit || '/liter')"></strong> <strong class="text-slate-800" x-text="currentAdditionForm.name"></strong> will be added to the milk amount</span>
+                    </template>
+                    <template x-if="currentAdditionForm.farmer_type === 'farmer_wise'">
+                        <span>For <strong class="text-slate-800" x-text="currentAdditionForm.name"></strong>, extra payment will be specified individually for each farmer</span>
+                    </template>
+                </div>
+
+                <div class="pt-3 flex justify-end gap-3 border-t border-slate-100">
+                    <button type="button" @click="resetAdditionForm()" class="px-6 py-2 rounded bg-[#cfd8dc] text-slate-700 hover:bg-[#b0bec5] font-semibold text-xs cursor-pointer transition">Reset</button>
+                    <button type="submit" class="px-7 py-2 rounded bg-[#388e7e] hover:bg-[#2e7d6f] text-white font-semibold text-xs shadow-xs cursor-pointer transition" x-text="currentAdditionForm.is_edit ? 'Update' : 'Save'"></button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Add Deduction Modal -->
+    <!-- Step 1: Select Deduction Type Modal (Image 5 style) -->
     <div x-show="showAddDeductionModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showAddDeductionModal = false"></div>
-        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden text-xs relative z-10" @click.stop>
-            <div class="bg-[#002e79] text-white px-5 py-3.5 flex items-center justify-between font-bold">
-                <h4>Add Deduction Type</h4>
-                <button type="button" @click="showAddDeductionModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+        <div class="bg-white rounded-lg shadow-2xl max-w-sm w-full overflow-hidden text-xs relative z-10" @click.stop>
+            <div class="bg-[#98d8c8] text-slate-800 px-5 py-3 flex items-center justify-between font-bold text-sm border-b border-slate-200">
+                <span>Add Deduction</span>
+                <button type="button" @click="showAddDeductionModal = false" class="text-slate-600 hover:text-slate-900 text-xl font-bold leading-none cursor-pointer">&times;</button>
             </div>
-            <form @submit.prevent="saveNewDeduction()" class="p-5 space-y-3">
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Deduction Name *</label>
-                    <input type="text" x-model="newDeduction.name" required class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500" placeholder="e.g. Maintenance">
+            <div class="p-5 space-y-4">
+                <div class="space-y-1.5">
+                    <label class="block font-semibold text-slate-700">Deduction Type:</label>
+                    <select x-model="selectedNewDeductionType" @change="onSelectDeductionType($event.target.value)" class="w-full px-3 py-2 border border-slate-300 rounded focus:border-[#388e7e] outline-none bg-white">
+                        <option value="">Select Deduction Type</option>
+                        <option value="TDS 194Q - Manual">TDS 194Q - Manual</option>
+                        <option value="Anamat/Liter">Anamat/Liter</option>
+                        <option value="Cattle Feed/Invoice">Cattle Feed/Invoice</option>
+                        <option value="Doctor Fee/Invoice">Doctor Fee/Invoice</option>
+                        <option value="Share/Liter">Share/Liter</option>
+                        <option value="Transport/Liter">Transport/Liter</option>
+                        <option value="Other Deduction Dr">Other Deduction Dr</option>
+                    </select>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Rate / Value</label>
-                        <input type="text" x-model="newDeduction.value" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500" placeholder="e.g. 0.00">
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Unit / Criteria</label>
-                        <select x-model="newDeduction.unit" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
-                            <option value="/ltr">/ltr</option>
-                            <option value="/Invoice">/Invoice</option>
-                            <option value="Farmer Wise">Farmer Wise</option>
-                            <option value="Round down">Round down</option>
-                            <option value="Flat">Flat</option>
-                            <option value="-">-</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="pt-3 flex justify-end gap-2 font-bold">
-                    <button type="button" @click="showAddDeductionModal = false" class="px-4 py-1.5 rounded bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
-                    <button type="submit" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 
-    <!-- Row Action (Edit / Delete) Modal -->
-    <div x-show="showItemActionModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showItemActionModal = false"></div>
-        <div class="bg-white rounded-xl shadow-2xl max-w-xs w-full overflow-hidden text-xs relative z-10" @click.stop>
-            <div class="bg-[#002e79] text-white px-4 py-3 flex items-center justify-between font-bold">
-                <span x-text="'Manage: ' + selectedItemData.name"></span>
-                <button type="button" @click="showItemActionModal = false" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+    <!-- Step 2: Configure / Edit Deduction Modal (Image 5) -->
+    <div x-show="showConfigureDeductionModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="showConfigureDeductionModal = false"></div>
+        <div class="bg-white rounded-lg shadow-2xl max-w-sm w-full overflow-hidden text-xs relative z-10" @click.stop>
+            <div class="bg-[#98d8c8] text-slate-800 px-5 py-3 flex items-center justify-between font-bold text-sm border-b border-slate-200">
+                <span x-text="currentDeductionForm.is_edit ? 'Edit Deduction' : 'Add Deduction'"></span>
+                <button type="button" @click="showConfigureDeductionModal = false" class="text-slate-600 hover:text-slate-900 text-xl font-bold leading-none cursor-pointer">&times;</button>
             </div>
-            <div class="p-4 space-y-3">
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Rate / Value</label>
-                    <input type="text" x-model="selectedItemData.value" class="w-full px-3 py-1.5 border border-slate-200 rounded focus:border-blue-500">
+            <form @submit.prevent="saveDeductionForm()" class="p-5 space-y-4">
+                <div class="space-y-1">
+                    <label class="block font-semibold text-slate-700">Deduction Type:</label>
+                    <input type="text" x-model="currentDeductionForm.name" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#388e7e] outline-none">
                 </div>
-                <div class="pt-2 flex flex-col gap-2">
-                    <button type="button" @click="saveItemEdit()" class="w-full py-1.5 bg-[#005c53] hover:bg-[#004740] text-white font-bold rounded">Update Value</button>
-                    <button type="button" @click="deleteItem()" class="w-full py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded">Remove Item</button>
+
+                <div class="space-y-2">
+                    <div class="flex items-center gap-6">
+                        <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                            <input type="radio" value="all_farmers" x-model="currentDeductionForm.farmer_type" class="text-[#388e7e] focus:ring-[#388e7e]">
+                            <span>All Farmers</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                            <input type="radio" value="farmer_wise" x-model="currentDeductionForm.farmer_type" class="text-[#388e7e] focus:ring-[#388e7e]">
+                            <span>Farmer Wise</span>
+                        </label>
+                    </div>
                 </div>
-            </div>
+
+                <div x-show="currentDeductionForm.farmer_type === 'all_farmers'" class="space-y-1">
+                    <label class="block font-semibold text-slate-700">Amount:</label>
+                    <input type="number" step="0.01" x-model="currentDeductionForm.amount" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:border-[#388e7e] outline-none">
+                </div>
+
+                <div class="p-2.5 bg-slate-50 border border-slate-200 rounded text-slate-600 text-[11px] leading-relaxed">
+                    <template x-if="currentDeductionForm.farmer_type === 'all_farmers'">
+                        <span>For all farmers <strong class="text-slate-800" x-text="(currentDeductionForm.amount || '0.00') + (currentDeductionForm.unit || '/liter')"></strong> <strong class="text-slate-800" x-text="currentDeductionForm.name"></strong> will be deducted from the milk amount</span>
+                    </template>
+                    <template x-if="currentDeductionForm.farmer_type === 'farmer_wise'">
+                        <span>For <strong class="text-slate-800" x-text="currentDeductionForm.name"></strong>, deduction will be specified individually for each farmer</span>
+                    </template>
+                </div>
+
+                <!-- Auto Reset Checkbox Matching Image 5 -->
+                <div class="space-y-1 pt-1">
+                    <label class="flex items-start gap-2 cursor-pointer text-slate-700">
+                        <input type="checkbox" x-model="currentDeductionForm.auto_reset" class="w-4 h-4 mt-0.5 rounded text-[#388e7e] focus:ring-[#388e7e]">
+                        <span class="text-[11px] leading-tight font-medium">I want to automatically set <strong x-text="currentDeductionForm.name"></strong> to 0.00 on the below-mentioned reset date.</span>
+                    </label>
+                    <p class="text-[10px] text-slate-500 pl-6">Note: The deduction amount will be automatically set to 0.00 on the specified reset date.</p>
+                </div>
+
+                <div class="pt-3 flex justify-end gap-3 border-t border-slate-100">
+                    <button type="button" @click="resetDeductionForm()" class="px-6 py-2 rounded bg-[#cfd8dc] text-slate-700 hover:bg-[#b0bec5] font-semibold text-xs cursor-pointer transition">Reset</button>
+                    <button type="submit" class="px-7 py-2 rounded bg-[#388e7e] hover:bg-[#2e7d6f] text-white font-semibold text-xs shadow-xs cursor-pointer transition" x-text="currentDeductionForm.is_edit ? 'Update' : 'Save'"></button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -2938,11 +3122,37 @@ function centerInformationApp() {
         showPayNowModal: false,
         showHistoryModal: false,
         showAddAdditionModal: false,
+        showConfigureAdditionModal: false,
         showAddDeductionModal: false,
-        showItemActionModal: false,
-        selectedItemType: null,
-        selectedItemIndex: null,
-        selectedItemData: { name: '', value: '' },
+        showConfigureDeductionModal: false,
+        activeItemMenu: null,
+        historySearch: '',
+        selectedNewAdditionType: '',
+        selectedNewDeductionType: '',
+
+        subscriptionHistory: [
+            { subscription: 'Advance Plan - One Year - 3200', from_date: '05/04/2026', to_date: '05/04/2027', transaction_date: '03/04/2026' },
+            { subscription: '7 Days Trial', from_date: '29/03/2026', to_date: '05/04/2026', transaction_date: '30/03/2026' }
+        ],
+
+        currentAdditionForm: {
+            is_edit: false,
+            index: null,
+            name: '',
+            farmer_type: 'all_farmers',
+            amount: '1.00',
+            unit: '/liter'
+        },
+
+        currentDeductionForm: {
+            is_edit: false,
+            index: null,
+            name: '',
+            farmer_type: 'all_farmers',
+            amount: '0.00',
+            unit: '/liter',
+            auto_reset: false
+        },
 
         centerDetails: {!! json_encode($centerDetails) !!},
         centerDetailsData: { ...{!! json_encode($centerDetails) !!} },
@@ -3491,99 +3701,226 @@ function centerInformationApp() {
             }
         },
 
+        toggleItemMenu(type, idx) {
+            const key = type + '-' + idx;
+            this.activeItemMenu = this.activeItemMenu === key ? null : key;
+        },
+
+        filteredHistory() {
+            if (!this.historySearch || !this.historySearch.trim()) {
+                return this.subscriptionHistory;
+            }
+            const q = this.historySearch.toLowerCase().trim();
+            return this.subscriptionHistory.filter(item => 
+                (item.subscription && item.subscription.toLowerCase().includes(q)) ||
+                (item.from_date && item.from_date.toLowerCase().includes(q)) ||
+                (item.to_date && item.to_date.toLowerCase().includes(q)) ||
+                (item.transaction_date && item.transaction_date.toLowerCase().includes(q))
+            );
+        },
+
+        async processSubscriptionPay() {
+            alert('Payment of ₹ 3,200.00 processed successfully! Advance Plan is now Active.');
+            this.subscriptionInfo.status = 'Active';
+            this.subscriptionInfo.plan = 'Advance Plan - One Year - 3200';
+            this.subscriptionInfo.period = '05/04/2026 To 05/04/2027';
+            this.showPayNowModal = false;
+            try {
+                await this.postData({
+                    setting_key: 'center_subscription_info',
+                    plan: this.subscriptionInfo.plan,
+                    period: this.subscriptionInfo.period,
+                    status: 'Active'
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        },
+
+        // --- Addition Type Methods ---
         openAddAdditionModal() {
-            this.newAddition = { name: '', value: '1.00', unit: '/ltr' };
+            this.selectedNewAdditionType = '';
             this.showAddAdditionModal = true;
         },
 
-        async saveNewAddition() {
-            if (!this.newAddition.name) {
-                alert('Name is required');
+        onSelectAdditionType(val) {
+            if (!val) return;
+            this.currentAdditionForm = {
+                is_edit: false,
+                index: null,
+                name: val,
+                farmer_type: 'all_farmers',
+                amount: '1.00',
+                unit: val.includes('Percent') ? '%' : '/liter'
+            };
+            this.showAddAdditionModal = false;
+            this.showConfigureAdditionModal = true;
+        },
+
+        openEditAddition(idx) {
+            const item = this.additionTypes[idx];
+            if (!item) return;
+            const isFarmerWise = item.farmer_type === 'farmer_wise' || item.value === 'Farmer Wise';
+            let amount = item.amount || '';
+            if (!amount && item.value && item.value !== 'Farmer Wise' && item.value !== '-') {
+                amount = item.value.replace(/[^0-9.]/g, '');
+            }
+            this.currentAdditionForm = {
+                is_edit: true,
+                index: idx,
+                name: item.name || '',
+                farmer_type: isFarmerWise ? 'farmer_wise' : 'all_farmers',
+                amount: amount || '1.00',
+                unit: item.unit || '/liter'
+            };
+            this.showConfigureAdditionModal = true;
+        },
+
+        resetAdditionForm() {
+            this.currentAdditionForm.amount = '0.00';
+            this.currentAdditionForm.farmer_type = 'all_farmers';
+        },
+
+        async saveAdditionForm() {
+            if (!this.currentAdditionForm.name) {
+                alert('Addition Type name is required');
                 return;
             }
-            const valStr = this.newAddition.unit === '-' ? '-' : (this.newAddition.unit === 'Farmer Wise' ? 'Farmer Wise' : (this.newAddition.value + this.newAddition.unit));
-            this.additionTypes.push({
-                name: this.newAddition.name,
+            const isFarmerWise = this.currentAdditionForm.farmer_type === 'farmer_wise';
+            const valStr = isFarmerWise ? 'Farmer Wise' : ((this.currentAdditionForm.amount || '0.00') + (this.currentAdditionForm.unit || '/liter'));
+            
+            const record = {
+                name: this.currentAdditionForm.name,
+                farmer_type: this.currentAdditionForm.farmer_type,
+                amount: this.currentAdditionForm.amount || '0.00',
+                unit: this.currentAdditionForm.unit || '/liter',
                 value: valStr
-            });
+            };
+
+            if (this.currentAdditionForm.is_edit && this.currentAdditionForm.index !== null) {
+                this.additionTypes[this.currentAdditionForm.index] = record;
+            } else {
+                this.additionTypes.push(record);
+            }
+
             try {
                 await this.postData({
                     setting_key: 'center_addition_types',
                     setting_value: JSON.stringify(this.additionTypes)
                 });
-                this.showAddAdditionModal = false;
+                this.showConfigureAdditionModal = false;
             } catch (err) {
-                alert('Error saving extra payment: ' + err.message);
+                alert('Error saving addition: ' + err.message);
             }
         },
 
+        async deleteAddition(idx) {
+            const item = this.additionTypes[idx];
+            if (!confirm(`Are you sure you want to delete "${item?.name}"?`)) return;
+            this.additionTypes.splice(idx, 1);
+            try {
+                await this.postData({
+                    setting_key: 'center_addition_types',
+                    setting_value: JSON.stringify(this.additionTypes)
+                });
+            } catch (err) {
+                alert('Error deleting addition: ' + err.message);
+            }
+        },
+
+        // --- Deduction Type Methods ---
         openAddDeductionModal() {
-            this.newDeduction = { name: '', value: '0.00', unit: '/ltr' };
+            this.selectedNewDeductionType = '';
             this.showAddDeductionModal = true;
         },
 
-        async saveNewDeduction() {
-            if (!this.newDeduction.name) {
-                alert('Name is required');
+        onSelectDeductionType(val) {
+            if (!val) return;
+            this.currentDeductionForm = {
+                is_edit: false,
+                index: null,
+                name: val,
+                farmer_type: 'all_farmers',
+                amount: '0.00',
+                unit: val.includes('Invoice') ? '/Invoice' : '/liter',
+                auto_reset: false
+            };
+            this.showAddDeductionModal = false;
+            this.showConfigureDeductionModal = true;
+        },
+
+        openEditDeduction(idx) {
+            const item = this.deductionTypes[idx];
+            if (!item) return;
+            const isFarmerWise = item.farmer_type === 'farmer_wise' || item.value === 'Farmer Wise';
+            let amount = item.amount || '';
+            if (!amount && item.value && item.value !== 'Farmer Wise' && item.value !== '-') {
+                amount = item.value.replace(/[^0-9.]/g, '');
+            }
+            this.currentDeductionForm = {
+                is_edit: true,
+                index: idx,
+                name: item.name || '',
+                farmer_type: isFarmerWise ? 'farmer_wise' : 'all_farmers',
+                amount: amount || '0.00',
+                unit: item.unit || '/liter',
+                auto_reset: !!item.auto_reset
+            };
+            this.showConfigureDeductionModal = true;
+        },
+
+        resetDeductionForm() {
+            this.currentDeductionForm.amount = '0.00';
+            this.currentDeductionForm.farmer_type = 'all_farmers';
+            this.currentDeductionForm.auto_reset = false;
+        },
+
+        async saveDeductionForm() {
+            if (!this.currentDeductionForm.name) {
+                alert('Deduction Type name is required');
                 return;
             }
-            const valStr = this.newDeduction.unit === '-' ? '-' : (this.newDeduction.unit === 'Farmer Wise' ? 'Farmer Wise' : (this.newDeduction.unit === 'Round down' ? 'Round down' : (this.newDeduction.value + this.newDeduction.unit)));
-            this.deductionTypes.push({
-                name: this.newDeduction.name,
+            const isFarmerWise = this.currentDeductionForm.farmer_type === 'farmer_wise';
+            const valStr = isFarmerWise ? 'Farmer Wise' : ((this.currentDeductionForm.amount || '0.00') + (this.currentDeductionForm.unit || '/liter'));
+            
+            const record = {
+                name: this.currentDeductionForm.name,
+                farmer_type: this.currentDeductionForm.farmer_type,
+                amount: this.currentDeductionForm.amount || '0.00',
+                unit: this.currentDeductionForm.unit || '/liter',
+                auto_reset: !!this.currentDeductionForm.auto_reset,
                 value: valStr
-            });
+            };
+
+            if (this.currentDeductionForm.is_edit && this.currentDeductionForm.index !== null) {
+                this.deductionTypes[this.currentDeductionForm.index] = record;
+            } else {
+                this.deductionTypes.push(record);
+            }
+
             try {
                 await this.postData({
                     setting_key: 'center_deduction_types',
                     setting_value: JSON.stringify(this.deductionTypes)
                 });
-                this.showAddDeductionModal = false;
+                this.showConfigureDeductionModal = false;
             } catch (err) {
                 alert('Error saving deduction: ' + err.message);
             }
         },
 
-        openItemAction(type, index) {
-            this.selectedItemType = type;
-            this.selectedItemIndex = index;
-            const item = type === 'addition' ? this.additionTypes[index] : this.deductionTypes[index];
-            this.selectedItemData = { ...item };
-            this.showItemActionModal = true;
-        },
-
-        async saveItemEdit() {
-            if (this.selectedItemType === 'addition') {
-                this.additionTypes[this.selectedItemIndex].value = this.selectedItemData.value;
-                await this.postData({
-                    setting_key: 'center_addition_types',
-                    setting_value: JSON.stringify(this.additionTypes)
-                });
-            } else {
-                this.deductionTypes[this.selectedItemIndex].value = this.selectedItemData.value;
+        async deleteDeduction(idx) {
+            const item = this.deductionTypes[idx];
+            if (!confirm(`Are you sure you want to delete "${item?.name}"?`)) return;
+            this.deductionTypes.splice(idx, 1);
+            try {
                 await this.postData({
                     setting_key: 'center_deduction_types',
                     setting_value: JSON.stringify(this.deductionTypes)
                 });
+            } catch (err) {
+                alert('Error deleting deduction: ' + err.message);
             }
-            this.showItemActionModal = false;
-        },
-
-        async deleteItem() {
-            if (!confirm('Are you sure you want to remove ' + this.selectedItemData.name + '?')) return;
-            if (this.selectedItemType === 'addition') {
-                this.additionTypes.splice(this.selectedItemIndex, 1);
-                await this.postData({
-                    setting_key: 'center_addition_types',
-                    setting_value: JSON.stringify(this.additionTypes)
-                });
-            } else {
-                this.deductionTypes.splice(this.selectedItemIndex, 1);
-                await this.postData({
-                    setting_key: 'center_deduction_types',
-                    setting_value: JSON.stringify(this.deductionTypes)
-                });
-            }
-            this.showItemActionModal = false;
         }
     };
 }
