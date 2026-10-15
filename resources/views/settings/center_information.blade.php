@@ -12,7 +12,6 @@
 @section('content')
 <div x-data="centerInformationApp()" class="space-y-6">
 
-    <!-- Top Breadcrumb / Title Bar -->
     <div class="flex items-center justify-between text-xs text-slate-500 font-medium">
         <div class="flex items-center gap-1.5">
             <span>Center Information</span>
