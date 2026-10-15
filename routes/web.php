@@ -121,6 +121,123 @@ Route::get('/install-db', function () {
     return redirect()->route('setup.database', ['run' => 1]);
 });
 
+// Dedicated 1-Click Database Migration Route
+Route::match(['get', 'post'], '/migrate', function (\Illuminate\Http\Request $request) {
+    ini_set('max_execution_time', '300');
+    ini_set('memory_limit', '512M');
+
+    $logs = [];
+    $status = 'success';
+    $errorMessage = null;
+    $artisanOutput = '';
+    $autoRun = $request->query('run', '1') !== '0'; // Runs automatically on visit by default
+    $fresh = $request->query('fresh', false) || $request->query('wipe', false);
+
+    $dbConnected = false;
+    $dbName = config('database.connections.mysql.database');
+    $tables = [];
+
+    try {
+        \Illuminate\Support\Facades\DB::connection()->getPdo();
+        $dbConnected = true;
+        $logs[] = "✅ Database connection established with: " . $dbName;
+    } catch (\Throwable $e) {
+        $dbConnected = false;
+        $status = 'error';
+        $errorMessage = $e->getMessage();
+        $logs[] = "❌ Database Connection Failed: " . $e->getMessage();
+    }
+
+    if ($dbConnected && $autoRun) {
+        try {
+            // Step 1: Execute Artisan Migrations
+            if ($fresh) {
+                \Illuminate\Support\Facades\Artisan::call('migrate:fresh', ['--force' => true]);
+                $artisanOutput = trim(\Illuminate\Support\Facades\Artisan::output());
+                $logs[] = "🔄 Fresh Migration executed (tables wiped & recreated):\n" . ($artisanOutput ?: 'Done.');
+            } else {
+                \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+                $artisanOutput = trim(\Illuminate\Support\Facades\Artisan::output());
+                $logs[] = "🚀 Artisan migrate executed:\n" . ($artisanOutput ?: 'Nothing to migrate. All migrations are already up to date.');
+            }
+
+            // Step 2: Defensive verification for Mobile Dairy Emergency Funds table
+            if (!\Illuminate\Support\Facades\Schema::hasTable('farmer_emergency_funds')) {
+                \Illuminate\Support\Facades\Schema::create('farmer_emergency_funds', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->id();
+                    $table->unsignedBigInteger('farmer_id');
+                    $table->string('reference_no', 50)->unique();
+                    $table->decimal('amount', 12, 2);
+                    $table->decimal('recovered_amount', 12, 2)->default(0.00);
+                    $table->decimal('balance', 12, 2)->default(0.00);
+                    $table->date('request_date');
+                    $table->string('reason');
+                    $table->string('approved_by')->nullable();
+                    $table->string('disbursement_method', 30)->default('Cash');
+                    $table->boolean('allow_settlement_recovery')->default(false);
+                    $table->string('status', 30)->default('disbursed');
+                    $table->text('notes')->nullable();
+                    $table->timestamps();
+                    $table->softDeletes();
+                    $table->foreign('farmer_id')->references('id')->on('farmers')->onDelete('cascade');
+                });
+                $logs[] = "✅ Created `farmer_emergency_funds` table for Mobile Dairy suite.";
+            } else {
+                $logs[] = "ℹ️ Verified `farmer_emergency_funds` table exists.";
+            }
+
+            // Step 3: Clear all application, route, view and config caches
+            \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+            $logs[] = "🧹 Application cache cleared successfully.";
+
+            $status = 'success';
+        } catch (\Throwable $e) {
+            $status = 'error';
+            $errorMessage = $e->getMessage();
+            $logs[] = "❌ Migration Error: " . $e->getMessage();
+        }
+    }
+
+    if ($dbConnected) {
+        try {
+            $rawTables = \Illuminate\Support\Facades\DB::select('SHOW TABLES');
+            foreach ($rawTables as $t) {
+                $tObj = (array) $t;
+                $tables[] = reset($tObj);
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+    }
+
+    $tablesCount = count($tables);
+
+    if ($request->wantsJson() || $request->query('json')) {
+        return response()->json([
+            'status' => $status,
+            'message' => $status === 'success' ? 'Database migrations completed successfully!' : 'Migration encountered an error.',
+            'error' => $errorMessage,
+            'database' => $dbName,
+            'total_tables' => $tablesCount,
+            'tables' => $tables,
+            'logs' => $logs,
+            'artisan_output' => $artisanOutput,
+        ], $status === 'success' ? 200 : 500, [], JSON_PRETTY_PRINT);
+    }
+
+    return view('migrate', compact('status', 'logs', 'tablesCount', 'tables', 'dbConnected', 'dbName', 'errorMessage', 'artisanOutput', 'autoRun', 'fresh'));
+})->name('migrate');
+
+Route::get('/run-migrate', function () {
+    return redirect()->route('migrate');
+});
+Route::get('/artisan-migrate', function () {
+    return redirect()->route('migrate');
+});
+Route::get('/db-migrate', function () {
+    return redirect()->route('migrate');
+});
+
 // Dedicated 1-Click Route to Add All Dispatch Columns directly to MySQL Database
 Route::get('/migrate-dispatch', function () {
     $results = [];
