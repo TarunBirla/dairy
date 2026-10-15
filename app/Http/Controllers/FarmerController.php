@@ -567,8 +567,9 @@ class FarmerController extends Controller
             $totalCredit = round($totalCredit + $entry['credit'], 2);
 
             $entry['date_short'] = $carbonDate->format('d M');
-            $entry['date_formatted'] = $carbonDate->format('d M Y');
             $entry['balance'] = $runningBalance;
+            $entry['running_balance'] = $runningBalance;
+            $filteredEntries[$idx] = $entry;
 
             $monthlyGroups[$ym]['entries'][] = $entry;
             $monthlyGroups[$ym]['total_debit'] = round($monthlyGroups[$ym]['total_debit'] + $entry['debit'], 2);

@@ -1304,6 +1304,7 @@ class MobileDairyController extends Controller
             $totalCredit = round($totalCredit + $f['credit'], 2);
             $totalDebit = round($totalDebit + $f['debit'], 2);
             $f['running_balance'] = $runningBalance;
+            $f['balance'] = $runningBalance;
         }
 
         return [

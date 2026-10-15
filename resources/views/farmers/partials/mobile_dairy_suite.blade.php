@@ -955,17 +955,17 @@
                     <tbody class="divide-y divide-slate-100">
                         @forelse($passbookEntries as $entry)
                             <tr class="hover:bg-slate-50/60 transition">
-                                <td class="py-3 px-4 font-mono">{{ $entry['date'] }}</td>
-                                <td class="py-3 px-4 font-mono font-bold text-slate-700">{{ $entry['ref'] }}</td>
-                                <td class="py-3 px-4 font-semibold text-slate-800">{{ $entry['description'] }}</td>
+                                <td class="py-3 px-4 font-mono">{{ $entry['date'] ?? '—' }}</td>
+                                <td class="py-3 px-4 font-mono font-bold text-slate-700">{{ $entry['ref'] ?? ($entry['reference_no'] ?? '—') }}</td>
+                                <td class="py-3 px-4 font-semibold text-slate-800">{{ $entry['description'] ?? ($entry['details'] ?? '—') }}</td>
                                 <td class="py-3 px-4 text-right font-black text-rose-600">
-                                    {{ $entry['debit'] > 0 ? '₹ ' . number_format($entry['debit'], 2) : '—' }}
+                                    {{ (isset($entry['debit']) && (float)$entry['debit'] > 0) ? '₹ ' . number_format($entry['debit'], 2) : '—' }}
                                 </td>
                                 <td class="py-3 px-4 text-right font-black text-emerald-600">
-                                    {{ $entry['credit'] > 0 ? '₹ ' . number_format($entry['credit'], 2) : '—' }}
+                                    {{ (isset($entry['credit']) && (float)$entry['credit'] > 0) ? '₹ ' . number_format($entry['credit'], 2) : '—' }}
                                 </td>
                                 <td class="py-3 px-4 text-right font-black text-slate-900">
-                                    ₹ {{ number_format($entry['balance'], 2) }}
+                                    ₹ {{ number_format($entry['balance'] ?? $entry['running_balance'] ?? 0, 2) }}
                                 </td>
                             </tr>
                         @empty
@@ -1013,27 +1013,27 @@
                     <tbody class="divide-y divide-slate-100">
                         @forelse($passbookEntries as $p)
                             <tr class="hover:bg-slate-50/60 transition">
-                                <td class="py-3 px-4 font-mono">{{ $p['date'] }}</td>
-                                <td class="py-3 px-4 font-mono font-bold text-slate-800">{{ $p['ref'] }}</td>
+                                <td class="py-3 px-4 font-mono">{{ $p['date'] ?? '—' }}</td>
+                                <td class="py-3 px-4 font-mono font-bold text-slate-800">{{ $p['ref'] ?? ($p['reference_no'] ?? '—') }}</td>
                                 <td class="py-3 px-4">
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase {{ $p['credit'] > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800' }}">
-                                        {{ $p['type'] }}
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase {{ (isset($p['credit']) && (float)$p['credit'] > 0) ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800' }}">
+                                        {{ $p['type'] ?? 'General' }}
                                     </span>
                                 </td>
-                                <td class="py-3 px-4 font-semibold text-slate-800">{{ $p['description'] }}</td>
+                                <td class="py-3 px-4 font-semibold text-slate-800">{{ $p['description'] ?? ($p['details'] ?? '—') }}</td>
                                 <td class="py-3 px-4 text-right font-black text-emerald-600">
-                                    {{ $p['credit'] > 0 ? '₹ ' . number_format($p['credit'], 2) : '—' }}
+                                    {{ (isset($p['credit']) && (float)$p['credit'] > 0) ? '₹ ' . number_format($p['credit'], 2) : '—' }}
                                 </td>
                                 <td class="py-3 px-4 text-right font-black text-rose-600">
-                                    {{ $p['debit'] > 0 ? '₹ ' . number_format($p['debit'], 2) : '—' }}
+                                    {{ (isset($p['debit']) && (float)$p['debit'] > 0) ? '₹ ' . number_format($p['debit'], 2) : '—' }}
                                 </td>
                                 <td class="py-3 px-4 text-center">
                                     <span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-slate-100 text-slate-600">
-                                        {{ $p['status'] }}
+                                        {{ $p['status'] ?? 'Completed' }}
                                     </span>
                                 </td>
                                 <td class="py-3 px-4 text-right font-black text-slate-900">
-                                    ₹ {{ number_format($p['balance'], 2) }}
+                                    ₹ {{ number_format($p['balance'] ?? $p['running_balance'] ?? 0, 2) }}
                                 </td>
                             </tr>
                         @empty
