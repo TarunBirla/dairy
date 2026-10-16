@@ -16,7 +16,9 @@ class FarmerSettlementController extends Controller
 {
     public function index()
     {
-        $settlements = FarmerSettlement::with('farmer')->latest()->paginate(15);
+        $settlements = FarmerSettlement::with('farmer')
+        ->where('total_liters', '!=', 0)
+        ->latest()->paginate(15);
         $totalSettledAmount = FarmerSettlement::where('status', 'paid')->sum('paid_amount');
         $farmers = Farmer::where('status', 'active')->get();
 
@@ -25,7 +27,9 @@ class FarmerSettlementController extends Controller
 
     public function create(Request $request)
     {
-        $farmers = Farmer::where('status', 'active')->get();
+        $farmers = Farmer::where('status', 'active')
+        ->where('total_liters', '!=', 0)
+        ->get();
         $selectedFarmer = $request->filled('farmer_id') ? Farmer::find($request->farmer_id) : null;
         $periodStart = $request->get('start_date', Carbon::now()->startOfMonth()->format('Y-m-d'));
         $periodEnd = $request->get('end_date', Carbon::today()->format('Y-m-d'));
