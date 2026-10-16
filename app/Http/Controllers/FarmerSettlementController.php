@@ -17,8 +17,8 @@ class FarmerSettlementController extends Controller
     public function index()
     {
         $settlements = FarmerSettlement::with('farmer')
-        ->where('total_liters', '!=', 0)
-        ->latest()->paginate(15);
+            ->where('total_liters', '!=', 0)
+            ->latest()->paginate(15);
         $totalSettledAmount = FarmerSettlement::where('status', 'paid')->sum('paid_amount');
         $farmers = Farmer::where('status', 'active')->get();
 
@@ -27,9 +27,29 @@ class FarmerSettlementController extends Controller
 
     public function create(Request $request)
     {
+        // Date range first define karein
+        $periodStart = $request->get(
+            'start_date',
+            Carbon::now()->startOfMonth()->format('Y-m-d')
+        );
+
+        $periodEnd = $request->get(
+            'end_date',
+            Carbon::today()->format('Y-m-d')
+        );
+
+        // Active farmers jinki pending collections hain
         $farmers = Farmer::where('status', 'active')
-        ->where('total_liters', '!=', 0)
-        ->get();
+            ->whereIn('id', function ($query) use ($periodStart, $periodEnd) {
+                $query->select('farmer_id')
+                    ->from('milk_collections')
+                    ->whereBetween('collection_date', [$periodStart, $periodEnd])
+                    ->where('payment_status', 'pending')
+                    ->groupBy('farmer_id')
+                    ->havingRaw('SUM(quantity_liters) != 0');
+            })
+            ->get();
+
         $selectedFarmer = $request->filled('farmer_id') ? Farmer::find($request->farmer_id) : null;
         $periodStart = $request->get('start_date', Carbon::now()->startOfMonth()->format('Y-m-d'));
         $periodEnd = $request->get('end_date', Carbon::today()->format('Y-m-d'));
@@ -76,9 +96,9 @@ class FarmerSettlementController extends Controller
 
         $totalLiters = $collections->sum('quantity_liters');
         $grossAmount = $collections->sum('net_amount');
-        $advance = (float)($validated['advance_recovered'] ?? 0);
-        $bonus = (float)($validated['bonus_amount'] ?? 0);
-        $deduction = (float)($validated['deduction_amount'] ?? 0);
+        $advance = (float) ($validated['advance_recovered'] ?? 0);
+        $bonus = (float) ($validated['bonus_amount'] ?? 0);
+        $deduction = (float) ($validated['deduction_amount'] ?? 0);
 
         $netPayable = round($grossAmount + $bonus - $deduction - $advance, 2);
         $settlementNumber = 'SETTLE-' . (FarmerSettlement::max('id') + 101);
