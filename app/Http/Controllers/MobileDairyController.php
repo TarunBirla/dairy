@@ -291,13 +291,25 @@ class MobileDairyController extends Controller
     {
         $milkType = strtolower($milkType);
 
-        // 1. Farmer Fixed Rate Override
-        if ($milkType === 'cow' && (float) $farmer->cow_milk_rate > 0) {
-            return (float) $farmer->cow_milk_rate;
+        // 1. Farmer Fixed Rate Pricing
+        $isFixedPricing = ($farmer->pricing_type === 'fixed_rate') || 
+            (empty($farmer->pricing_type) && ($farmer->cow_milk_rate > 0 || $farmer->buffalo_milk_rate > 0) && !$farmer->rate_chart_id);
+
+        if ($isFixedPricing) {
+            if ($milkType === 'cow' && (float) $farmer->cow_milk_rate > 0) {
+                return (float) $farmer->cow_milk_rate;
+            }
+            if ($milkType === 'buffalo' && (float) $farmer->buffalo_milk_rate > 0) {
+                return (float) $farmer->buffalo_milk_rate;
+            }
+            if ((float) $farmer->cow_milk_rate > 0) {
+                return (float) $farmer->cow_milk_rate;
+            }
+            if ((float) $farmer->buffalo_milk_rate > 0) {
+                return (float) $farmer->buffalo_milk_rate;
+            }
         }
-        if ($milkType === 'buffalo' && (float) $farmer->buffalo_milk_rate > 0) {
-            return (float) $farmer->buffalo_milk_rate;
-        }
+
         if ((float) $farmer->custom_rate_override > 0) {
             return (float) $farmer->custom_rate_override;
         }
@@ -434,12 +446,32 @@ class MobileDairyController extends Controller
 
         $receiptNumber = 'MC-' . strtoupper(substr($validated['shift'], 0, 1)) . '-' . date('ymd', strtotime($date)) . '-' . str_pad((MilkCollection::max('id') + 1), 4, '0', STR_PAD_LEFT);
 
+        $isFixedPricing = ($farmer->pricing_type === 'fixed_rate') || 
+            (empty($farmer->pricing_type) && ($farmer->cow_milk_rate > 0 || $farmer->buffalo_milk_rate > 0) && !$farmer->rate_chart_id);
+        $pricingType = $isFixedPricing ? 'fixed_rate' : 'rate_chart';
+        $chartId = null;
+        if (!$isFixedPricing) {
+            if ($farmer->rate_chart_id) {
+                $chkChart = RateChart::where('id', $farmer->rate_chart_id)->where('status', 'active')->first();
+                if ($chkChart) {
+                    $chartId = $chkChart->id;
+                }
+            }
+            if (!$chartId) {
+                $chkChart = RateChart::where('milk_type', $validated['milk_type'])->where('status', 'active')->first()
+                    ?? RateChart::where('status', 'active')->first();
+                $chartId = $chkChart?->id;
+            }
+        }
+
         DB::beginTransaction();
         try {
             $collection = MilkCollection::create([
                 'receipt_number' => $receiptNumber,
                 'farmer_id' => $farmer->id,
                 'collection_center_id' => $farmer->collection_center_id,
+                'pricing_type' => $pricingType,
+                'rate_chart_id' => $chartId,
                 'collection_date' => $date,
                 'shift' => $shift,
                 'milk_type' => $validated['milk_type'],

@@ -74,7 +74,7 @@
                         <option value="">-- Choose Farmer by Code or Name --</option>
                         @foreach($farmers as $f)
                             <option value="{{ $f->id }}" data-animal="{{ $f->animal_type }}" data-code="{{ $f->farmer_code }}" data-village="{{ $f->village }}">
-                                {{ $f->farmer_code }} - {{ $f->name }} ({{ ucfirst($f->animal_type) }} • {{ $f->village }})
+                                {{ $f->farmer_code }} - {{ $f->name }} ({{ ucfirst($f->animal_type) }} • {{ $f->pricing_type === 'fixed_rate' ? 'Fixed Rate' : ($f->rateChart ? $f->rateChart->name : 'Rate Chart') }})
                             </option>
                         @endforeach
                     </select>

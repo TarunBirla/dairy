@@ -27,6 +27,8 @@ class MilkCollection extends Model
         'clr',
         'calculated_rate',
         'applied_rate',
+        'pricing_type',
+        'rate_chart_id',
         'gross_amount',
         'bonus',
         'bonus_amount',
@@ -78,6 +80,11 @@ class MilkCollection extends Model
     public function collectionCenter()
     {
         return $this->belongsTo(CollectionCenter::class);
+    }
+
+    public function rateChart()
+    {
+        return $this->belongsTo(RateChart::class, 'rate_chart_id');
     }
 
     public function operator()

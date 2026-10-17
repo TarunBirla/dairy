@@ -199,6 +199,7 @@
                                 'branch_id' => $farmer->branch_id,
                                 'branch_name' => $farmer->branch_name ?? '',
                                 'collection_center_id' => $farmer->collection_center_id,
+                                'pricing_type' => $farmer->pricing_type ?? ($farmer->rate_chart_id ? 'rate_chart' : ($farmer->cow_milk_rate > 0 || $farmer->buffalo_milk_rate > 0 ? 'fixed_rate' : 'rate_chart')),
                                 'rate_chart_id' => $farmer->rate_chart_id,
                                 'animal_type' => $farmer->animal_type,
                                 'cow_milk_rate' => $farmer->cow_milk_rate,
@@ -260,21 +261,36 @@
                                 {{ $farmer->village ?: '—' }}
                             </td>
 
-                            <!-- Milk Type -->
+                            <!-- Milk Type & Pricing Scheme -->
                             <td class="py-3 px-4">
-                                @if($farmer->animal_type === 'cow')
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                                        🐄 Cow (CM)
-                                    </span>
-                                @elseif($farmer->animal_type === 'buffalo')
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">
-                                        🐃 Buffalo
-                                    </span>
-                                @else
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                        🥛 Mixed
-                                    </span>
-                                @endif
+                                <div class="space-y-1">
+                                    <div>
+                                        @if($farmer->animal_type === 'cow')
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                                🐄 Cow (CM)
+                                            </span>
+                                        @elseif($farmer->animal_type === 'buffalo')
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">
+                                                🐃 Buffalo
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                                🥛 Mixed
+                                            </span>
+                                        @endif
+                                    </div>
+                                    <div>
+                                        @if(($farmer->pricing_type ?? '') === 'fixed_rate' || (($farmer->cow_milk_rate > 0 || $farmer->buffalo_milk_rate > 0) && !$farmer->rate_chart_id))
+                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-amber-50 text-amber-700 border border-amber-200" title="Fixed Rate: Cow ₹{{ $farmer->cow_milk_rate ?? 0 }}, Buffalo ₹{{ $farmer->buffalo_milk_rate ?? 0 }}">
+                                                💵 Fixed: ₹{{ $farmer->animal_type === 'buffalo' ? ($farmer->buffalo_milk_rate ?: $farmer->cow_milk_rate ?: 0) : ($farmer->cow_milk_rate ?: $farmer->buffalo_milk_rate ?: 0) }}/L
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200" title="{{ $farmer->rateChart ? $farmer->rateChart->name : 'Standard Quality Chart' }}">
+                                                📊 {{ $farmer->rateChart ? \Illuminate\Support\Str::limit($farmer->rateChart->name, 13) : 'Std Chart' }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                </div>
                             </td>
 
                             <!-- Assigned Vehicle -->
@@ -492,11 +508,37 @@
                     </div>
                 </div>
 
-                <!-- SECTION 2: MILK DETAILS / दूध विवरण -->
+                <!-- SECTION 2: MILK DETAILS & RATES / दूध एवं दर विवरण -->
                 <div class="bg-slate-50/60 rounded-xl p-4 border border-slate-200/80 space-y-3">
                     <div class="flex items-center gap-2 pb-2 border-b border-slate-200 text-emerald-800 font-bold text-xs uppercase tracking-wider">
                         <i data-lucide="milk" class="w-4 h-4 text-emerald-600"></i>
-                        <span>MILK DETAILS / दूध विवरण</span>
+                        <span>MILK DETAILS & PRICING / दूध एवं दर विवरण</span>
+                    </div>
+
+                    <!-- Pricing Scheme Selector -->
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+                        <label class="block text-[11px] font-bold text-slate-800 mb-2">
+                            Pricing Type / दर निर्धारण का प्रकार <span class="text-rose-500">*</span>
+                        </label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <label class="flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition text-xs"
+                                   :class="form.pricing_type === 'rate_chart' ? 'bg-emerald-50 border-emerald-500 text-emerald-950 font-bold shadow-2xs' : 'bg-slate-50 border-slate-200 text-slate-600'">
+                                <input type="radio" name="pricing_type" value="rate_chart" x-model="form.pricing_type" class="text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5">
+                                <div>
+                                    <span class="block font-bold">📊 Rate Chart (दर चार्ट)</span>
+                                    <span class="text-[9.5px] text-slate-400 font-normal">FAT / SNF Quality Formula</span>
+                                </div>
+                            </label>
+
+                            <label class="flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition text-xs"
+                                   :class="form.pricing_type === 'fixed_rate' ? 'bg-emerald-50 border-emerald-500 text-emerald-950 font-bold shadow-2xs' : 'bg-slate-50 border-slate-200 text-slate-600'">
+                                <input type="radio" name="pricing_type" value="fixed_rate" x-model="form.pricing_type" class="text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5">
+                                <div>
+                                    <span class="block font-bold">💵 Fixed Rate (निश्चित दर)</span>
+                                    <span class="text-[9.5px] text-slate-400 font-normal">Direct Per-Liter Price</span>
+                                </div>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
@@ -512,39 +554,40 @@
                             </select>
                         </div>
 
-                        <!-- Cow Milk Rate -->
-                        <div>
-                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">
-                                Cow Milk Rate (₹/L) / गाय दर
-                            </label>
-                            <input type="number" step="0.01" name="cow_milk_rate" x-model="form.cow_milk_rate" placeholder="As per Rate Chart"
-                                   class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none">
-                        </div>
-
-                        <!-- Buffalo Milk Rate -->
-                        <div>
-                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">
-                                Buffalo Milk Rate (₹/L) / भैंस दर
-                            </label>
-                            <input type="number" step="0.01" name="buffalo_milk_rate" x-model="form.buffalo_milk_rate" placeholder="As per Rate Chart"
-                                   class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none">
-                        </div>
-
-                        <!-- Rate Chart Applied -->
-                        <div class="sm:col-span-2">
+                        <!-- If Rate Chart: Rate Chart Applied -->
+                        <div class="sm:col-span-2" x-show="form.pricing_type === 'rate_chart'">
                             <label class="block text-[11px] font-semibold text-slate-700 mb-1">
                                 Rate Chart Applied / लागू दर चार्ट
                             </label>
-                            <select name="rate_chart_id" x-model="form.rate_chart_id" class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none">
-                                <option value="">As per Standard Quality Chart</option>
+                            <select name="rate_chart_id" x-model="form.rate_chart_id" class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none font-semibold">
+                                <option value="">-- Standard Quality Chart (मानक दर चार्ट) --</option>
                                 @foreach($rateCharts as $rc)
-                                    <option value="{{ $rc->id }}">{{ $rc->name }} ({{ ucfirst($rc->milk_type) }})</option>
+                                    <option value="{{ $rc->id }}">{{ $rc->name }} ({{ ucfirst($rc->milk_type) }} • ₹{{ number_format((float)$rc->fixed_rate, 2) }}/L)</option>
                                 @endforeach
                             </select>
+                            <span class="text-[9.5px] text-slate-400 mt-0.5 block">Only active rate charts are listed.</span>
+                        </div>
+
+                        <!-- If Fixed Rate: Cow & Buffalo Milk Rates -->
+                        <div class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2" x-show="form.pricing_type === 'fixed_rate'">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-700 mb-1">
+                                    Cow Milk Rate (₹/L) / गाय दर <span class="text-rose-500">*</span>
+                                </label>
+                                <input type="number" step="0.01" min="0" name="cow_milk_rate" x-model="form.cow_milk_rate" placeholder="e.g. 60.00"
+                                       class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none font-semibold">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-700 mb-1">
+                                    Buffalo Milk Rate (₹/L) / भैंस दर <span class="text-rose-500">*</span>
+                                </label>
+                                <input type="number" step="0.01" min="0" name="buffalo_milk_rate" x-model="form.buffalo_milk_rate" placeholder="e.g. 70.00"
+                                       class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none font-semibold">
+                            </div>
                         </div>
 
                         <!-- Collection Center -->
-                        <div>
+                        <div class="sm:col-span-3">
                             <label class="block text-[11px] font-semibold text-slate-700 mb-1">
                                 Collection Center / संकलन केंद्र
                             </label>
@@ -943,6 +986,7 @@ function farmerManager() {
             route_id: '',
             branch_id: null,
             collection_center_id: '{{ $centers->first()->id ?? "" }}',
+            pricing_type: 'rate_chart',
             rate_chart_id: '',
             animal_type: 'cow',
             cow_milk_rate: '',
@@ -1001,6 +1045,7 @@ function farmerManager() {
                 route_id: item.route_id || '',
                 branch_id: item.branch_id || null,
                 collection_center_id: item.collection_center_id || '',
+                pricing_type: item.pricing_type || (item.cow_milk_rate > 0 || item.buffalo_milk_rate > 0 ? 'fixed_rate' : 'rate_chart'),
                 rate_chart_id: item.rate_chart_id || '',
                 animal_type: item.animal_type || 'cow',
                 cow_milk_rate: item.cow_milk_rate || '',
@@ -1057,6 +1102,7 @@ function farmerManager() {
                 route_id: '',
                 branch_id: null,
                 collection_center_id: '{{ $centers->first()->id ?? "" }}',
+                pricing_type: 'rate_chart',
                 rate_chart_id: '',
                 animal_type: 'cow',
                 cow_milk_rate: '',

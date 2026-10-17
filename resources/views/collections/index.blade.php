@@ -242,9 +242,14 @@
                                                       x-text="'• Route: ' + (farmer.route ? farmer.route.name : '')"></span>
                                             </div>
                                         </div>
-                                        <span class="text-[10px] px-2 py-0.5 rounded font-bold shrink-0 border whitespace-nowrap" 
-                                              :class="farmer.animal_type === 'buffalo' ? 'bg-indigo-50 text-indigo-800 border-indigo-200' : 'bg-amber-50 text-amber-800 border-amber-200'"
-                                              x-text="farmer.animal_type === 'buffalo' ? '🐃 Buffalo' : '🐄 Cow (CM)'"></span>
+                                        <div class="flex items-center gap-1.5 shrink-0">
+                                            <span class="text-[10px] px-2 py-0.5 rounded font-bold border whitespace-nowrap" 
+                                                  :class="farmer.animal_type === 'buffalo' ? 'bg-indigo-50 text-indigo-800 border-indigo-200' : 'bg-amber-50 text-amber-800 border-amber-200'"
+                                                  x-text="farmer.animal_type === 'buffalo' ? '🐃 Buffalo' : '🐄 Cow (CM)'"></span>
+                                            <span class="text-[9.5px] px-1.5 py-0.5 rounded font-bold border"
+                                                  :class="(farmer.pricing_type === 'fixed_rate' || ((farmer.cow_milk_rate > 0 || farmer.buffalo_milk_rate > 0) && !farmer.rate_chart_id)) ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'"
+                                                  x-text="(farmer.pricing_type === 'fixed_rate' || ((farmer.cow_milk_rate > 0 || farmer.buffalo_milk_rate > 0) && !farmer.rate_chart_id)) ? '💵 Fixed' : '📊 Chart'"></span>
+                                        </div>
                                     </div>
                                 </template>
                                 <div x-show="filteredFarmers.length === 0" class="p-3 text-center text-xs text-slate-400">
@@ -743,9 +748,16 @@
                                 {{ number_format($col->snf, 2) }}
                             </td>
 
-                            <!-- Rate (₹) -->
+                            <!-- Rate (₹) & Pricing Scheme -->
                             <td class="py-1.5 px-2.5 text-right font-mono font-semibold text-slate-800">
-                                {{ number_format($col->applied_rate, 2) }}
+                                <div>₹{{ number_format($col->applied_rate, 2) }}</div>
+                                @if($col->pricing_type === 'fixed_rate')
+                                    <span class="text-[9px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200 inline-block">Fixed</span>
+                                @elseif($col->rateChart)
+                                    <span class="text-[9px] font-medium text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200 truncate max-w-[85px] inline-block" title="{{ $col->rateChart->name }}">
+                                        {{ \Illuminate\Support\Str::limit($col->rateChart->name, 10) }}
+                                    </span>
+                                @endif
                             </td>
 
                             <!-- Amount (₹) -->

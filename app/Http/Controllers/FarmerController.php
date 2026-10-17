@@ -180,6 +180,7 @@ class FarmerController extends Controller
             'route_id' => 'nullable|integer',
             'branch_id' => 'nullable|exists:branches,id',
             'collection_center_id' => 'nullable|exists:collection_centers,id',
+            'pricing_type' => 'nullable|in:rate_chart,fixed_rate',
             'rate_chart_id' => 'nullable|exists:rate_charts,id',
             'animal_type' => 'required|in:cow,buffalo,mixed',
             'cow_milk_rate' => 'nullable|numeric|min:0',
@@ -200,6 +201,18 @@ class FarmerController extends Controller
         ]);
 
         $validated['status'] = $validated['status'] ?? 'active';
+        $validated['pricing_type'] = $validated['pricing_type'] ?? 'rate_chart';
+
+        if ($validated['pricing_type'] === 'fixed_rate') {
+            $validated['rate_chart_id'] = null;
+        } elseif ($validated['pricing_type'] === 'rate_chart') {
+            if (!empty($validated['rate_chart_id'])) {
+                $rc = RateChart::find($validated['rate_chart_id']);
+                if (!$rc || $rc->status !== 'active') {
+                    return back()->withInput()->withErrors(['rate_chart_id' => 'The selected Rate Chart is inactive or invalid. Please select an active Rate Chart.']);
+                }
+            }
+        }
 
         // Process dynamic farmer-wise additions & deductions
         $extraRates = [];
@@ -703,6 +716,7 @@ class FarmerController extends Controller
             'route_id' => 'nullable|integer',
             'branch_id' => 'nullable|exists:branches,id',
             'collection_center_id' => 'nullable|exists:collection_centers,id',
+            'pricing_type' => 'nullable|in:rate_chart,fixed_rate',
             'rate_chart_id' => 'nullable|exists:rate_charts,id',
             'animal_type' => 'required|in:cow,buffalo,mixed',
             'cow_milk_rate' => 'nullable|numeric|min:0',
@@ -721,6 +735,19 @@ class FarmerController extends Controller
             'extra_rates' => 'nullable|array',
             'status' => 'required|in:active,inactive,blocked',
         ]);
+
+        $validated['pricing_type'] = $validated['pricing_type'] ?? ($farmer->pricing_type ?: 'rate_chart');
+
+        if ($validated['pricing_type'] === 'fixed_rate') {
+            $validated['rate_chart_id'] = null;
+        } elseif ($validated['pricing_type'] === 'rate_chart') {
+            if (!empty($validated['rate_chart_id'])) {
+                $rc = RateChart::find($validated['rate_chart_id']);
+                if (!$rc || $rc->status !== 'active') {
+                    return back()->withInput()->withErrors(['rate_chart_id' => 'The selected Rate Chart is inactive or invalid. Please select an active Rate Chart.']);
+                }
+            }
+        }
 
         // Process dynamic farmer-wise additions & deductions
         $extraRates = is_array($farmer->extra_rates) ? $farmer->extra_rates : [];

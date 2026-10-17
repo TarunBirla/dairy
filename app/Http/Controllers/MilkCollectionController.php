@@ -169,9 +169,46 @@ class MilkCollectionController extends Controller
 
         $chartName = 'Standard Dairy Formula';
         $rate = 0.0;
+        $pricingType = 'rate_chart';
+        $chartId = null;
 
-        // 1. Check Farmer Custom Override according to farmer_wise_rate setting
-        if ($farmer && $farmer->custom_rate_override > 0 && $config['farmer_wise_rate'] !== 'As per Rate Chart') {
+        // 1. Check if farmer is configured for Fixed Rate
+        $isFixedPricing = false;
+        if ($farmer) {
+            if ($farmer->pricing_type === 'fixed_rate') {
+                $isFixedPricing = true;
+            } elseif (empty($farmer->pricing_type) && ($farmer->cow_milk_rate > 0 || $farmer->buffalo_milk_rate > 0) && !$farmer->rate_chart_id) {
+                $isFixedPricing = true;
+            }
+        }
+
+        if ($farmer && $isFixedPricing) {
+            $pricingType = 'fixed_rate';
+            $fixedRate = ($milkType === 'buffalo') ? (float)$farmer->buffalo_milk_rate : (float)$farmer->cow_milk_rate;
+            if ($fixedRate <= 0) {
+                $fixedRate = (float)($farmer->cow_milk_rate ?: $farmer->buffalo_milk_rate ?: 0);
+            }
+            $rate = round($fixedRate, 2);
+            $chartName = "Fixed Rate (" . ucfirst($milkType) . " Milk)";
+            $chartId = null;
+            $effectiveDate = date('d/m/Y');
+            $rateStructure = "Fixed Rate • ₹" . number_format($rate, 2) . "/Ltr";
+            $chartDetails = [
+                'id' => null,
+                'name' => "Fixed Rate (" . ucfirst($milkType) . ")",
+                'milk_type' => ucfirst($milkType),
+                'format' => 'Fixed Rate',
+                'type' => 'Flat Rate',
+                'effective_date' => $effectiveDate,
+                'base_rate' => $rate,
+                'fat_factor' => 0,
+                'snf_factor' => 0,
+                'fat_steps' => [],
+                'snf_steps' => [],
+                'fat_rules' => [],
+                'snf_rules' => [],
+            ];
+        } elseif ($farmer && $farmer->custom_rate_override > 0 && $config['farmer_wise_rate'] !== 'As per Rate Chart') {
             if ($config['farmer_wise_rate'] === 'Fat Wise' && $fat > 0) {
                 $rate = round($fat * (float) $farmer->custom_rate_override, 2);
                 $chartName = "Farmer Fat Wise (₹{$farmer->custom_rate_override}/FAT)";
@@ -187,12 +224,15 @@ class MilkCollectionController extends Controller
             $chart = null;
 
             if ($config['rate_chart_status'] !== 'Off') {
-                // Always prefer exact milk_type match first so Cow never picks a Buffalo chart
+                // If farmer has an active assigned rate chart matching milk_type
                 if ($farmer && $farmer->rate_chart_id) {
-                    $chart = RateChart::where('id', $farmer->rate_chart_id)
-                        ->where('milk_type', $milkType)
+                    $assignedChart = RateChart::where('id', $farmer->rate_chart_id)
                         ->where('status', 'active')
                         ->first();
+                    
+                    if ($assignedChart && ($assignedChart->milk_type === $milkType || in_array($assignedChart->milk_type, ['mixed', 'both', 'all']))) {
+                        $chart = $assignedChart;
+                    }
                 }
 
                 if (!$chart && ($centerId || ($farmer && $farmer->collection_center_id))) {
@@ -314,6 +354,7 @@ class MilkCollectionController extends Controller
 
         return [
             'rate' => round($rate, 2),
+            'pricing_type' => $pricingType,
             'fat' => $fat,
             'snf' => $snf,
             'clr' => $clr,
@@ -724,6 +765,16 @@ class MilkCollectionController extends Controller
             $appliedRate = $calcRate;
         }
 
+        if ($appliedRate <= 0) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rate could not be resolved or is ₹0.00. Please assign an active rate chart or fixed rate to this farmer.',
+                ], 422);
+            }
+            return back()->withInput()->with('error', 'Rate could not be resolved or is ₹0.00. Please assign an active rate chart or fixed rate to this farmer.');
+        }
+
         $qty = (float) $validated['quantity_liters'];
         $gross = round($qty * $appliedRate, 2);
 
@@ -747,6 +798,8 @@ class MilkCollectionController extends Controller
             'farmer_id' => $farmer->id,
             'collection_center_id' => $centerId,
             'operator_id' => Auth::id(),
+            'pricing_type' => $resolved['pricing_type'] ?? 'rate_chart',
+            'rate_chart_id' => $resolved['chart_id'] ?? null,
             'collection_date' => $validated['collection_date'],
             'shift' => $validated['shift'],
             'milk_type' => $validated['milk_type'],
@@ -863,6 +916,10 @@ class MilkCollectionController extends Controller
             $appliedRate = $calcRate;
         }
 
+        if ($appliedRate <= 0) {
+            return back()->withInput()->with('error', 'Rate could not be resolved or is ₹0.00. Please assign an active rate chart or fixed rate to this farmer.');
+        }
+
         $qty = (float) $validated['quantity_liters'];
         $gross = round($qty * $appliedRate, 2);
         $charges = \App\Services\CenterAdditionDeductionService::calculateForCollection($newFarmer, $qty, $gross);
@@ -883,6 +940,8 @@ class MilkCollectionController extends Controller
         $collection->update([
             'farmer_id' => $newFarmer->id,
             'collection_center_id' => $centerId,
+            'pricing_type' => $resolved['pricing_type'] ?? 'rate_chart',
+            'rate_chart_id' => $resolved['chart_id'] ?? null,
             'collection_date' => $validated['collection_date'],
             'shift' => $validated['shift'],
             'milk_type' => $validated['milk_type'],

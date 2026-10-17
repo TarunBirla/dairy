@@ -62,6 +62,11 @@ class RateChart extends Model
         return $this->hasMany(Farmer::class);
     }
 
+    public function collections()
+    {
+        return $this->hasMany(MilkCollection::class);
+    }
+
     public function collectionCenters()
     {
         return $this->hasMany(CollectionCenter::class);

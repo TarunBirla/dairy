@@ -243,6 +243,10 @@ class RateChartController extends Controller
      */
     public function assign(Request $request, RateChart $rate)
     {
+        if ($rate->status !== 'active') {
+            return back()->with('error', "Cannot assign inactive rate chart '{$rate->name}'. Please activate it first.");
+        }
+
         $validated = $request->validate([
             'farmer_ids' => 'nullable|array',
             'farmer_ids.*' => 'exists:farmers,id',
@@ -256,7 +260,10 @@ class RateChartController extends Controller
         DB::transaction(function () use ($rate, $farmerIds, $centerIds) {
             // Assign selected farmers
             if (!empty($farmerIds)) {
-                Farmer::whereIn('id', $farmerIds)->update(['rate_chart_id' => $rate->id]);
+                Farmer::whereIn('id', $farmerIds)->update([
+                    'rate_chart_id' => $rate->id,
+                    'pricing_type' => 'rate_chart',
+                ]);
             }
 
             // Assign selected centers
@@ -267,7 +274,71 @@ class RateChartController extends Controller
 
         AuditLog::log("Assigned Rate Chart {$rate->name}", 'RateChart', $rate->id);
 
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Rate chart '{$rate->name}' assigned to " . count($centerIds) . " center(s) and " . count($farmerIds) . " farmer(s).",
+                'assigned_farmers_count' => $rate->farmers()->count(),
+            ]);
+        }
+
         return redirect()->route('rates.index')->with('success', "Rate chart '{$rate->name}' assigned to " . count($centerIds) . " center(s) and " . count($farmerIds) . " farmer(s).");
+    }
+
+    /**
+     * Get list of all farmers assigned to a particular Rate Chart
+     */
+    public function getAssignedFarmers(RateChart $rate)
+    {
+        $farmers = $rate->farmers()
+            ->orderBy('farmer_code')
+            ->orderBy('name')
+            ->get([
+                'id',
+                'farmer_code',
+                'name',
+                'phone',
+                'village',
+                'animal_type',
+                'pricing_type',
+                'cow_milk_rate',
+                'buffalo_milk_rate',
+                'status',
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'rate_chart' => [
+                'id' => $rate->id,
+                'name' => $rate->name,
+                'milk_type' => $rate->milk_type,
+                'status' => $rate->status,
+                'fixed_rate' => (float) $rate->fixed_rate,
+            ],
+            'count' => $farmers->count(),
+            'farmers' => $farmers,
+        ]);
+    }
+
+    /**
+     * Unassign a farmer from a Rate Chart
+     */
+    public function unassignFarmer(Request $request, RateChart $rate, Farmer $farmer)
+    {
+        if ($farmer->rate_chart_id === $rate->id) {
+            $farmer->update(['rate_chart_id' => null]);
+            AuditLog::log("Unassigned Farmer {$farmer->name} from Rate Chart {$rate->name}", 'RateChart', $rate->id);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Farmer '{$farmer->name}' has been unassigned from rate chart '{$rate->name}'.",
+                'remaining_count' => $rate->farmers()->count(),
+            ]);
+        }
+
+        return back()->with('success', "Farmer '{$farmer->name}' has been unassigned from rate chart '{$rate->name}'.");
     }
 
     /**

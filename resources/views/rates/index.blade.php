@@ -184,9 +184,14 @@
                                     <div class="font-medium text-slate-600">
                                         Center - <span class="font-bold text-slate-900">{{ $rc->collection_centers_count ?? 0 }}</span>
                                     </div>
-                                    <div class="font-medium text-slate-600">
-                                        Farmer - <span class="font-bold text-emerald-700">{{ $rc->farmers_count ?? 0 }}</span>
-                                    </div>
+                                    <button type="button" 
+                                            onclick="viewAssignedFarmers({{ $rc->id }}, '{{ addslashes($rc->name) }}')"
+                                            class="inline-flex items-center gap-1 font-medium text-slate-600 hover:text-emerald-700 transition group/btn"
+                                            title="Click to view all farmers assigned to this rate chart">
+                                        <span>Farmer -</span>
+                                        <span class="font-bold text-emerald-700 underline underline-offset-2 decoration-emerald-300 group-hover/btn:text-emerald-800">{{ $rc->farmers_count ?? 0 }}</span>
+                                        <i data-lucide="external-link" class="w-3 h-3 text-emerald-500 opacity-70 group-hover/btn:opacity-100"></i>
+                                    </button>
                                 </div>
                             </td>
                             <td class="py-3.5 px-4 text-[11px] text-slate-500 whitespace-nowrap">
@@ -200,9 +205,15 @@
                                     <a href="{{ route('rates.edit', $rc) }}" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold rounded-lg transition shadow-xs">
                                         Edit
                                     </a>
-                                    <button type="button" onclick="openAssignModal({{ $rc->id }}, '{{ addslashes($rc->name) }}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg transition shadow-xs">
-                                        Assign
-                                    </button>
+                                    @if($rc->status === 'active')
+                                        <button type="button" onclick="openAssignModal({{ $rc->id }}, '{{ addslashes($rc->name) }}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg transition shadow-xs">
+                                            Assign
+                                        </button>
+                                    @else
+                                        <button type="button" onclick="alert('This Rate Chart is inactive. Please activate it first before assigning it to farmers.')" class="px-2.5 py-1 bg-slate-200 text-slate-400 cursor-not-allowed text-[11px] font-bold rounded-lg transition" title="Inactive rate charts cannot be assigned">
+                                            Assign
+                                        </button>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -510,6 +521,64 @@
     </div>
 </div>
 
+<!-- ================= ASSIGNED FARMERS LIST MODAL ================= -->
+<div id="assignedFarmersModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <!-- Modal Header -->
+        <div class="p-5 border-b border-slate-100 flex items-start justify-between bg-slate-50/70">
+            <div>
+                <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="users" class="w-5 h-5 text-emerald-600"></i>
+                    <span>Assigned Farmers</span>
+                    <span id="afChartBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold"></span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">
+                    Farmers currently using this rate chart for milk collection calculations.
+                </p>
+            </div>
+            <button type="button" onclick="closeAssignedFarmersModal()" class="w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="p-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3">
+            <div class="relative flex-1">
+                <input type="text" id="afSearchInput" onkeyup="filterAssignedFarmers()" placeholder="Search by name, code or village..." class="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+            </div>
+            <button type="button" id="afAssignMoreBtn" class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-xs flex items-center gap-1.5 shrink-0">
+                <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                <span>+ Assign More</span>
+            </button>
+        </div>
+
+        <!-- Farmers List Content -->
+        <div class="flex-1 overflow-y-auto p-4 sm:p-5" id="afContainer">
+            <div id="afLoading" class="py-12 text-center text-slate-400">
+                <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto text-emerald-600 mb-2"></i>
+                <p class="text-xs font-semibold">Loading assigned farmers...</p>
+            </div>
+            <div id="afEmpty" class="py-12 text-center text-slate-400 hidden">
+                <i data-lucide="users" class="w-10 h-10 mx-auto text-slate-300 mb-2"></i>
+                <p class="text-xs font-semibold text-slate-600">No farmers are assigned to this rate chart yet.</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">Click "+ Assign More" to assign farmers to this chart.</p>
+            </div>
+            <div id="afList" class="divide-y divide-slate-100">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+            <span id="afCountText" class="text-xs font-semibold text-slate-600">0 farmer(s)</span>
+            <button type="button" onclick="closeAssignedFarmersModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-xl transition">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     // Rate Correction Modal Controls
     function openRateCorrectionModal() {
@@ -594,6 +663,25 @@
         const form = document.getElementById('assignForm');
         form.action = `/rates/${rateId}/assign`;
         document.getElementById('assignModalSubtitle').textContent = `Assign chart "${rateName}" to collection centers and farmers.`;
+        
+        // Reset checkboxes first
+        document.querySelectorAll('.assign-farmer-cb').forEach(cb => cb.checked = false);
+
+        // Fetch already assigned farmers to pre-check
+        fetch(`/rates/${rateId}/assigned-farmers`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.farmers) {
+                    const assignedIds = new Set(data.farmers.map(f => String(f.id)));
+                    document.querySelectorAll('.assign-farmer-cb').forEach(cb => {
+                        if (assignedIds.has(String(cb.value))) {
+                            cb.checked = true;
+                        }
+                    });
+                }
+            })
+            .catch(() => {});
+
         document.getElementById('assignModal').classList.remove('hidden');
         if (window.lucide) { lucide.createIcons(); }
     }
@@ -606,12 +694,137 @@
         document.querySelectorAll('.assign-farmer-cb').forEach(cb => cb.checked = select);
     }
 
+    // Assigned Farmers Modal Controls
+    let currentActiveRateId = null;
+    let currentActiveRateName = '';
+
+    function viewAssignedFarmers(rateId, rateName) {
+        currentActiveRateId = rateId;
+        currentActiveRateName = rateName;
+        document.getElementById('afChartBadge').textContent = rateName;
+        document.getElementById('afSearchInput').value = '';
+        document.getElementById('afAssignMoreBtn').onclick = function() {
+            closeAssignedFarmersModal();
+            openAssignModal(rateId, rateName);
+        };
+
+        document.getElementById('assignedFarmersModal').classList.remove('hidden');
+        document.getElementById('afLoading').classList.remove('hidden');
+        document.getElementById('afEmpty').classList.add('hidden');
+        document.getElementById('afList').innerHTML = '';
+        document.getElementById('afCountText').textContent = 'Loading...';
+        if (window.lucide) { lucide.createIcons(); }
+
+        fetch(`/rates/${rateId}/assigned-farmers`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('afLoading').classList.add('hidden');
+                if (data.success && data.farmers && data.farmers.length > 0) {
+                    renderAssignedFarmers(data.farmers, rateId);
+                } else {
+                    document.getElementById('afEmpty').classList.remove('hidden');
+                    document.getElementById('afCountText').textContent = '0 farmers';
+                }
+            })
+            .catch(err => {
+                document.getElementById('afLoading').classList.add('hidden');
+                document.getElementById('afList').innerHTML = '<div class="py-6 text-center text-xs text-rose-600 font-semibold">Failed to load assigned farmers.</div>';
+            });
+    }
+
+    function renderAssignedFarmers(farmers, rateId) {
+        const list = document.getElementById('afList');
+        list.innerHTML = '';
+        document.getElementById('afCountText').textContent = `${farmers.length} farmer(s) assigned`;
+
+        farmers.forEach(f => {
+            const item = document.createElement('div');
+            item.className = 'af-item py-3 px-2 flex items-center justify-between gap-3 hover:bg-slate-50/80 rounded-xl transition';
+            item.setAttribute('data-search', `${f.name} ${f.name_hi || ''} ${f.farmer_code} ${f.village || ''}`.toLowerCase());
+            item.innerHTML = `
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 font-bold flex items-center justify-center shrink-0 text-xs border border-emerald-100">
+                        ${(f.name || 'F').charAt(0).toUpperCase()}
+                    </div>
+                    <div class="truncate">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-slate-900 text-xs truncate">${f.name}</span>
+                            ${f.name_hi ? `<span class="text-[11px] text-slate-500 font-medium truncate">(${f.name_hi})</span>` : ''}
+                            <span class="px-1.5 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-mono rounded border border-slate-200">${f.farmer_code}</span>
+                        </div>
+                        <div class="text-[10px] text-slate-400 flex items-center gap-3 mt-0.5">
+                            ${f.phone ? `<span>📞 ${f.phone}</span>` : ''}
+                            ${f.village ? `<span>🏡 ${f.village}</span>` : ''}
+                            ${f.animal_type ? `<span class="capitalize">🥛 ${f.animal_type}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <button type="button" onclick="unassignFarmer(${rateId}, ${f.id}, '${escapeJs(f.name)}')" class="px-2.5 py-1 text-[11px] font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 rounded-lg transition shrink-0">
+                    Unassign
+                </button>
+            `;
+            list.appendChild(item);
+        });
+        if (window.lucide) { lucide.createIcons(); }
+    }
+
+    function filterAssignedFarmers() {
+        const q = document.getElementById('afSearchInput').value.toLowerCase().trim();
+        const items = document.querySelectorAll('.af-item');
+        let visible = 0;
+        items.forEach(it => {
+            const text = it.getAttribute('data-search') || '';
+            if (!q || text.includes(q)) {
+                it.style.display = 'flex';
+                visible++;
+            } else {
+                it.style.display = 'none';
+            }
+        });
+        document.getElementById('afCountText').textContent = `${visible} farmer(s) shown`;
+    }
+
+    function unassignFarmer(rateId, farmerId, farmerName) {
+        if (!confirm(`Are you sure you want to unassign "${farmerName}" from this rate chart?`)) return;
+
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') 
+                   || document.querySelector('input[name="_token"]')?.value;
+
+        fetch(`/rates/${rateId}/unassign/${farmerId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': token,
+                'Accept': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                viewAssignedFarmers(rateId, currentActiveRateName);
+            } else {
+                alert(data.message || 'Failed to unassign farmer.');
+            }
+        })
+        .catch(() => alert('Network error occurred while unassigning farmer.'));
+    }
+
+    function closeAssignedFarmersModal() {
+        document.getElementById('assignedFarmersModal').classList.add('hidden');
+    }
+
+    function escapeJs(str) {
+        return (str || '').replace(/'/g, "\\'");
+    }
+
     // Close on backdrop click
     window.addEventListener('click', function(e) {
         const rcModal = document.getElementById('rateCorrectionModal');
         const asModal = document.getElementById('assignModal');
+        const afModal = document.getElementById('assignedFarmersModal');
         if (e.target === rcModal) closeRateCorrectionModal();
         if (e.target === asModal) closeAssignModal();
+        if (e.target === afModal) closeAssignedFarmersModal();
     });
 </script>
 @endsection

@@ -182,8 +182,32 @@ Route::match(['get', 'post'], '/migrate', function (\Illuminate\Http\Request $re
                     $table->foreign('farmer_id')->references('id')->on('farmers')->onDelete('cascade');
                 });
                 $logs[] = "✅ Created `farmer_emergency_funds` table for Mobile Dairy suite.";
+            }
+
+            // Step 2.1: Defensive verification for Farmer Pricing Type & Rate Chart Assignment
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('farmers', 'pricing_type')) {
+                \Illuminate\Support\Facades\Schema::table('farmers', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->string('pricing_type', 30)->default('rate_chart')->after('rate_chart_id');
+                });
+                $logs[] = "✅ Added `pricing_type` column to `farmers` table.";
             } else {
-                $logs[] = "ℹ️ Verified `farmer_emergency_funds` table exists.";
+                $logs[] = "ℹ️ Verified `pricing_type` on `farmers` table exists.";
+            }
+
+            // Step 2.2: Defensive verification for Milk Collections Pricing Type & Rate Chart reference
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('milk_collections', 'pricing_type')) {
+                \Illuminate\Support\Facades\Schema::table('milk_collections', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->string('pricing_type', 30)->nullable()->after('applied_rate');
+                });
+                $logs[] = "✅ Added `pricing_type` column to `milk_collections` table.";
+            }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('milk_collections', 'rate_chart_id')) {
+                \Illuminate\Support\Facades\Schema::table('milk_collections', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->foreignId('rate_chart_id')->nullable()->after('pricing_type')->constrained('rate_charts')->nullOnDelete();
+                });
+                $logs[] = "✅ Added `rate_chart_id` foreign key to `milk_collections` table.";
+            } else {
+                $logs[] = "ℹ️ Verified `pricing_type` and `rate_chart_id` on `milk_collections` exist.";
             }
 
             // Step 3: Clear all application, route, view and config caches
@@ -756,6 +780,8 @@ Route::middleware('auth')->group(function () {
     // Rate Charts & Rate Correction
     Route::post('rates/apply-correction', [RateChartController::class, 'applyCorrection'])->name('rates.apply-correction');
     Route::post('rates/{rate}/assign', [RateChartController::class, 'assign'])->name('rates.assign');
+    Route::get('rates/{rate}/assigned-farmers', [RateChartController::class, 'getAssignedFarmers'])->name('rates.assigned-farmers');
+    Route::post('rates/{rate}/unassign/{farmer}', [RateChartController::class, 'unassignFarmer'])->name('rates.unassign-farmer');
     Route::resource('rates', RateChartController::class)->except(['show']);
 
     // Farmer Settlements

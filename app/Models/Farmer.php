@@ -16,6 +16,7 @@ class Farmer extends Model
         'branch_id',
         'collection_center_id',
         'rate_chart_id',
+        'pricing_type',
         'name',
         'name_hi',
         'photo',
@@ -43,6 +44,20 @@ class Farmer extends Model
         'extra_rates',
         'status',
     ];
+
+    /**
+     * Get pricing type with intelligent fallback
+     */
+    public function getPricingTypeAttribute($value): string
+    {
+        if (!empty($value)) {
+            return $value;
+        }
+        if ((float) $this->cow_milk_rate > 0 || (float) $this->buffalo_milk_rate > 0) {
+            return 'fixed_rate';
+        }
+        return 'rate_chart';
+    }
 
     protected $casts = [
         'current_balance' => 'decimal:2',
