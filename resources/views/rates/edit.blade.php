@@ -950,13 +950,8 @@
             return;
         }
 
-        if (fatSteps.length === 0) {
-            emptyState.classList.remove('hidden');
-            tableWrapper.classList.add('hidden');
-            return;
-        }
-
-        if (format === 'fat_clr' && snfSteps.length === 0) {
+        // 3. Formats requiring FAT or secondary steps (fat_only, fat_snf, fat_clr)
+        if (fatSteps.length === 0 && snfSteps.length === 0) {
             emptyState.classList.remove('hidden');
             tableWrapper.classList.add('hidden');
             return;
@@ -965,19 +960,25 @@
         emptyState.classList.add('hidden');
         tableWrapper.classList.remove('hidden');
 
-        let fatMin = Math.min(...fatSteps.map(s => parseFloat(s.from ?? s.step ?? 2.0)));
-        let fatMax = Math.max(...fatSteps.map(s => parseFloat(s.to ?? 3.0)));
-        if (isNaN(fatMin)) fatMin = 2.0;
-        if (isNaN(fatMax) || fatMax < fatMin) fatMax = fatMin + 1.0;
+        // Derive FAT rows (step 0.1)
+        let fatValues = [];
+        if (fatSteps.length > 0) {
+            let fatMin = Math.min(...fatSteps.map(s => parseFloat(s.from ?? s.step ?? 2.0)));
+            let fatMax = Math.max(...fatSteps.map(s => parseFloat(s.to ?? 3.0)));
+            if (isNaN(fatMin)) fatMin = 2.0;
+            if (isNaN(fatMax) || fatMax < fatMin) fatMax = fatMin + 1.0;
 
-        const fatValues = [];
-        let curF = Math.round(fatMin * 10);
-        const maxFT = Math.round(fatMax * 10);
-        while (curF <= maxFT && fatValues.length < 80) {
-            fatValues.push(curF / 10);
-            curF += 1;
+            let curF = Math.round(fatMin * 10);
+            const maxFT = Math.round(fatMax * 10);
+            while (curF <= maxFT && fatValues.length < 80) {
+                fatValues.push(curF / 10);
+                curF += 1;
+            }
+        } else {
+            fatValues = [0.0];
         }
 
+        // 3a. FAT Only Format
         if (format === 'fat_only') {
             thead.innerHTML = `
                 <tr>
@@ -1000,6 +1001,7 @@
             return;
         }
 
+        // 3b. FAT + CLR / FAT + SNF Format
         let secValues = [];
         const isFatSnf = format === 'fat_snf';
 
@@ -1018,7 +1020,8 @@
                 secValues.push(curS / 10);
                 curS += incT;
             }
-        } else if (isFatSnf) {
+        } else {
+            // When no secondary steps exist yet, show column 0.0! (Matches media_1792647233233_475b9dd9.png)
             secValues = [0.0];
         }
 
