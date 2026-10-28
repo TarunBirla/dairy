@@ -147,6 +147,7 @@
                         <th class="py-3 px-4">Advance Amount</th>
                         <th class="py-3 px-4">Paid</th>
                         <th class="py-3 px-4">Total Balance</th>
+                        <th class="py-3 px-4">Installment</th>
                         <th class="py-3 px-4 text-center pr-6 w-36">Action</th>
                     </tr>
                 </thead>
@@ -196,6 +197,27 @@
                                 Rs. {{ number_format($farmerBalTotal, 2) }}
                             </td>
 
+                            <!-- Installment (Image 4 Style) -->
+                            <td class="py-3.5 px-4 font-mono">
+                                <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-800 shadow-2xs">
+                                    <span id="adv-inst-{{ $farmer->id }}">
+                                        @if($farmer->getInstallmentDeductionType() === 'Fixed')
+                                            {{ number_format($farmer->getInstallmentAmount(), 2) }} ₹
+                                        @else
+                                            {{ $farmer->getInstallmentDeductionType() }}
+                                        @endif
+                                    </span>
+                                    <button type="button" 
+                                            onclick="openFarmerInstallmentModal({{ $farmer->id }}, '{{ addslashes($farmer->name) }}', '{{ $farmer->getInstallmentDeductionType() }}', {{ (float)$farmer->getInstallmentAmount() }})" 
+                                            class="text-slate-500 hover:text-emerald-700 transition" 
+                                            title="Edit Installment">
+                                        <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </td>
+
                             <!-- Action: Eye accordion toggle & Ledger button matching screenshot -->
                             <td class="py-3.5 px-4 text-center pr-6">
                                 <div class="flex items-center justify-center gap-1.5">
@@ -219,7 +241,7 @@
 
                         <!-- Accordion Sub-table Row matching media_1791384906809.png -->
                         <tr x-show="expandedRows.includes({{ $farmer->id }})" x-cloak class="bg-slate-50/80">
-                            <td colspan="7" class="p-3 pl-12 pr-6">
+                            <td colspan="8" class="p-3 pl-12 pr-6">
                                 <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
                                     <table class="w-full text-left text-xs">
                                         <thead class="bg-slate-100/70 text-[10px] uppercase font-bold text-slate-500 border-b border-slate-200">
@@ -291,7 +313,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="py-12 text-center text-slate-400">
+                            <td colspan="8" class="py-12 text-center text-slate-400">
                                 <div class="flex flex-col items-center justify-center">
                                     <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-2">
                                         <i data-lucide="hand-coins" class="w-6 h-6"></i>
@@ -650,6 +672,121 @@
     </div>
 
 </div>
+
+<!-- Extra Information Modal (Matching Images 1, 2, 3) -->
+<div id="advExtraInfoModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 overflow-hidden" onclick="event.stopPropagation()">
+        <!-- Header: #98d8c8 mint/teal -->
+        <div class="px-5 py-3.5 flex items-center justify-between" style="background-color: #98d8c8;">
+            <h3 class="text-sm font-bold text-slate-800 tracking-wide">Extra Information</h3>
+            <button type="button" onclick="closeFarmerInstallmentModal()" class="text-slate-600 hover:text-slate-900 font-bold text-lg leading-none">
+                &times;
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="p-5 space-y-4 text-xs">
+            <div class="flex items-center justify-between gap-4">
+                <span class="font-bold text-slate-700">Name :</span>
+                <span class="font-bold text-slate-900">Installment</span>
+            </div>
+
+            <div class="flex items-center justify-between gap-4">
+                <label class="font-bold text-slate-700">Deduction Type :</label>
+                <select id="advModalDeductionType" onchange="toggleAdvModalAmountField()" class="w-36 px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-800 outline-none focus:ring-1 focus:ring-teal-500">
+                    <option value="Auto">Auto</option>
+                    <option value="DeductionOff">DeductionOff</option>
+                    <option value="Fixed">Fixed</option>
+                </select>
+            </div>
+
+            <div id="advModalAmountRow" class="flex items-center justify-between gap-4">
+                <label class="font-bold text-slate-700">Amount :</label>
+                <input type="number" step="0.01" min="0" id="advModalAmountInput" placeholder="0.00" class="w-36 px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-mono font-bold text-slate-900 outline-none focus:ring-1 focus:ring-teal-500">
+            </div>
+        </div>
+
+        <!-- Footer Buttons: No (grey) and Save (teal #388e7e) -->
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+            <button type="button" onclick="closeFarmerInstallmentModal()" class="px-4 py-1.5 bg-slate-300 hover:bg-slate-400 text-slate-800 font-bold text-xs rounded-lg transition">
+                No
+            </button>
+            <button type="button" onclick="saveFarmerInstallmentModal()" id="advModalSaveBtn" class="px-5 py-1.5 text-white font-bold text-xs rounded-lg shadow-xs transition" style="background-color: #388e7e;">
+                Save
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentFarmerInstallmentId = null;
+
+function openFarmerInstallmentModal(farmerId, farmerName, deductionType, amount) {
+    currentFarmerInstallmentId = farmerId;
+    document.getElementById('advModalDeductionType').value = deductionType || 'Fixed';
+    document.getElementById('advModalAmountInput').value = amount > 0 ? parseFloat(amount).toFixed(2) : '0.00';
+    toggleAdvModalAmountField();
+    document.getElementById('advExtraInfoModal').classList.remove('hidden');
+}
+
+function closeFarmerInstallmentModal() {
+    document.getElementById('advExtraInfoModal').classList.add('hidden');
+    currentFarmerInstallmentId = null;
+}
+
+function toggleAdvModalAmountField() {
+    const type = document.getElementById('advModalDeductionType').value;
+    const row = document.getElementById('advModalAmountRow');
+    if (type === 'Fixed') {
+        row.style.display = 'flex';
+    } else {
+        row.style.display = 'none';
+    }
+}
+
+function saveFarmerInstallmentModal() {
+    if (!currentFarmerInstallmentId) return;
+
+    const btn = document.getElementById('advModalSaveBtn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Saving...';
+    btn.disabled = true;
+
+    const type = document.getElementById('advModalDeductionType').value;
+    const amount = parseFloat(document.getElementById('advModalAmountInput').value) || 0;
+
+    fetch(`/farmers/${currentFarmerInstallmentId}/installment`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+            deduction_type: type,
+            installment: amount
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const displayEl = document.getElementById('adv-inst-' + currentFarmerInstallmentId);
+            if (displayEl) {
+                displayEl.textContent = data.display_text;
+            }
+            closeFarmerInstallmentModal();
+        } else {
+            alert('Failed to save installment preference.');
+        }
+    })
+    .catch(err => {
+        alert('Network error while saving installment preference.');
+    })
+    .finally(() => {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    });
+}
 
 <script>
 function advanceManager() {

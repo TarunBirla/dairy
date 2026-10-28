@@ -11,7 +11,13 @@
             <h3 class="text-base font-bold text-slate-900">Calculate Period Milk Settlement</h3>
             <p class="text-xs text-slate-500">Prorate milk deliveries, adjust advances/deductions, and record payment.</p>
         </div>
-        <a href="{{ route('settlements.index') }}" class="text-xs text-slate-500">Back</a>
+        <div class="flex items-center gap-3">
+            <a href="{{ route('settlements.bulk') }}" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-lg border border-indigo-200 transition flex items-center gap-1">
+                <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+                <span>Bulk Payout Stepper</span>
+            </a>
+            <a href="{{ route('settlements.index') }}" class="text-xs text-slate-500 hover:text-slate-800">Back</a>
+        </div>
     </div>
 
     <!-- Filter Form -->
@@ -127,10 +133,10 @@
     function settlementForm() {
         return {
             gross: {{ (float)$grossAmount }},
-            adv: {{ (float)min($pendingAdvance, $grossAmount) }},
+            adv: {{ (float)($defaultAdvanceRecovered ?? min($pendingAdvance, $grossAmount)) }},
             bonus: 0,
             ded: 0,
-            net: {{ (float)max(0, $grossAmount - min($pendingAdvance, $grossAmount)) }},
+            net: {{ (float)max(0, $grossAmount - ($defaultAdvanceRecovered ?? min($pendingAdvance, $grossAmount))) }},
 
             calc() {
                 this.net = Math.max(0, (this.gross || 0) + (this.bonus || 0) - (this.ded || 0) - (this.adv || 0));

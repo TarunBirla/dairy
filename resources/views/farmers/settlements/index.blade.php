@@ -5,10 +5,16 @@
 @section('header_title', 'Farmer Settlements & Payouts')
 
 @section('header_action')
-    <a href="{{ route('settlements.create') }}" class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition">
-        <i data-lucide="plus" class="w-4 h-4"></i>
-        <span>New Settlement</span>
-    </a>
+    <div class="flex items-center gap-2">
+        <a href="{{ route('settlements.bulk') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm transition">
+            <i data-lucide="layers" class="w-4 h-4"></i>
+            <span>Bulk Payout</span>
+        </a>
+        <a href="{{ route('settlements.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>New Settlement</span>
+        </a>
+    </div>
 @endsection
 
 @section('content')
@@ -19,9 +25,16 @@
             <span class="text-xs font-bold text-slate-400 uppercase">Total Settlements Paid</span>
             <p class="text-3xl font-black text-slate-900 mt-1">₹ {{ number_format($totalSettledAmount, 2) }}</p>
         </div>
-        <a href="{{ route('settlements.create') }}" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs">
-            + Run Period Payout
-        </a>
+        <div class="flex items-center gap-2">
+            <a href="{{ route('settlements.bulk') }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-1.5">
+                <i data-lucide="layers" class="w-4 h-4"></i>
+                <span>+ Run Bulk Payout</span>
+            </a>
+            <a href="{{ route('settlements.create') }}" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-1.5">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>+ Run Period Payout</span>
+            </a>
+        </div>
     </div>
 
     <!-- Settlements Table -->

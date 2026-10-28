@@ -620,6 +620,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/{farmer}', [FarmerController::class, 'update'])->name('update');
         Route::delete('/{farmer}', [FarmerController::class, 'destroy'])->name('destroy');
         Route::post('/{farmer}/advance', [FarmerController::class, 'storeAdvance'])->name('advance.store');
+        Route::post('/{farmer}/installment', [FarmerController::class, 'updateInstallment'])->name('update-installment');
         Route::get('/{farmer}/mobile-dairy', [MobileDairyController::class, 'show'])->name('mobile-dairy');
     });
 
@@ -787,6 +788,7 @@ Route::middleware('auth')->group(function () {
     // Farmer Settlements
     Route::prefix('settlements')->name('settlements.')->group(function () {
         Route::get('/', [FarmerSettlementController::class, 'index'])->name('index');
+        Route::get('/bulk', [FarmerSettlementController::class, 'bulk'])->name('bulk');
         Route::get('/create', [FarmerSettlementController::class, 'create'])->name('create');
         Route::post('/', [FarmerSettlementController::class, 'store'])->name('store');
         Route::get('/{settlement}', [FarmerSettlementController::class, 'show'])->name('show');

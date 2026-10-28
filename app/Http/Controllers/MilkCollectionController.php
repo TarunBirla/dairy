@@ -649,6 +649,14 @@ class MilkCollectionController extends Controller
             $currentShift
         );
 
+        // Data for Tab 2: Milk Sales & Tab 3: Product Sales
+        $buyers = \App\Models\Buyer::where('status', 'active')->orderBy('name')->get();
+        $vehicles = \App\Models\Vehicle::where('status', 'available')->orWhere('status', 'on_duty')->orderBy('vehicle_number')->get();
+        $recentMilkSales = \App\Models\MilkSale::with(['buyer', 'vehicle'])->latest('id')->take(30)->get();
+        $products = \App\Models\Product::orderBy('name')->get();
+        $recentProductSales = \App\Models\ProductSale::with(['product', 'farmer'])->latest('id')->take(30)->get();
+        $activeTab = $request->get('tab', 'collections');
+
         return view('collections.index', compact(
             'collections',
             'todayTotalLiters',
@@ -664,7 +672,13 @@ class MilkCollectionController extends Controller
             'nextReceipt',
             'collectionConfig',
             'liveStats',
-            'initialRateInfo'
+            'initialRateInfo',
+            'buyers',
+            'vehicles',
+            'recentMilkSales',
+            'products',
+            'recentProductSales',
+            'activeTab'
         ));
     }
 

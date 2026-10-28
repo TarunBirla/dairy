@@ -759,6 +759,12 @@ class FarmerController extends Controller
                 }
             }
         }
+        if ($request->filled('installment_deduction_type')) {
+            $extraRates['installment_deduction_type'] = $request->input('installment_deduction_type');
+        }
+        if ($request->has('installment')) {
+            $extraRates['Installment'] = (float) $request->input('installment', 0);
+        }
         $validated['extra_rates'] = $extraRates;
 
         // Two-way sync with legacy columns if present
@@ -1030,5 +1036,43 @@ class FarmerController extends Controller
         AuditLog::log('Issued Advance to Farmer', 'FarmerAdvance', $advance->id, ['amount' => $validated['amount']]);
 
         return back()->with('success', 'Advance of ₹' . number_format($validated['amount'], 2) . ' issued successfully.');
+    }
+
+    /**
+     * Update farmer installment & deduction type preferences (Auto, DeductionOff, Fixed)
+     */
+    public function updateInstallment(Request $request, Farmer $farmer)
+    {
+        $validated = $request->validate([
+            'installment' => 'nullable|numeric|min:0',
+            'deduction_type' => 'required|in:Auto,DeductionOff,Fixed',
+        ]);
+
+        $extraRates = is_array($farmer->extra_rates) ? $farmer->extra_rates : [];
+        $deductionType = $validated['deduction_type'];
+        $amount = ($deductionType === 'Fixed') ? (float)($validated['installment'] ?? 0) : 0.0;
+
+        $extraRates['installment_deduction_type'] = $deductionType;
+        $extraRates['Installment'] = $amount;
+
+        $farmer->update([
+            'installment' => $amount,
+            'extra_rates' => $extraRates,
+        ]);
+
+        AuditLog::log("Updated Installment preference for Farmer {$farmer->name}: Type={$deductionType}, Amount=₹{$amount}", 'Farmer', $farmer->id);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Installment configuration updated successfully.',
+                'installment' => number_format($amount, 2),
+                'installment_raw' => $amount,
+                'deduction_type' => $deductionType,
+                'display_text' => ($deductionType === 'Fixed') ? number_format($amount, 2) . ' ₹' : $deductionType,
+            ]);
+        }
+
+        return back()->with('success', 'Installment preferences updated successfully.');
     }
 }

@@ -108,6 +108,29 @@ class Farmer extends Model
         return (float) $default;
     }
 
+    /**
+     * Get farmer's advance installment deduction type (Auto, DeductionOff, Fixed)
+     */
+    public function getInstallmentDeductionType(): string
+    {
+        $rates = is_array($this->extra_rates) ? $this->extra_rates : [];
+        if (!empty($rates['installment_deduction_type'])) {
+            return $rates['installment_deduction_type'];
+        }
+        if ((float)($this->installment ?? 0) > 0) {
+            return 'Fixed';
+        }
+        return 'Auto';
+    }
+
+    /**
+     * Get farmer's installment amount
+     */
+    public function getInstallmentAmount(): float
+    {
+        return (float) ($this->installment ?? 0.0);
+    }
+
     public function getPhotoUrlAttribute()
     {
         if ($this->photo) {

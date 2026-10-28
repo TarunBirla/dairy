@@ -35,6 +35,7 @@ class MilkSaleController extends Controller
                     $table->string('shift')->default('morning');
                     $table->string('milk_type')->default('cow');
                     $table->decimal('quantity_liters', 10, 2);
+                    $table->decimal('quantity_kg', 10, 2)->nullable()->default(0.00);
                     $table->decimal('fat_percentage', 4, 2)->default(0.00);
                     $table->decimal('snf_percentage', 4, 2)->default(0.00);
                     $table->decimal('clr_reading', 5, 2)->default(0.00);
@@ -48,6 +49,12 @@ class MilkSaleController extends Controller
                     $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
                     $table->timestamps();
                 });
+            } else {
+                if (!Schema::hasColumn('milk_sales', 'quantity_kg')) {
+                    Schema::table('milk_sales', function (Blueprint $table) {
+                        $table->decimal('quantity_kg', 10, 2)->nullable()->default(0.00)->after('quantity_liters');
+                    });
+                }
             }
         } catch (\Throwable $e) {}
     }
@@ -133,6 +140,7 @@ class MilkSaleController extends Controller
             'milk_type' => 'required|in:cow,buffalo,mixed',
             'buyer_id' => 'required|exists:buyers,id',
             'quantity_liters' => 'required|numeric|min:0.01',
+            'quantity_kg' => 'nullable|numeric|min:0',
             'fat_percentage' => 'nullable|numeric|min:0|max:20',
             'clr_reading' => 'nullable|numeric|min:0|max:50',
             'snf_percentage' => 'nullable|numeric|min:0|max:20',
@@ -159,6 +167,7 @@ class MilkSaleController extends Controller
             'shift' => $validated['shift'],
             'milk_type' => $validated['milk_type'],
             'quantity_liters' => $quantity,
+            'quantity_kg' => (float) ($request->input('quantity_kg') ?? 0.00),
             'fat_percentage' => $validated['fat_percentage'] ?? 0.00,
             'clr_reading' => $validated['clr_reading'] ?? 0.00,
             'snf_percentage' => $validated['snf_percentage'] ?? 0.00,
@@ -193,6 +202,10 @@ class MilkSaleController extends Controller
 
         AuditLog::log("Created Milk Sale #{$saleNumber} ({$quantity}L @ ₹{$rate}) for Buyer {$buyer->name}", 'MilkSale', $sale->id);
 
+        if ($request->input('redirect_to') === 'collections') {
+            return redirect()->route('collections.index', ['tab' => 'milk_sales'])->with('success', "Milk sale #{$saleNumber} saved successfully! Total: ₹" . number_format($totalAmount, 2));
+        }
+
         return redirect()->route('milk-sales.index')->with('success', "Milk sale #{$saleNumber} saved successfully! Total: ₹" . number_format($totalAmount, 2));
     }
 
@@ -207,6 +220,7 @@ class MilkSaleController extends Controller
             'milk_type' => 'required|in:cow,buffalo,mixed',
             'buyer_id' => 'required|exists:buyers,id',
             'quantity_liters' => 'required|numeric|min:0.01',
+            'quantity_kg' => 'nullable|numeric|min:0',
             'fat_percentage' => 'nullable|numeric|min:0|max:20',
             'clr_reading' => 'nullable|numeric|min:0|max:50',
             'snf_percentage' => 'nullable|numeric|min:0|max:20',
@@ -232,6 +246,7 @@ class MilkSaleController extends Controller
             'shift' => $validated['shift'],
             'milk_type' => $validated['milk_type'],
             'quantity_liters' => $quantity,
+            'quantity_kg' => (float) ($request->input('quantity_kg') ?? 0.00),
             'fat_percentage' => $validated['fat_percentage'] ?? 0.00,
             'clr_reading' => $validated['clr_reading'] ?? 0.00,
             'snf_percentage' => $validated['snf_percentage'] ?? 0.00,

@@ -38,7 +38,7 @@ class FarmerSettlementController extends Controller
             Carbon::today()->format('Y-m-d')
         );
 
-        // Active farmers jinki pending collections hain
+        // Active farmers jinki pending collections hain and non-zero liters (no 00 liters)
         $farmers = Farmer::where('status', 'active')
             ->whereIn('id', function ($query) use ($periodStart, $periodEnd) {
                 $query->select('farmer_id')
@@ -48,6 +48,7 @@ class FarmerSettlementController extends Controller
                     ->groupBy('farmer_id')
                     ->havingRaw('SUM(quantity_liters) != 0');
             })
+            ->orderBy('farmer_code')
             ->get();
 
         $selectedFarmer = $request->filled('farmer_id') ? Farmer::find($request->farmer_id) : null;
@@ -58,6 +59,7 @@ class FarmerSettlementController extends Controller
         $totalLiters = 0;
         $grossAmount = 0;
         $pendingAdvance = 0;
+        $defaultAdvanceRecovered = 0;
 
         if ($selectedFarmer) {
             $collections = MilkCollection::where('farmer_id', $selectedFarmer->id)
@@ -65,14 +67,109 @@ class FarmerSettlementController extends Controller
                 ->where('payment_status', 'pending')
                 ->get();
 
-            $totalLiters = $collections->sum('quantity_liters');
-            $grossAmount = $collections->sum('net_amount');
-            $pendingAdvance = FarmerAdvance::where('farmer_id', $selectedFarmer->id)
+            $totalLiters = (float) $collections->sum('quantity_liters');
+            $grossAmount = (float) $collections->sum('net_amount');
+            $pendingAdvance = (float) FarmerAdvance::where('farmer_id', $selectedFarmer->id)
                 ->where('status', 'pending')
                 ->sum('amount');
+
+            $deductionType = method_exists($selectedFarmer, 'getInstallmentDeductionType')
+                ? $selectedFarmer->getInstallmentDeductionType()
+                : ($selectedFarmer->extra_rates['installment_deduction_type'] ?? 'Fixed');
+            $installmentAmount = (float) ($selectedFarmer->installment ?? 0);
+
+            if ($deductionType === 'DeductionOff') {
+                $defaultAdvanceRecovered = 0.0;
+            } elseif ($deductionType === 'Fixed' && $installmentAmount > 0) {
+                $defaultAdvanceRecovered = min($installmentAmount, $pendingAdvance, $grossAmount);
+            } else {
+                $defaultAdvanceRecovered = min($pendingAdvance, $grossAmount);
+            }
         }
 
-        return view('farmers.settlements.create', compact('farmers', 'selectedFarmer', 'periodStart', 'periodEnd', 'collections', 'totalLiters', 'grossAmount', 'pendingAdvance'));
+        return view('farmers.settlements.create', compact('farmers', 'selectedFarmer', 'periodStart', 'periodEnd', 'collections', 'totalLiters', 'grossAmount', 'pendingAdvance', 'defaultAdvanceRecovered'));
+    }
+
+    public function bulk(Request $request)
+    {
+        $periodStart = $request->get(
+            'start_date',
+            Carbon::now()->startOfMonth()->format('Y-m-d')
+        );
+
+        $periodEnd = $request->get(
+            'end_date',
+            Carbon::today()->format('Y-m-d')
+        );
+
+        // Active farmers jinki pending collections hain and non-zero liters (no 00 liters)
+        $farmers = Farmer::where('status', 'active')
+            ->whereIn('id', function ($query) use ($periodStart, $periodEnd) {
+                $query->select('farmer_id')
+                    ->from('milk_collections')
+                    ->whereBetween('collection_date', [$periodStart, $periodEnd])
+                    ->where('payment_status', 'pending')
+                    ->groupBy('farmer_id')
+                    ->havingRaw('SUM(quantity_liters) != 0');
+            })
+            ->orderBy('farmer_code')
+            ->get();
+
+        $totalCount = $farmers->count();
+        $currentIndex = (int) $request->get('index', 0);
+        if ($currentIndex < 0) {
+            $currentIndex = 0;
+        }
+        if ($totalCount > 0 && $currentIndex >= $totalCount) {
+            $currentIndex = $totalCount - 1;
+        }
+
+        $selectedFarmer = $totalCount > 0 ? $farmers->get($currentIndex) : null;
+        $collections = collect();
+        $totalLiters = 0;
+        $grossAmount = 0;
+        $pendingAdvance = 0;
+        $defaultAdvanceRecovered = 0;
+
+        if ($selectedFarmer) {
+            $collections = MilkCollection::where('farmer_id', $selectedFarmer->id)
+                ->whereBetween('collection_date', [$periodStart, $periodEnd])
+                ->where('payment_status', 'pending')
+                ->get();
+
+            $totalLiters = (float) $collections->sum('quantity_liters');
+            $grossAmount = (float) $collections->sum('net_amount');
+            $pendingAdvance = (float) FarmerAdvance::where('farmer_id', $selectedFarmer->id)
+                ->where('status', 'pending')
+                ->sum('amount');
+
+            $deductionType = method_exists($selectedFarmer, 'getInstallmentDeductionType')
+                ? $selectedFarmer->getInstallmentDeductionType()
+                : ($selectedFarmer->extra_rates['installment_deduction_type'] ?? 'Fixed');
+            $installmentAmount = (float) ($selectedFarmer->installment ?? 0);
+
+            if ($deductionType === 'DeductionOff') {
+                $defaultAdvanceRecovered = 0.0;
+            } elseif ($deductionType === 'Fixed' && $installmentAmount > 0) {
+                $defaultAdvanceRecovered = min($installmentAmount, $pendingAdvance, $grossAmount);
+            } else {
+                $defaultAdvanceRecovered = min($pendingAdvance, $grossAmount);
+            }
+        }
+
+        return view('farmers.settlements.bulk', compact(
+            'farmers',
+            'selectedFarmer',
+            'periodStart',
+            'periodEnd',
+            'collections',
+            'totalLiters',
+            'grossAmount',
+            'pendingAdvance',
+            'defaultAdvanceRecovered',
+            'totalCount',
+            'currentIndex'
+        ));
     }
 
     public function store(Request $request)
@@ -150,6 +247,15 @@ class FarmerSettlementController extends Controller
         ]);
 
         AuditLog::log('Generated Farmer Settlement', 'FarmerSettlement', $settlement->id, ['net' => $netPayable]);
+
+        if ($request->has('bulk_mode')) {
+            $bulkIndex = (int) $request->get('bulk_index', 0);
+            return redirect()->route('settlements.bulk', [
+                'start_date' => $validated['period_start'],
+                'end_date' => $validated['period_end'],
+                'index' => $bulkIndex,
+            ])->with('success', "Settlement {$settlementNumber} for {$farmer->name} (₹" . number_format($netPayable, 2) . ") disbursed successfully!");
+        }
 
         return redirect()->route('settlements.show', $settlement)->with('success', "Settlement {$settlementNumber} for ₹" . number_format($netPayable, 2) . " processed successfully!");
     }

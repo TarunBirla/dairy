@@ -242,6 +242,11 @@ class ProductSaleController extends Controller
                              ->with('success', "Purchase #{$saleNumber} for {$product->name} (₹{$totalAmount}) recorded successfully!");
         }
 
+        if ($request->input('redirect_to') === 'collections') {
+            return redirect()->route('collections.index', ['tab' => 'product_sales'])
+                             ->with('success', "Sale #{$saleNumber} for {$product->name} (₹{$totalAmount}) recorded successfully!");
+        }
+
         return redirect()->route('product-sales.index')
                          ->with('success', "Sale #{$saleNumber} for {$product->name} (₹{$totalAmount}) recorded successfully!");
     }

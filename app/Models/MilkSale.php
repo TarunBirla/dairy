@@ -17,6 +17,7 @@ class MilkSale extends Model
         'shift',
         'milk_type',
         'quantity_liters',
+        'quantity_kg',
         'fat_percentage',
         'snf_percentage',
         'clr_reading',
@@ -33,6 +34,7 @@ class MilkSale extends Model
     protected $casts = [
         'sale_date' => 'date',
         'quantity_liters' => 'decimal:2',
+        'quantity_kg' => 'decimal:2',
         'fat_percentage' => 'decimal:2',
         'snf_percentage' => 'decimal:2',
         'clr_reading' => 'decimal:2',

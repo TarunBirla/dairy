@@ -121,9 +121,9 @@
             </div>
 
             <!-- Row 2: Customer, Milk Qty, FAT, CLR, SNF, Rate -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4">
                 <!-- Customer / Buyer Dropdown -->
-                <div class="sm:col-span-2">
+                <div class="sm:col-span-2 lg:col-span-2">
                     <div class="flex items-center justify-between mb-1.5">
                         <label class="text-xs font-bold text-slate-700">Customer (Buyer) <span class="text-rose-500">*</span></label>
                         <button type="button" onclick="openAddBuyerModal()" class="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold">
@@ -149,6 +149,12 @@
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1.5">Milk Qty. (Ltr.) <span class="text-rose-500">*</span></label>
                     <input type="number" step="0.01" min="0.01" name="quantity_liters" id="quantityInput" placeholder="0.00" required oninput="calculateTotal()" class="w-full px-3.5 py-2.5 text-xs font-mono border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none font-bold text-slate-900">
+                </div>
+
+                <!-- Milk Quantity (kg.) -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Milk Qty. (kg.)</label>
+                    <input type="number" step="0.01" min="0" name="quantity_kg" id="quantityKgInput" placeholder="0.00" class="w-full px-3.5 py-2.5 text-xs font-mono border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none font-medium text-slate-900">
                 </div>
 
                 <!-- FAT (%) -->
@@ -600,10 +606,14 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-4 gap-3">
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Quantity (L)</label>
                     <input type="number" step="0.01" name="quantity_liters" id="editQty" required oninput="recalcEditTotal()" class="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none font-bold">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Quantity (Kg)</label>
+                    <input type="number" step="0.01" min="0" name="quantity_kg" id="editQtyKg" placeholder="0.00" class="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none font-bold">
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Rate (₹)</label>
@@ -812,6 +822,7 @@
         document.getElementById('editBuyerId').value = sale.buyer_id;
         document.getElementById('editMilkType').value = sale.milk_type;
         document.getElementById('editQty').value = sale.quantity_liters;
+        document.getElementById('editQtyKg').value = sale.quantity_kg || '';
         document.getElementById('editRate').value = sale.rate_per_liter;
         document.getElementById('editFat').value = sale.fat_percentage;
         document.getElementById('editClr').value = sale.clr_reading;

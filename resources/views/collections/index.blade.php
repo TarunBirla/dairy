@@ -14,7 +14,37 @@
 @endsection
 
 @section('content')
-<div class="space-y-2 w-full max-w-full" x-data="milkCollectionManager()" x-init="init()">
+<div class="space-y-3 w-full max-w-full" x-data="{ currentTopTab: '{{ $activeTab ?? 'collections' }}' }">
+
+    <!-- Top 3 Navigation Tabs: Collections, Milk Sale, Product Sale -->
+    <div class="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl w-fit border border-slate-200/80 shadow-2xs">
+        <button type="button" 
+                @click="currentTopTab = 'collections'" 
+                :class="currentTopTab === 'collections' ? 'bg-white text-emerald-800 shadow-xs font-bold border border-slate-200/60' : 'text-slate-600 hover:text-slate-900 font-semibold'"
+                class="px-4 py-2 rounded-xl text-xs transition inline-flex items-center gap-2">
+            <i data-lucide="milk" class="w-4 h-4 text-emerald-600"></i>
+            <span>Collections</span>
+        </button>
+
+        <button type="button" 
+                @click="currentTopTab = 'milk_sales'" 
+                :class="currentTopTab === 'milk_sales' ? 'bg-white text-emerald-800 shadow-xs font-bold border border-slate-200/60' : 'text-slate-600 hover:text-slate-900 font-semibold'"
+                class="px-4 py-2 rounded-xl text-xs transition inline-flex items-center gap-2">
+            <i data-lucide="shopping-cart" class="w-4 h-4 text-emerald-600"></i>
+            <span>Milk Sale</span>
+        </button>
+
+        <button type="button" 
+                @click="currentTopTab = 'product_sales'" 
+                :class="currentTopTab === 'product_sales' ? 'bg-white text-emerald-800 shadow-xs font-bold border border-slate-200/60' : 'text-slate-600 hover:text-slate-900 font-semibold'"
+                class="px-4 py-2 rounded-xl text-xs transition inline-flex items-center gap-2">
+            <i data-lucide="package" class="w-4 h-4 text-indigo-600"></i>
+            <span>Product Sale</span>
+        </button>
+    </div>
+
+    <!-- TAB 1: COLLECTIONS -->
+    <div x-show="currentTopTab === 'collections'" class="space-y-2 w-full max-w-full" x-data="milkCollectionManager()" x-init="init()">
 
     <!-- Ultra-Slim KPI Metrics Bar -->
     <!-- <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -969,6 +999,19 @@
         <button type="button" @click="toast.show = false" class="text-slate-400 hover:text-white transition">
             <i data-lucide="x" class="w-3 h-3"></i>
         </button>
+    </div>
+
+    </div>
+    <!-- END TAB 1 -->
+
+    <!-- TAB 2: MILK SALE -->
+    <div x-show="currentTopTab === 'milk_sales'" x-cloak class="space-y-4 w-full">
+        @include('collections.partials.milk_sales_tab')
+    </div>
+
+    <!-- TAB 3: PRODUCT SALE -->
+    <div x-show="currentTopTab === 'product_sales'" x-cloak class="space-y-4 w-full">
+        @include('collections.partials.product_sales_tab')
     </div>
 
 </div>
