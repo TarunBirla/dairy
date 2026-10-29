@@ -5,10 +5,10 @@
 @section('header_title', 'Customer & Client Accounts')
 
 @section('header_action')
-    <button type="button" @click="openCreateModal()" class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition">
+    <a href="{{ route('customers.create') }}" class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition">
         <i data-lucide="plus" class="w-4 h-4"></i>
         <span>Add Customer</span>
-    </button>
+    </a>
 @endsection
 
 @section('content')
@@ -112,10 +112,10 @@
                 <h3 class="text-sm font-bold text-slate-900">Customer Accounts Directory</h3>
                 <p class="text-xs text-slate-400">Retail clients, milk subscribers, routes, and billing ledger balances</p>
             </div>
-            <button type="button" @click="openCreateModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs transition">
+            <a href="{{ route('customers.create') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs transition">
                 <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                 <span>Add Customer</span>
-            </button>
+            </a>
         </div>
 
         <div class="overflow-x-auto">
