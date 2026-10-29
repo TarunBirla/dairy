@@ -52,11 +52,21 @@ class CustomerController extends Controller
 
     public function create()
     {
-        $routes = DeliveryRoute::where('status', 'active')->get();
+        $routes = DeliveryRoute::with('deliveryBoy')->where('status', 'active')->get();
         $branches = Branch::where('status', 'active')->get();
         $nextCode = 'CUST-' . (Customer::max('id') + 201);
+        $allGroups = \App\Models\CustomerGroup::all();
+        $allProducts = \App\Models\Product::where('status', 'active')->get();
+        $deliveryBoys = \App\Models\User::where('role', \App\Models\User::ROLE_DELIVERY_BOY)->get();
 
-        return view('customers.create', compact('routes', 'branches', 'nextCode'));
+        return view('customers.create', compact(
+            'routes',
+            'branches',
+            'nextCode',
+            'allGroups',
+            'allProducts',
+            'deliveryBoys'
+        ));
     }
 
     public function store(Request $request)
@@ -71,11 +81,14 @@ class CustomerController extends Controller
             'route_id' => 'nullable|exists:delivery_routes,id',
             'category' => 'required|in:household,retail,hotel,shop,institution',
             'credit_limit' => 'nullable|numeric|min:0',
+            'opening_balance' => 'nullable|numeric',
             'delivery_instructions' => 'nullable|string',
             'status' => 'nullable|in:active,paused,inactive,blocked',
         ]);
 
         $validated['status'] = $validated['status'] ?? 'active';
+        $validated['credit_limit'] = $validated['credit_limit'] ?? 0;
+        $validated['current_balance'] = $request->input('opening_balance', 0) ?? 0;
 
         $customer = Customer::create($validated);
 
@@ -95,6 +108,67 @@ class CustomerController extends Controller
             'returned_count' => 0,
             'balance_bottles' => 0,
         ]);
+
+        // Opening Balance in Ledger if any
+        if (!empty($validated['current_balance']) && (float)$validated['current_balance'] != 0) {
+            CustomerLedger::create([
+                'customer_id' => $customer->id,
+                'transaction_type' => 'opening_balance',
+                'amount' => abs($validated['current_balance']),
+                'balance' => $validated['current_balance'],
+                'description' => 'Opening balance entry',
+                'date' => now()->toDateString(),
+            ]);
+        }
+
+        // Groups sync
+        if ($request->has('group_ids')) {
+            $customer->groups()->sync($request->input('group_ids', []));
+        }
+
+        // Special rate
+        if ($request->filled('special_product_id') && $request->filled('special_price')) {
+            \App\Models\CustomerSpecialRate::create([
+                'customer_id' => $customer->id,
+                'product_id' => $request->special_product_id,
+                'special_price' => $request->special_price,
+                'is_active' => true,
+            ]);
+        }
+
+        // Opening bottle counts
+        if ($request->has('bottles')) {
+            foreach ($request->input('bottles', []) as $prodId => $count) {
+                if ((int)$count > 0) {
+                    \App\Models\CustomerBottleOpening::create([
+                        'customer_id' => $customer->id,
+                        'product_id' => $prodId,
+                        'opening_count' => (int)$count,
+                        'is_locked' => true,
+                    ]);
+                }
+            }
+        }
+
+        // Schedule Product Delivery (Initial Subscription if filled)
+        if ($request->filled('sub_product_id') && $request->filled('sub_quantity') && (float)$request->sub_quantity > 0) {
+            $prod = \App\Models\Product::find($request->sub_product_id);
+            if ($prod) {
+                $subCode = 'SUB-' . strtoupper(uniqid());
+                \App\Models\Subscription::create([
+                    'subscription_code' => $subCode,
+                    'customer_id' => $customer->id,
+                    'product_id' => $prod->id,
+                    'route_id' => $customer->route_id,
+                    'quantity' => $request->sub_quantity,
+                    'frequency' => $request->input('sub_frequency', 'daily'),
+                    'shift' => $request->input('sub_shift', 'morning'),
+                    'unit_price' => $prod->price,
+                    'start_date' => $request->input('sub_start_date', now()->toDateString()),
+                    'status' => 'active',
+                ]);
+            }
+        }
 
         AuditLog::log('Created Customer', 'Customer', $customer->id);
 
