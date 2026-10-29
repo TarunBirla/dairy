@@ -299,7 +299,8 @@
             </div>
 
             <!-- Form matching exact fields in media_1791384063890.png -->
-            <form action="{{ route('dealer-payments.store') }}" method="POST" class="mt-4 space-y-4">
+            <form action="{{ route('dealer-payments.store') }}" method="POST" class="mt-4 space-y-4"
+                  @submit="if(!payForm.dealer_id) { $event.preventDefault(); alert('Please select a dealer / कृपया डीलर चुनें'); return false; }">
                 @csrf
 
                 <!-- Row 1: Date, Dealer Name, Dues -->
@@ -311,16 +312,76 @@
                                class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none">
                     </div>
 
-                    <!-- Dealer Name -->
-                    <div>
+                    <!-- Dealer Name with Searchable Dropdown -->
+                    <div class="relative" @click.away="dealerDropdownOpen = false">
                         <label class="block text-[11px] font-semibold text-slate-700 mb-1">Dealer Name <span class="text-rose-500">*</span></label>
-                        <select name="dealer_id" x-model="payForm.dealer_id" @change="onDealerChange($event.target.value)" required
-                                class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none">
-                            <option value="">Type or select dealer</option>
-                            @foreach($allDealers as $d)
-                                <option value="{{ $d->id }}">{{ $d->name }} ({{ $d->code }})</option>
-                            @endforeach
-                        </select>
+                        <input type="hidden" name="dealer_id" :value="payForm.dealer_id" required>
+
+                        <!-- Trigger button -->
+                        <div @click="dealerDropdownOpen = !dealerDropdownOpen; if(dealerDropdownOpen) $nextTick(() => $refs.dealerSearchInput.focus())"
+                             class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg flex items-center justify-between cursor-pointer hover:border-slate-300 transition"
+                             :class="{'ring-1 ring-emerald-500 border-emerald-500': dealerDropdownOpen}">
+                            <span class="truncate font-medium" :class="selectedDealerName ? 'text-slate-800' : 'text-slate-400'"
+                                  x-text="selectedDealerName || 'Type or select dealer...'"></span>
+                            <div class="flex items-center gap-1">
+                                <template x-if="payForm.dealer_id">
+                                    <span @click.stop="selectDealer(null)" class="text-slate-400 hover:text-rose-500 p-0.5">
+                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </span>
+                                </template>
+                                <svg class="w-3.5 h-3.5 text-slate-400 transition" :class="{'rotate-180': dealerDropdownOpen}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- Dropdown Search Menu -->
+                        <div x-show="dealerDropdownOpen" 
+                             x-cloak
+                             class="absolute left-0 right-0 z-50 mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden max-w-full">
+                            <!-- Search Input -->
+                            <div class="p-2 border-b border-slate-100 bg-slate-50/80 sticky top-0 z-10">
+                                <div class="relative">
+                                    <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                    </svg>
+                                    <input type="text"
+                                           x-ref="dealerSearchInput"
+                                           x-model="dealerSearch"
+                                           placeholder="Search by dealer name, code, phone..."
+                                           @keydown.escape="dealerDropdownOpen = false"
+                                           class="w-full pl-8 pr-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                                </div>
+                            </div>
+
+                            <!-- List of Dealers -->
+                            <div class="max-h-52 overflow-y-auto divide-y divide-slate-50">
+                                <template x-for="d in filteredDealers" :key="d.id">
+                                    <button type="button"
+                                            @click="selectDealer(d)"
+                                            class="w-full px-3 py-2 text-left text-xs hover:bg-emerald-50/70 flex items-center justify-between transition cursor-pointer"
+                                            :class="{'bg-emerald-50/50 font-bold text-emerald-800': payForm.dealer_id == d.id}">
+                                        <div>
+                                            <div class="font-semibold text-slate-800" x-text="d.name"></div>
+                                            <div class="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                                                <span class="font-mono bg-slate-100 px-1 py-0.5 rounded text-slate-600" x-text="d.code"></span>
+                                                <span x-show="d.phone" x-text="'• ' + d.phone"></span>
+                                            </div>
+                                        </div>
+                                        <template x-if="payForm.dealer_id == d.id">
+                                            <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                        </template>
+                                    </button>
+                                </template>
+
+                                <!-- Empty State -->
+                                <div x-show="filteredDealers.length === 0" class="p-4 text-center text-xs text-slate-400">
+                                    No dealer found for "<span x-text="dealerSearch" class="font-semibold text-slate-600"></span>"
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Dues (Live Auto Display) -->
@@ -515,6 +576,46 @@ function dealerPaymentManager() {
         showPayModal: false,
         showLedgerModal: false,
 
+        dealers: [
+            @foreach($allDealers as $d)
+            {
+                id: {{ $d->id }},
+                name: '{{ addslashes($d->name) }}',
+                code: '{{ addslashes($d->code) }}',
+                phone: '{{ addslashes($d->phone ?? '') }}'
+            },
+            @endforeach
+        ],
+        dealerSearch: '',
+        dealerDropdownOpen: false,
+        selectedDealerName: '',
+
+        get filteredDealers() {
+            if (!this.dealerSearch) {
+                return this.dealers;
+            }
+            const q = this.dealerSearch.toLowerCase();
+            return this.dealers.filter(d => 
+                (d.name && d.name.toLowerCase().includes(q)) ||
+                (d.code && d.code.toLowerCase().includes(q)) ||
+                (d.phone && d.phone.toLowerCase().includes(q))
+            );
+        },
+
+        selectDealer(dealer) {
+            if (dealer) {
+                this.payForm.dealer_id = dealer.id;
+                this.selectedDealerName = `${dealer.name} (${dealer.code})`;
+                this.onDealerChange(dealer.id);
+            } else {
+                this.payForm.dealer_id = '';
+                this.selectedDealerName = '';
+                this.payForm.dues = '0.00';
+            }
+            this.dealerDropdownOpen = false;
+            this.dealerSearch = '';
+        },
+
         payForm: {
             payment_date: new Date().toISOString().split('T')[0],
             dealer_id: '',
@@ -536,6 +637,8 @@ function dealerPaymentManager() {
 
         quickPayForDealer(dealerId, dealerName, duesAmount) {
             this.payForm.dealer_id = dealerId;
+            const found = this.dealers.find(d => d.id == dealerId);
+            this.selectedDealerName = found ? `${found.name} (${found.code})` : dealerName;
             this.payForm.dues = Number(duesAmount).toFixed(2);
             this.payForm.pay_amount = duesAmount > 0 ? Number(duesAmount).toFixed(2) : '';
             this.showPayModal = true;
@@ -583,6 +686,9 @@ function dealerPaymentManager() {
                 comment: '',
                 payment_mode: 'UPI'
             };
+            this.selectedDealerName = '';
+            this.dealerSearch = '';
+            this.dealerDropdownOpen = false;
         }
     };
 }
