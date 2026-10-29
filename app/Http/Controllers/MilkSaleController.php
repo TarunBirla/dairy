@@ -105,6 +105,7 @@ class MilkSaleController extends Controller
         // Calculate Totals for the Summary Row
         $summaryQuery = clone $query;
         $totalLiters = (float) $summaryQuery->sum('quantity_liters');
+        $totalKg = (float) $summaryQuery->sum('quantity_kg');
         $totalAmount = (float) $summaryQuery->sum('total_amount');
         $totalPaid = (float) $summaryQuery->sum('paid_amount');
         $totalBalance = (float) $summaryQuery->sum('balance_amount');
@@ -123,6 +124,7 @@ class MilkSaleController extends Controller
             'search',
             'shift',
             'totalLiters',
+            'totalKg',
             'totalAmount',
             'totalPaid',
             'totalBalance'

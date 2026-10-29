@@ -191,8 +191,8 @@
                             <td class="py-2 px-3 font-bold text-slate-900">{{ $ms->buyer->name ?? 'Buyer' }}</td>
                             <td class="py-2 px-3 capitalize text-[11px]">{{ $ms->shift }} • {{ $ms->milk_type }}</td>
                             <td class="py-2 px-3 text-right font-mono font-bold">{{ number_format($ms->quantity_liters, 2) }} L</td>
-                            <td class="py-2 px-3 text-right font-mono text-slate-500">
-                                {{ (float)$ms->quantity_kg > 0 ? number_format($ms->quantity_kg, 2) . ' kg' : '—' }}
+                            <td class="py-2 px-3 text-right font-mono text-slate-600">
+                                {{ number_format((float)($ms->quantity_kg ?? 0), 2) }} kg
                             </td>
                             <td class="py-2 px-3 text-right font-mono">₹ {{ number_format($ms->rate_per_liter, 2) }}</td>
                             <td class="py-2 px-3 text-right font-mono font-black text-emerald-700">₹ {{ number_format($ms->total_amount, 2) }}</td>

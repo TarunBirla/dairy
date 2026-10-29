@@ -303,6 +303,7 @@
                         <th class="py-2.5 px-3">Shift</th>
                         <th class="py-2.5 px-3">Milk Type</th>
                         <th class="py-2.5 px-3 text-right">Liters</th>
+                        <th class="py-2.5 px-3 text-right">Qty (kg)</th>
                         <th class="py-2.5 px-3 text-right">FAT</th>
                         <th class="py-2.5 px-3 text-right">SNF</th>
                         <th class="py-2.5 px-3 text-right">CLR</th>
@@ -347,6 +348,9 @@
                                 {{ number_format($s->quantity_liters, 2) }}
                             </td>
                             <td class="py-2.5 px-3 text-right font-mono text-slate-600">
+                                {{ number_format((float)($s->quantity_kg ?? 0), 2) }} kg
+                            </td>
+                            <td class="py-2.5 px-3 text-right font-mono text-slate-600">
                                 {{ number_format($s->fat_percentage, 2) }}
                             </td>
                             <td class="py-2.5 px-3 text-right font-mono text-slate-600">
@@ -387,7 +391,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="13" class="py-12 text-center text-slate-400">
+                            <td colspan="14" class="py-12 text-center text-slate-400">
                                 <i data-lucide="shopping-cart" class="w-8 h-8 mx-auto text-slate-300 mb-2"></i>
                                 <p class="text-xs font-semibold text-slate-500">No milk sales recorded for the selected period.</p>
                             </td>
@@ -402,6 +406,9 @@
                             </td>
                             <td class="py-3 px-3 text-right font-mono font-black text-slate-900">
                                 {{ number_format($totalLiters, 2) }} L
+                            </td>
+                            <td class="py-3 px-3 text-right font-mono font-black text-slate-700">
+                                {{ number_format($totalKg ?? 0, 2) }} kg
                             </td>
                             <td colspan="4"></td>
                             <td class="py-3 px-3 text-right font-mono font-black text-emerald-800 text-sm">
