@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
 use App\Models\PosOrder;
 use App\Models\PosOrderItem;
 use App\Models\Product;
@@ -18,23 +20,55 @@ use Carbon\Carbon;
 
 class PosController extends Controller
 {
+    public function __construct()
+    {
+        $this->ensureSchema();
+    }
+
+    private function ensureSchema(): void
+    {
+        try {
+            if (Schema::hasTable('pos_orders') && !Schema::hasColumn('pos_orders', 'customer_email')) {
+                Schema::table('pos_orders', function (Blueprint $table) {
+                    $table->string('customer_email')->nullable()->after('customer_phone');
+                });
+            }
+        } catch (\Throwable $e) {
+            // Ignore in constructor
+        }
+    }
+
     public function index()
     {
         $products = Product::where('status', 'active')->where('in_stock', true)->get();
         $categories = Category::all();
         $customers = Customer::where('status', 'active')->get();
         $counters = PosCounter::where('status', 'active')->get();
-        $recentOrders = PosOrder::with('items.product')->latest()->take(5)->get();
+        $recentOrders = PosOrder::with('items.product')->latest()->take(15)->get();
 
-        return view('pos.index', compact('products', 'categories', 'customers', 'counters', 'recentOrders'));
+        // Unique Walk-in customers previously entered in POS (only those who were entered)
+        try {
+            $walkInCustomers = PosOrder::whereNotNull('customer_name')
+                ->where('customer_name', '!=', 'Walk-in Customer')
+                ->where('customer_name', '!=', '')
+                ->select('customer_name', 'customer_phone', 'customer_email')
+                ->distinct()
+                ->orderBy('customer_name')
+                ->get();
+        } catch (\Throwable $e) {
+            $walkInCustomers = collect();
+        }
+
+        return view('pos.index', compact('products', 'categories', 'customers', 'counters', 'recentOrders', 'walkInCustomers'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
             'customer_id' => 'nullable|exists:customers,id',
-            'customer_name' => 'nullable|string',
-            'customer_phone' => 'nullable|string',
+            'customer_name' => 'nullable|string|max:255',
+            'customer_phone' => 'nullable|string|max:20',
+            'customer_email' => 'nullable|email|max:255',
             'payment_mode' => 'required|in:cash,upi,card,credit',
             'counter_id' => 'nullable|exists:pos_counters,id',
             'items' => 'required|array|min:1',
@@ -56,8 +90,9 @@ class PosController extends Controller
         $orderNumber = 'POS-' . date('Ymd') . '-' . sprintf('%03d', PosOrder::whereDate('created_at', Carbon::today())->count() + 1);
 
         $customer = !empty($validated['customer_id']) ? Customer::find($validated['customer_id']) : null;
-        $customerName = $customer ? $customer->name : ($validated['customer_name'] ?? 'Walk-in Customer');
-        $customerPhone = $customer ? $customer->phone : ($validated['customer_phone'] ?? null);
+        $customerName = $customer ? $customer->name : (!empty($validated['customer_name']) ? trim($validated['customer_name']) : 'Walk-in Customer');
+        $customerPhone = $customer ? $customer->phone : (!empty($validated['customer_phone']) ? trim($validated['customer_phone']) : null);
+        $customerEmail = $customer ? $customer->email : (!empty($validated['customer_email']) ? trim($validated['customer_email']) : null);
 
         $order = PosOrder::create([
             'order_number' => $orderNumber,
@@ -66,6 +101,7 @@ class PosController extends Controller
             'customer_id' => $customer ? $customer->id : null,
             'customer_name' => $customerName,
             'customer_phone' => $customerPhone,
+            'customer_email' => $customerEmail,
             'subtotal' => $subtotal,
             'discount_amount' => $discount,
             'tax_amount' => 0.00,

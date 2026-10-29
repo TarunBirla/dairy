@@ -111,14 +111,76 @@
                         </div>
                     </div>
 
-                    <!-- Customer Selector (Compact) -->
-                    <div>
-                        <select name="customer_id" x-model="customerId" class="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none font-medium text-slate-700">
-                            <option value="">Walk-in Customer (नकद ग्राहक)</option>
-                            @foreach($customers as $c)
-                                <option value="{{ $c->id }}">{{ $c->name }} ({{ $c->customer_code }})</option>
-                            @endforeach
-                        </select>
+                    <!-- Customer Dropdown matching user image -->
+                    <div class="space-y-1.5">
+                        <div class="relative">
+                            <select x-model="selectedCustomerKey" @change="onCustomerSelect($event.target.value)"
+                                    class="w-full px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-full shadow-2xs hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer transition appearance-none pr-8">
+                                <option value="">Walk-in Customer (नकद ग्राहक)</option>
+                                @foreach($walkInCustomers as $idx => $wc)
+                                    <option value="{{ $idx }}">{{ $wc->customer_name }}{{ $wc->customer_phone ? ' (' . $wc->customer_phone . ')' : '' }}</option>
+                                @endforeach
+                            </select>
+                            <div class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- (B) CUSTOMER (OPTIONAL) Collapsible Accordion -->
+                        <div>
+                            <button type="button" 
+                                    @click="showCustomerInputs = !showCustomerInputs"
+                                    class="w-full flex items-center justify-between px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80 transition text-xs font-bold">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-sm">👤</span>
+                                    <span class="uppercase tracking-wider text-[10px] font-black" :class="customerName ? 'text-emerald-700' : 'text-slate-600'">
+                                        CUSTOMER (OPTIONAL)
+                                    </span>
+                                    <template x-if="customerName">
+                                        <span class="ml-1 text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded-full truncate max-w-[110px]" x-text="customerName"></span>
+                                    </template>
+                                </div>
+                                <svg class="w-3.5 h-3.5 text-slate-400 transition" :class="{'rotate-180': showCustomerInputs}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+
+                            <!-- 3 Inputs: Name, Phone, Email -->
+                            <div x-show="showCustomerInputs" x-cloak class="mt-2 p-3 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-2.5">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Name (ग्राहक का नाम)</label>
+                                    <input type="text" 
+                                           name="customer_name" 
+                                           x-model="customerName" 
+                                           placeholder="Enter customer name" 
+                                           class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Phone (मोबाइल नंबर)</label>
+                                        <input type="text" 
+                                               name="customer_phone" 
+                                               x-model="customerPhone" 
+                                               placeholder="Enter phone" 
+                                               class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Email (ईमेल)</label>
+                                        <input type="email" 
+                                               name="customer_email" 
+                                               x-model="customerEmail" 
+                                               placeholder="Enter email" 
+                                               class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium">
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                                    <span>Optional • Default: Walk-in</span>
+                                    <button type="button" @click="clearCustomerInputs()" class="text-rose-500 font-bold hover:underline">Clear</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Cart Items List matching Screenshot Item Cards -->
@@ -203,6 +265,119 @@
 
     </div>
 
+    <!-- Walk-in Counter Sales Table matching Requirement (C) -->
+    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50/50">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    <h3 class="text-sm font-bold text-slate-900">Walk-in Counter Sales / हालिया काउंटर बिक्री</h3>
+                </div>
+                <p class="text-xs text-slate-400 mt-0.5">Recent counter orders and customer receipts</p>
+            </div>
+            <a href="{{ route('pos.history') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl transition shadow-2xs">
+                <i data-lucide="history" class="w-3.5 h-3.5"></i>
+                <span>View Full Sales History &rarr;</span>
+            </a>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-600">
+                <thead class="bg-slate-50/80 border-b border-slate-200/80 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                    <tr>
+                        <th class="py-3 px-5">Order #</th>
+                        <th class="py-3 px-4">Date & Time</th>
+                        <th class="py-3 px-4">Customer Name / Phone</th>
+                        <th class="py-3 px-4">Items</th>
+                        <th class="py-3 px-4">Payment Mode</th>
+                        <th class="py-3 px-4 text-right">Grand Total</th>
+                        <th class="py-3 px-5 text-right">Receipt / Print</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @forelse($recentOrders as $order)
+                        <tr class="hover:bg-slate-50/60 transition">
+                            <!-- Order # -->
+                            <td class="py-3.5 px-5 font-mono font-bold text-slate-900">
+                                {{ $order->order_number }}
+                            </td>
+
+                            <!-- Date & Time -->
+                            <td class="py-3.5 px-4 whitespace-nowrap">
+                                <span class="font-semibold text-slate-700">{{ $order->created_at->format('d M Y') }}</span>
+                                <span class="block text-[10px] text-slate-400">{{ $order->created_at->format('h:i A') }}</span>
+                            </td>
+
+                            <!-- Customer Name / Phone -->
+                            <td class="py-3.5 px-4">
+                                @if($order->customer_name && $order->customer_name !== 'Walk-in Customer')
+                                    <span class="font-bold text-slate-900 block">{{ $order->customer_name }}</span>
+                                    @if($order->customer_phone)
+                                        <span class="text-[11px] text-slate-400 font-mono">{{ $order->customer_phone }}</span>
+                                    @endif
+                                @else
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">
+                                        Walk-in Customer
+                                    </span>
+                                @endif
+                            </td>
+
+                            <!-- Items -->
+                            <td class="py-3.5 px-4 max-w-xs">
+                                <div class="flex flex-wrap gap-1">
+                                    @foreach($order->items as $item)
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 text-[10px] font-medium border border-emerald-100">
+                                            {{ $item->product->name ?? 'Item' }} &times; {{ (float)$item->quantity }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            </td>
+
+                            <!-- Payment Mode (Cash / UPI) -->
+                            <td class="py-3.5 px-4 whitespace-nowrap">
+                                @if(strtolower($order->payment_mode) === 'cash')
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                        CASH
+                                    </span>
+                                @elseif(strtolower($order->payment_mode) === 'upi')
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                                        UPI
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 uppercase">
+                                        {{ $order->payment_mode }}
+                                    </span>
+                                @endif
+                            </td>
+
+                            <!-- Grand Total -->
+                            <td class="py-3.5 px-4 text-right font-black text-slate-900 text-sm whitespace-nowrap">
+                                ₹{{ number_format($order->grand_total, 2) }}
+                            </td>
+
+                            <!-- Receipt / Print Action -->
+                            <td class="py-3.5 px-5 text-right whitespace-nowrap">
+                                <a href="{{ route('pos.receipt', $order) }}" target="_blank"
+                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-emerald-600 text-slate-700 hover:text-white text-xs font-bold rounded-xl transition shadow-2xs">
+                                    <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                                    <span>Print Receipt</span>
+                                </a>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="py-10 text-center text-slate-400">
+                                No walk-in counter sales recorded yet today.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 </div>
 
 @push('scripts')
@@ -210,9 +385,47 @@
     function posApp() {
         return {
             activeCategory: 'all',
-            customerId: '',
             payMode: 'cash',
             tenderedCash: '',
+            walkInList: [
+                @foreach($walkInCustomers as $wc)
+                {
+                    name: '{{ addslashes($wc->customer_name) }}',
+                    phone: '{{ addslashes($wc->customer_phone ?? "") }}',
+                    email: '{{ addslashes($wc->customer_email ?? "") }}'
+                },
+                @endforeach
+            ],
+            selectedCustomerKey: '',
+            showCustomerInputs: false,
+            customerName: '',
+            customerPhone: '',
+            customerEmail: '',
+
+            onCustomerSelect(val) {
+                if (val === '' || val === null || val === undefined) {
+                    this.customerName = '';
+                    this.customerPhone = '';
+                    this.customerEmail = '';
+                    return;
+                }
+                const idx = parseInt(val, 10);
+                if (!isNaN(idx) && this.walkInList[idx]) {
+                    const c = this.walkInList[idx];
+                    this.customerName = c.name;
+                    this.customerPhone = c.phone || '';
+                    this.customerEmail = c.email || '';
+                    this.showCustomerInputs = true;
+                }
+            },
+
+            clearCustomerInputs() {
+                this.selectedCustomerKey = '';
+                this.customerName = '';
+                this.customerPhone = '';
+                this.customerEmail = '';
+            },
+
             cart: [
                 { id: {{ $products->first()->id ?? 1 }}, name: '{{ addslashes($products->first()->name ?? "Paneer") }}', price: {{ $products->first()->price ?? 300 }}, unit: '{{ $products->first()->unit ?? "kg" }}', qty: 1 }
             ],
