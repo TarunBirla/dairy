@@ -178,9 +178,13 @@
                         </div>
 
                         <!-- CHANGE Return Highlight Box -->
-                        <div class="p-3 bg-emerald-50/80 border border-emerald-200 rounded-2xl flex items-center justify-between">
-                            <span class="text-xs font-bold text-emerald-800 uppercase tracking-wider">CHANGE</span>
-                            <span class="text-2xl font-black text-emerald-700" x-text="'₹' + getChange()"></span>
+                        <div class="p-3 rounded-2xl flex items-center justify-between border transition"
+                             :class="getChangeVal() < 0 ? 'bg-rose-50/80 border-rose-200' : 'bg-emerald-50/80 border-emerald-200'">
+                            <span class="text-xs font-bold uppercase tracking-wider"
+                                  :class="getChangeVal() < 0 ? 'text-rose-800' : 'text-emerald-800'">CHANGE</span>
+                            <span class="text-2xl font-black"
+                                  :class="getChangeVal() < 0 ? 'text-rose-600' : 'text-emerald-700'"
+                                  x-text="getChangeFormatted()"></span>
                         </div>
                     </div>
 
@@ -247,10 +251,18 @@
                 return this.cart.reduce((sum, item) => sum + (item.qty * item.price), 0);
             },
 
-            getChange() {
-                if (!this.tenderedCash || isNaN(this.tenderedCash)) return '0';
-                const change = parseFloat(this.tenderedCash) - this.subtotal();
-                return change > 0 ? change.toFixed(0) : '0';
+            getChangeVal() {
+                if (this.tenderedCash === '' || isNaN(this.tenderedCash)) return 0;
+                return Math.round(parseFloat(this.tenderedCash) - this.subtotal());
+            },
+
+            getChangeFormatted() {
+                if (this.tenderedCash === '' || isNaN(this.tenderedCash)) return '₹0';
+                const diff = this.getChangeVal();
+                if (diff < 0) {
+                    return '- ₹' + Math.abs(diff);
+                }
+                return '₹' + diff;
             }
         }
     }
