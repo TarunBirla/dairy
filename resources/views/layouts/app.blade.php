@@ -687,10 +687,10 @@
                         <i data-lucide="wallet" class="w-4 h-4 text-slate-400"></i>
                         <span>Counter Cashbook</span>
                     </a>
-                    <!-- <a href="{{ route('customers.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('customers.index') || request()->routeIs('customers.show') || request()->routeIs('customers.edit') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                    <a href="{{ route('customers.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('customers.index') || request()->routeIs('customers.show') || request()->routeIs('customers.edit') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                         <i data-lucide="user-check" class="w-4 h-4 text-slate-400"></i>
                         <span>Customers List</span>
-                    </a> -->
+                    </a>
                     <!-- Customer Groups -->
                     <a href="{{ route('customers.groups.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('customers.groups.*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                         <i data-lucide="users-2" class="w-4 h-4 text-emerald-600"></i>
