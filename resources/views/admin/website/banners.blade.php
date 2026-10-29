@@ -61,7 +61,7 @@
 
     <!-- Website Text & Contact Settings -->
     <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs">
-        <h3 class="text-sm font-bold text-slate-900 mb-4 pb-3 border-b border-slate-100">Contact & Brand Content</h3>
+        <h3 class="text-sm font-bold text-slate-900 mb-4 pb-3 border-b border-slate-100">Website Brand Content</h3>
         <form action="{{ route('admin.website.settings') }}" method="POST" class="space-y-4">
             @csrf
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
