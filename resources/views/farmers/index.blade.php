@@ -756,7 +756,7 @@
                         <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-3">
                             <div class="flex items-center gap-2">
                                 <label class="text-xs font-bold text-slate-700 whitespace-nowrap">Installment :</label>
-                                <div @click="openFarmerIndexInstallmentModal()" 
+                                <div @click.stop="openFarmerIndexInstallmentModal()" 
                                      class="inline-flex items-center gap-2.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 hover:border-teal-500 rounded-lg text-xs font-mono font-bold text-slate-900 shadow-2xs cursor-pointer transition"
                                      title="Click to configure Installment">
                                     <span x-text="form.installment_deduction_type === 'Fixed' ? Number(form.installment || 0).toFixed(2) + ' ₹' : (form.installment_deduction_type || 'Auto')"></span>
@@ -991,13 +991,16 @@
     <!-- Extra Information Modal (Matching Images 1, 2, 3) -->
     <div x-show="showInstallmentModal" 
          x-cloak 
-         class="fixed inset-0 z-70 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 overflow-hidden" 
-             @click.away="closeFarmerIndexInstallmentModal()">
+         class="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
+         style="z-index: 99999 !important;"
+         @click.self="closeFarmerIndexInstallmentModal()">
+        <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 overflow-hidden relative" 
+             style="z-index: 100000 !important;"
+             @click.stop>
             <!-- Header: #98d8c8 mint/teal -->
             <div class="px-5 py-3.5 flex items-center justify-between" style="background-color: #98d8c8;">
                 <h3 class="text-sm font-bold text-slate-800 tracking-wide">Extra Information</h3>
-                <button type="button" @click="closeFarmerIndexInstallmentModal()" class="text-slate-600 hover:text-slate-900 font-bold text-lg leading-none cursor-pointer">
+                <button type="button" @click.stop="closeFarmerIndexInstallmentModal()" class="text-slate-600 hover:text-slate-900 font-bold text-lg leading-none cursor-pointer">
                     &times;
                 </button>
             </div>
@@ -1026,10 +1029,10 @@
 
             <!-- Footer Buttons: No (grey) and Save (teal #388e7e) -->
             <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
-                <button type="button" @click="closeFarmerIndexInstallmentModal()" class="px-4 py-1.5 bg-slate-300 hover:bg-slate-400 text-slate-800 font-bold text-xs rounded-lg transition cursor-pointer">
+                <button type="button" @click.stop="closeFarmerIndexInstallmentModal()" class="px-4 py-1.5 bg-slate-300 hover:bg-slate-400 text-slate-800 font-bold text-xs rounded-lg transition cursor-pointer">
                     No
                 </button>
-                <button type="button" @click="saveFarmerIndexInstallmentModal()" class="px-5 py-1.5 text-white font-bold text-xs rounded-lg shadow-xs transition cursor-pointer" style="background-color: #388e7e;">
+                <button type="button" @click.stop="saveFarmerIndexInstallmentModal()" class="px-5 py-1.5 text-white font-bold text-xs rounded-lg shadow-xs transition cursor-pointer" style="background-color: #388e7e;">
                     Save
                 </button>
             </div>
@@ -1164,6 +1167,9 @@ function farmerManager() {
         },
 
         closeModal() {
+            if (this.showInstallmentModal) {
+                return;
+            }
             this.showModal = false;
         },
 

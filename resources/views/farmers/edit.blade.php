@@ -511,7 +511,7 @@
 </div>
 
 <!-- Extra Information Modal (Matching Images 1, 2, 3) -->
-<div id="extraInfoModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+<div id="extraInfoModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden" style="z-index: 99999 !important;">
     <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 overflow-hidden" onclick="event.stopPropagation()">
         <!-- Header: #98d8c8 mint/teal -->
         <div class="px-5 py-3.5 flex items-center justify-between" style="background-color: #98d8c8;">
