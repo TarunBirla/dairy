@@ -199,7 +199,9 @@
 
                             <!-- Installment (Image 4 Style) -->
                             <td class="py-3.5 px-4 font-mono">
-                                <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-800 shadow-2xs">
+                                <div onclick="openFarmerInstallmentModal({{ $farmer->id }}, '{{ addslashes($farmer->name) }}', '{{ $farmer->getInstallmentDeductionType() }}', {{ (float)$farmer->getInstallmentAmount() }})"
+                                     class="inline-flex items-center gap-2 px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 hover:border-teal-500 rounded-lg text-xs font-mono font-bold text-slate-800 shadow-2xs cursor-pointer transition"
+                                     title="Click to configure Installment">
                                     <span id="adv-inst-{{ $farmer->id }}">
                                         @if($farmer->getInstallmentDeductionType() === 'Fixed')
                                             {{ number_format($farmer->getInstallmentAmount(), 2) }} ₹
@@ -207,14 +209,11 @@
                                             {{ $farmer->getInstallmentDeductionType() }}
                                         @endif
                                     </span>
-                                    <button type="button" 
-                                            onclick="openFarmerInstallmentModal({{ $farmer->id }}, '{{ addslashes($farmer->name) }}', '{{ $farmer->getInstallmentDeductionType() }}', {{ (float)$farmer->getInstallmentAmount() }})" 
-                                            class="text-slate-500 hover:text-emerald-700 transition" 
-                                            title="Edit Installment">
+                                    <span class="text-sky-500 hover:text-sky-700 transition" title="Edit Installment">
                                         <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                         </svg>
-                                    </button>
+                                    </span>
                                 </div>
                             </td>
 
@@ -787,6 +786,7 @@ function saveFarmerInstallmentModal() {
         btn.disabled = false;
     });
 }
+</script>
 
 <script>
 function advanceManager() {

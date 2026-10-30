@@ -211,6 +211,7 @@
                                 'anamat' => $farmer->anamat ?? 0,
                                 'building_fund' => $farmer->building_fund ?? 0,
                                 'installment' => $farmer->installment ?? 0,
+                                'installment_deduction_type' => $farmer->getInstallmentDeductionType(),
                                 'etc_amount' => $farmer->etc_amount ?? 0,
                                 'grant_amount' => $farmer->grant_amount ?? 0,
                                 'extra_rates' => $farmer->extra_rates ?: [],
@@ -749,6 +750,30 @@
                             @endforeach
                         </div>
                     @endif
+
+                    <!-- Installment Deduction Preference (Image 4 Style) -->
+                    <div class="pt-2 border-t border-slate-200/60">
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+                            <div class="flex items-center gap-2">
+                                <label class="text-xs font-bold text-slate-700 whitespace-nowrap">Installment :</label>
+                                <div @click="openFarmerIndexInstallmentModal()" 
+                                     class="inline-flex items-center gap-2.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 hover:border-teal-500 rounded-lg text-xs font-mono font-bold text-slate-900 shadow-2xs cursor-pointer transition"
+                                     title="Click to configure Installment">
+                                    <span x-text="form.installment_deduction_type === 'Fixed' ? Number(form.installment || 0).toFixed(2) + ' ₹' : (form.installment_deduction_type || 'Auto')"></span>
+                                    <span class="text-sky-500 hover:text-sky-700 transition" title="Edit Installment">
+                                        <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                        </svg>
+                                    </span>
+                                </div>
+                            </div>
+                            <span class="text-[11px] text-slate-400">Configure loan / advance repayment deduction on settlements</span>
+                        </div>
+
+                        <!-- Hidden inputs for form submit -->
+                        <input type="hidden" name="installment" :value="form.installment">
+                        <input type="hidden" name="installment_deduction_type" :value="form.installment_deduction_type">
+                    </div>
                 </div>
 
                 <!-- Modal Actions -->
@@ -963,6 +988,54 @@
         </div>
     </div>
 
+    <!-- Extra Information Modal (Matching Images 1, 2, 3) -->
+    <div x-show="showInstallmentModal" 
+         x-cloak 
+         class="fixed inset-0 z-70 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 overflow-hidden" 
+             @click.away="closeFarmerIndexInstallmentModal()">
+            <!-- Header: #98d8c8 mint/teal -->
+            <div class="px-5 py-3.5 flex items-center justify-between" style="background-color: #98d8c8;">
+                <h3 class="text-sm font-bold text-slate-800 tracking-wide">Extra Information</h3>
+                <button type="button" @click="closeFarmerIndexInstallmentModal()" class="text-slate-600 hover:text-slate-900 font-bold text-lg leading-none cursor-pointer">
+                    &times;
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-5 space-y-4 text-xs">
+                <div class="flex items-center justify-between gap-4">
+                    <span class="font-bold text-slate-700">Name :</span>
+                    <span class="font-bold text-slate-900">Installment</span>
+                </div>
+
+                <div class="flex items-center justify-between gap-4">
+                    <label class="font-bold text-slate-700">Deduction Type :</label>
+                    <select x-model="installmentModalType" class="w-36 px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-800 outline-none focus:ring-1 focus:ring-teal-500">
+                        <option value="Auto">Auto</option>
+                        <option value="DeductionOff">DeductionOff</option>
+                        <option value="Fixed">Fixed</option>
+                    </select>
+                </div>
+
+                <div x-show="installmentModalType === 'Fixed'" class="flex items-center justify-between gap-4">
+                    <label class="font-bold text-slate-700">Amount :</label>
+                    <input type="number" step="0.01" min="0" x-model="installmentModalAmount" placeholder="0.00" class="w-36 px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-mono font-bold text-slate-900 outline-none focus:ring-1 focus:ring-teal-500">
+                </div>
+            </div>
+
+            <!-- Footer Buttons: No (grey) and Save (teal #388e7e) -->
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <button type="button" @click="closeFarmerIndexInstallmentModal()" class="px-4 py-1.5 bg-slate-300 hover:bg-slate-400 text-slate-800 font-bold text-xs rounded-lg transition cursor-pointer">
+                    No
+                </button>
+                <button type="button" @click="saveFarmerIndexInstallmentModal()" class="px-5 py-1.5 text-white font-bold text-xs rounded-lg shadow-xs transition cursor-pointer" style="background-color: #388e7e;">
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -971,6 +1044,9 @@ function farmerManager() {
         showModal: false,
         showBulkModal: false,
         showViewModal: false,
+        showInstallmentModal: false,
+        installmentModalType: 'Auto',
+        installmentModalAmount: '0.00',
         isEditMode: false,
         formAction: '{{ route("farmers.store") }}',
 
@@ -1000,6 +1076,7 @@ function farmerManager() {
             anamat: '0.00',
             building_fund: '0.00',
             installment: '0.00',
+            installment_deduction_type: 'Auto',
             etc_amount: '0.00',
             grant_amount: '0.00',
             extra_rates: {},
@@ -1059,6 +1136,7 @@ function farmerManager() {
                 anamat: item.anamat || '0.00',
                 building_fund: item.building_fund || '0.00',
                 installment: item.installment || '0.00',
+                installment_deduction_type: item.installment_deduction_type || 'Auto',
                 etc_amount: item.etc_amount || '0.00',
                 grant_amount: item.grant_amount || '0.00',
                 extra_rates: extra,
@@ -1089,6 +1167,39 @@ function farmerManager() {
             this.showModal = false;
         },
 
+        openFarmerIndexInstallmentModal() {
+            this.installmentModalType = this.form.installment_deduction_type || 'Auto';
+            this.installmentModalAmount = parseFloat(this.form.installment) > 0 ? parseFloat(this.form.installment).toFixed(2) : '0.00';
+            this.showInstallmentModal = true;
+        },
+
+        closeFarmerIndexInstallmentModal() {
+            this.showInstallmentModal = false;
+        },
+
+        saveFarmerIndexInstallmentModal() {
+            this.form.installment_deduction_type = this.installmentModalType;
+            this.form.installment = (this.installmentModalType === 'Fixed') ? (parseFloat(this.installmentModalAmount) || 0).toFixed(2) : '0.00';
+
+            // If editing an existing farmer, also sync immediately with DB via AJAX
+            if (this.isEditMode && this.form.id) {
+                fetch(`/farmers/${this.form.id}/installment`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        deduction_type: this.form.installment_deduction_type,
+                        installment: this.form.installment
+                    })
+                }).catch(err => console.log('Notice: auto-sync installment:', err));
+            }
+
+            this.showInstallmentModal = false;
+        },
+
         resetForm() {
             this.form = {
                 id: null,
@@ -1116,6 +1227,7 @@ function farmerManager() {
                 anamat: '0.00',
                 building_fund: '0.00',
                 installment: '0.00',
+                installment_deduction_type: 'Auto',
                 etc_amount: '0.00',
                 grant_amount: '0.00',
                 extra_rates: {},

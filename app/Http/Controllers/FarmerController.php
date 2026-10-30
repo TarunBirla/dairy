@@ -194,6 +194,7 @@ class FarmerController extends Controller
             'anamat' => 'nullable|numeric|min:0',
             'building_fund' => 'nullable|numeric|min:0',
             'installment' => 'nullable|numeric|min:0',
+            'installment_deduction_type' => 'nullable|string|in:Auto,DeductionOff,Fixed',
             'etc_amount' => 'nullable|numeric|min:0',
             'grant_amount' => 'nullable|numeric|min:0',
             'extra_rates' => 'nullable|array',
@@ -223,6 +224,12 @@ class FarmerController extends Controller
                     $extraRates[$cleanK] = ($v !== '' && $v !== null) ? (float)$v : 0.0;
                 }
             }
+        }
+        if ($request->filled('installment_deduction_type')) {
+            $extraRates['installment_deduction_type'] = $request->input('installment_deduction_type');
+        }
+        if ($request->has('installment')) {
+            $extraRates['Installment'] = (float) $request->input('installment', 0);
         }
         $validated['extra_rates'] = $extraRates;
 
@@ -730,6 +737,7 @@ class FarmerController extends Controller
             'anamat' => 'nullable|numeric|min:0',
             'building_fund' => 'nullable|numeric|min:0',
             'installment' => 'nullable|numeric|min:0',
+            'installment_deduction_type' => 'nullable|string|in:Auto,DeductionOff,Fixed',
             'etc_amount' => 'nullable|numeric|min:0',
             'grant_amount' => 'nullable|numeric|min:0',
             'extra_rates' => 'nullable|array',

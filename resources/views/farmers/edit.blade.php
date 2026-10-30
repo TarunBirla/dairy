@@ -418,7 +418,9 @@
                     <!-- Image 4 Style: Installment : [ 1000.00 ₹  ✏️ ] -->
                     <div class="flex items-center gap-2">
                         <span class="text-xs font-bold text-slate-700">Installment :</span>
-                        <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 shadow-2xs">
+                        <div onclick="openExtraInfoModal()" 
+                             class="inline-flex items-center gap-2.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 hover:border-teal-500 rounded-lg text-xs font-mono font-bold text-slate-900 shadow-2xs cursor-pointer transition"
+                             title="Click to edit Installment">
                             <span id="installmentDisplay">
                                 @if($farmer->getInstallmentDeductionType() === 'Fixed')
                                     {{ number_format($farmer->getInstallmentAmount(), 2) }} ₹
@@ -426,11 +428,11 @@
                                     {{ $farmer->getInstallmentDeductionType() }}
                                 @endif
                             </span>
-                            <button type="button" onclick="openExtraInfoModal()" class="text-slate-500 hover:text-emerald-700 transition" title="Edit Installment Deduction">
+                            <span class="text-sky-500 hover:text-sky-700 transition" title="Edit Installment">
                                 <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                 </svg>
-                            </button>
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -553,23 +555,22 @@
     </div>
 </div>
 
-@push('scripts')
 <script>
-    function openExtraInfoModal() {
+    window.openExtraInfoModal = function() {
         const type = document.getElementById('form_deduction_type').value || 'Fixed';
         const amount = document.getElementById('form_installment').value || '0.00';
 
         document.getElementById('modalDeductionType').value = type;
         document.getElementById('modalAmountInput').value = amount;
-        toggleModalAmountField();
+        window.toggleModalAmountField();
         document.getElementById('extraInfoModal').classList.remove('hidden');
-    }
+    };
 
-    function closeExtraInfoModal() {
+    window.closeExtraInfoModal = function() {
         document.getElementById('extraInfoModal').classList.add('hidden');
-    }
+    };
 
-    function toggleModalAmountField() {
+    window.toggleModalAmountField = function() {
         const type = document.getElementById('modalDeductionType').value;
         const row = document.getElementById('modalAmountRow');
         if (type === 'Fixed') {
@@ -577,9 +578,9 @@
         } else {
             row.style.display = 'none';
         }
-    }
+    };
 
-    function saveExtraInfoModal() {
+    window.saveExtraInfoModal = function() {
         const type = document.getElementById('modalDeductionType').value;
         const amount = parseFloat(document.getElementById('modalAmountInput').value) || 0;
 
@@ -591,8 +592,8 @@
             displayEl.textContent = (type === 'Fixed') ? amount.toFixed(2) + ' ₹' : type;
         }
 
-        closeExtraInfoModal();
-    }
+        window.closeExtraInfoModal();
+    };
 </script>
 @endpush
 @endsection

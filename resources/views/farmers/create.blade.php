@@ -397,6 +397,37 @@
                     <span class="text-[10px] text-slate-400 block">These center-wide rates apply automatically to all milk collections and cannot be overridden individually.</span>
                 </div>
             @endif
+
+            <!-- INSTALLMENT DEDUCTION PREFERENCE (Matching Reference Images 1-4) -->
+            <div class="pt-3 border-t border-slate-200/80">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                    <div>
+                        <span class="text-xs font-bold text-slate-800">Installment Deduction Preference / ऋण किश्त कटौती</span>
+                        <p class="text-[11px] text-slate-400">Configure loan / advance repayment deduction on period settlements</p>
+                    </div>
+
+                    <!-- Image 4 Style: Installment : [ 1000.00 ₹  ✏️ ] -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-slate-700">Installment :</span>
+                        <div onclick="openExtraInfoModal()" 
+                             class="inline-flex items-center gap-2.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 hover:border-teal-500 rounded-lg text-xs font-mono font-bold text-slate-900 shadow-2xs cursor-pointer transition"
+                             title="Click to edit Installment">
+                            <span id="installmentDisplay">
+                                {{ old('installment_deduction_type', 'Auto') === 'Fixed' ? number_format(old('installment', 0), 2) . ' ₹' : old('installment_deduction_type', 'Auto') }}
+                            </span>
+                            <span class="text-sky-500 hover:text-sky-700 transition" title="Edit Installment">
+                                <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hidden inputs for form submission -->
+                <input type="hidden" name="installment" id="form_installment" value="{{ old('installment', '0.00') }}">
+                <input type="hidden" name="installment_deduction_type" id="form_deduction_type" value="{{ old('installment_deduction_type', 'Auto') }}">
+            </div>
         </div>
 
         <!-- SECTION 5: ACCOUNT STATUS, BRANCH & ADDRESS / स्थिति एवं पता -->
@@ -462,4 +493,90 @@
         </div>
     </form>
 </div>
+
+<!-- Extra Information Modal (Matching Images 1, 2, 3) -->
+<div id="extraInfoModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 overflow-hidden" onclick="event.stopPropagation()">
+        <!-- Header: #98d8c8 mint/teal -->
+        <div class="px-5 py-3.5 flex items-center justify-between" style="background-color: #98d8c8;">
+            <h3 class="text-sm font-bold text-slate-800 tracking-wide">Extra Information</h3>
+            <button type="button" onclick="closeExtraInfoModal()" class="text-slate-600 hover:text-slate-900 font-bold text-lg leading-none cursor-pointer">
+                &times;
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="p-5 space-y-4 text-xs">
+            <div class="flex items-center justify-between gap-4">
+                <span class="font-bold text-slate-700">Name :</span>
+                <span class="font-bold text-slate-900">Installment</span>
+            </div>
+
+            <div class="flex items-center justify-between gap-4">
+                <label class="font-bold text-slate-700">Deduction Type :</label>
+                <select id="modalDeductionType" onchange="toggleModalAmountField()" class="w-36 px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-800 outline-none focus:ring-1 focus:ring-teal-500">
+                    <option value="Auto">Auto</option>
+                    <option value="DeductionOff">DeductionOff</option>
+                    <option value="Fixed">Fixed</option>
+                </select>
+            </div>
+
+            <div id="modalAmountRow" class="flex items-center justify-between gap-4">
+                <label class="font-bold text-slate-700">Amount :</label>
+                <input type="number" step="0.01" min="0" id="modalAmountInput" placeholder="0.00" class="w-36 px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white font-mono font-bold text-slate-900 outline-none focus:ring-1 focus:ring-teal-500">
+            </div>
+        </div>
+
+        <!-- Footer Buttons: No (grey) and Save (teal #388e7e) -->
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+            <button type="button" onclick="closeExtraInfoModal()" class="px-4 py-1.5 bg-slate-300 hover:bg-slate-400 text-slate-800 font-bold text-xs rounded-lg transition cursor-pointer">
+                No
+            </button>
+            <button type="button" onclick="saveExtraInfoModal()" class="px-5 py-1.5 text-white font-bold text-xs rounded-lg shadow-xs transition cursor-pointer" style="background-color: #388e7e;">
+                Save
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    window.openExtraInfoModal = function() {
+        const type = document.getElementById('form_deduction_type').value || 'Auto';
+        const amount = document.getElementById('form_installment').value || '0.00';
+
+        document.getElementById('modalDeductionType').value = type;
+        document.getElementById('modalAmountInput').value = amount;
+        window.toggleModalAmountField();
+        document.getElementById('extraInfoModal').classList.remove('hidden');
+    };
+
+    window.closeExtraInfoModal = function() {
+        document.getElementById('extraInfoModal').classList.add('hidden');
+    };
+
+    window.toggleModalAmountField = function() {
+        const type = document.getElementById('modalDeductionType').value;
+        const row = document.getElementById('modalAmountRow');
+        if (type === 'Fixed') {
+            row.style.display = 'flex';
+        } else {
+            row.style.display = 'none';
+        }
+    };
+
+    window.saveExtraInfoModal = function() {
+        const type = document.getElementById('modalDeductionType').value;
+        const amount = parseFloat(document.getElementById('modalAmountInput').value) || 0;
+
+        document.getElementById('form_deduction_type').value = type;
+        document.getElementById('form_installment').value = (type === 'Fixed') ? amount.toFixed(2) : '0.00';
+
+        const displayEl = document.getElementById('installmentDisplay');
+        if (displayEl) {
+            displayEl.textContent = (type === 'Fixed') ? amount.toFixed(2) + ' ₹' : type;
+        }
+
+        window.closeExtraInfoModal();
+    };
+</script>
 @endsection
