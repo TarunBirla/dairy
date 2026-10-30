@@ -20,7 +20,7 @@ class ProductLoadItem extends Model
         'quantity' => 'decimal:2',
     ];
 
-    public function load()
+    public function productLoad()
     {
         return $this->belongsTo(ProductLoad::class, 'product_load_id');
     }
