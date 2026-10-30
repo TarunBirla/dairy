@@ -20,6 +20,7 @@ class FarmerInvoice extends Model
         'feed_deduction',
         'advance_deduction',
         'other_deduction',
+        'deductions_breakdown',
         'total_deduction',
         'other_credit',
         'transport_credit',
@@ -57,6 +58,7 @@ class FarmerInvoice extends Model
         'previous_balance' => 'decimal:2',
         'net_payment' => 'decimal:2',
         'is_edited' => 'boolean',
+        'deductions_breakdown' => 'array',
     ];
 
     public function farmer()
@@ -154,6 +156,134 @@ class FarmerInvoice extends Model
         }
 
         return $items;
+    }
+
+    /**
+     * Get structured category-wise deductions breakdown for current invoice.
+     * Shows Original Balance, Deducted Amount in this Invoice, and Remaining Balance.
+     */
+    public function getCategoryDeductionsBreakdown(): array
+    {
+        // If invoice is already verified/generated and has saved deductions_breakdown, return it
+        if (!empty($this->deductions_breakdown) && is_array($this->deductions_breakdown)) {
+            return $this->deductions_breakdown;
+        }
+
+        $farmer = $this->farmer;
+        $farmerId = $this->farmer_id;
+        $startDate = $this->period_start ? $this->period_start->format('Y-m-d') : null;
+        $endDate = $this->period_end ? $this->period_end->format('Y-m-d') : null;
+
+        // 1. Advance / Loan Outstanding
+        $loanOutstanding = 0.00;
+        if (\Illuminate\Support\Facades\Schema::hasTable('farmer_advances')) {
+            $advs = FarmerAdvance::where('farmer_id', $farmerId)
+                ->where('status', '!=', 'recovered')
+                ->get();
+            $loanOutstanding = round((float) $advs->sum(function ($a) {
+                return (float) $a->principal_balance;
+            }), 2);
+        }
+
+        // Installment setting for advance
+        $instType = $farmer ? $farmer->getInstallmentDeductionType() : 'Auto';
+        $instAmount = $farmer ? (float) $farmer->getInstallmentAmount() : 0.0;
+        $advDeductible = 0.00;
+        if ($instType === 'DeductionOff') {
+            $advDeductible = 0.00;
+        } elseif ($instType === 'Fixed' && $instAmount > 0) {
+            $advDeductible = min($instAmount, $loanOutstanding);
+        } else {
+            $advDeductible = (float) $this->advance_deduction ?: $loanOutstanding;
+        }
+        $advRemaining = max(0, $loanOutstanding - $advDeductible);
+
+        // 2. Feed / Food Outstanding
+        $feedOutstanding = (float) $this->feed_deduction;
+        if (\Illuminate\Support\Facades\Schema::hasTable('product_sales') && $feedOutstanding <= 0) {
+            $farmerCode = $farmer ? $farmer->farmer_code : null;
+            $feedOutstanding = round((float) \App\Models\ProductSale::where(function ($q) use ($farmerId, $farmerCode) {
+                    $q->where('farmer_id', $farmerId);
+                    if (!empty($farmerCode)) $q->orWhere('farmer_code', $farmerCode);
+                })
+                ->where('remaining_amount', '>', 0)
+                ->sum('remaining_amount'), 2);
+        }
+        $feedDeductible = (float) $this->feed_deduction ?: $feedOutstanding;
+        $feedRemaining = max(0, $feedOutstanding - $feedDeductible);
+
+        // 3. Stationary Outstanding
+        $statOutstanding = (float) $this->stationary_deduction;
+        $statDeductible = $statOutstanding;
+        $statRemaining = max(0, $statOutstanding - $statDeductible);
+
+        // 4. Center-wide deductions (e.g. Building fund, Grant, Anamat, etc.)
+        $extraCategories = [];
+        try {
+            $dedTypes = \App\Services\CenterAdditionDeductionService::getDeductionTypes();
+            foreach ($dedTypes as $dt) {
+                $cName = $dt['name'];
+                $low = strtolower($cName);
+                if (str_contains($low, 'advance') || str_contains($low, 'loan') || str_contains($low, 'feed') || str_contains($low, 'food') || str_contains($low, 'stationary') || str_contains($low, 'round off')) {
+                    continue;
+                }
+
+                $rate = $dt['is_farmer_wise'] ? ($farmer ? $farmer->getFarmerWiseRate($cName) : 0.0) : (float) $dt['amount'];
+                if ($rate > 0) {
+                    $liters = (float) $this->total_quantity;
+                    $lineAmt = \App\Services\CenterAdditionDeductionService::computeAmount($rate, $dt['unit'], $cName, $liters, (float) $this->milk_amount);
+                    if ($lineAmt > 0) {
+                        $extraCategories[] = [
+                            'key' => \Illuminate\Support\Str::slug($cName, '_'),
+                            'name' => $cName,
+                            'category' => $cName,
+                            'original_balance' => $lineAmt,
+                            'deducted_amount' => $lineAmt,
+                            'remaining_balance' => 0.00,
+                        ];
+                    }
+                }
+            }
+        } catch (\Throwable $ex) {}
+
+        $breakdown = [];
+
+        // Advance / Loan row
+        $breakdown[] = [
+            'key' => 'advance',
+            'name' => 'Advance / Loan (ऋण / अग्रिम)',
+            'category' => 'Advance',
+            'original_balance' => $loanOutstanding,
+            'deducted_amount' => $advDeductible,
+            'remaining_balance' => $advRemaining,
+        ];
+
+        // Food / Feed row
+        $breakdown[] = [
+            'key' => 'feed',
+            'name' => 'Food / Cattle Feed (पशु आहार)',
+            'category' => 'Feed',
+            'original_balance' => $feedOutstanding,
+            'deducted_amount' => $feedDeductible,
+            'remaining_balance' => $feedRemaining,
+        ];
+
+        // Stationary row
+        $breakdown[] = [
+            'key' => 'stationary',
+            'name' => 'Stationary (स्टेशनरी)',
+            'category' => 'Stationary',
+            'original_balance' => $statOutstanding,
+            'deducted_amount' => $statDeductible,
+            'remaining_balance' => $statRemaining,
+        ];
+
+        // Add any other dynamic categories
+        foreach ($extraCategories as $ec) {
+            $breakdown[] = $ec;
+        }
+
+        return $breakdown;
     }
 
     /**

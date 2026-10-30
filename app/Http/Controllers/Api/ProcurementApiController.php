@@ -2736,7 +2736,52 @@ class ProcurementApiController extends Controller
             'status' => 'nullable|in:pending,generated',
             'payment_mode' => 'nullable|string|max:100',
             'payment_reference' => 'nullable|string|max:255',
+            'category_deductions' => 'nullable|array',
         ]);
+
+        $breakdown = $item->getCategoryDeductionsBreakdown();
+        if ($request->has('category_deductions') && is_array($request->input('category_deductions'))) {
+            $catInputs = $request->input('category_deductions');
+            $customTotalDed = 0.0;
+            $newBreakdown = [];
+
+            foreach ($breakdown as $bItem) {
+                $cKey = $bItem['key'] ?? $bItem['name'];
+                $dedAmt = isset($catInputs[$cKey]) ? round((float)$catInputs[$cKey], 2) : (float)$bItem['deducted_amount'];
+                $origBal = (float)$bItem['original_balance'];
+                if ($origBal > 0) {
+                    $dedAmt = min($dedAmt, $origBal);
+                }
+                $dedAmt = max(0, $dedAmt);
+                $remBal = max(0, $origBal - $dedAmt);
+
+                $newBreakdown[] = [
+                    'key' => $cKey,
+                    'name' => $bItem['name'],
+                    'category' => $bItem['category'],
+                    'original_balance' => $origBal,
+                    'deducted_amount' => $dedAmt,
+                    'remaining_balance' => $remBal,
+                ];
+                $customTotalDed += $dedAmt;
+
+                if ($cKey === 'advance' || str_contains(strtolower($cKey), 'advance') || str_contains(strtolower($cKey), 'loan')) {
+                    $validated['advance_deduction'] = $dedAmt;
+                } elseif ($cKey === 'feed' || str_contains(strtolower($cKey), 'feed') || str_contains(strtolower($cKey), 'food')) {
+                    $validated['feed_deduction'] = $dedAmt;
+                } elseif ($cKey === 'stationary' || str_contains(strtolower($cKey), 'stationary')) {
+                    $validated['stationary_deduction'] = $dedAmt;
+                }
+            }
+            $breakdown = $newBreakdown;
+            $totalDeduction = round($customTotalDed, 2);
+        } else {
+            $stationary = (float) ($validated['stationary_deduction'] ?? $item->stationary_deduction);
+            $feed = (float) ($validated['feed_deduction'] ?? $item->feed_deduction);
+            $advance = (float) ($validated['advance_deduction'] ?? $item->advance_deduction);
+            $otherDed = (float) ($validated['other_deduction'] ?? $item->other_deduction);
+            $totalDeduction = round($stationary + $feed + $advance + $otherDed, 2);
+        }
 
         $stationary = (float) ($validated['stationary_deduction'] ?? $item->stationary_deduction);
         $feed = (float) ($validated['feed_deduction'] ?? $item->feed_deduction);
@@ -2761,6 +2806,7 @@ class ProcurementApiController extends Controller
             'feed_deduction' => $feed,
             'advance_deduction' => $advance,
             'other_deduction' => $otherDed,
+            'deductions_breakdown' => $breakdown,
             'total_deduction' => $totalDeduction,
             'other_credit' => $otherCred,
             'transport_credit' => $transport,

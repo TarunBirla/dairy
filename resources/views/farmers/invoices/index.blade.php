@@ -656,55 +656,32 @@
                     </table>
                 </div>
 
-                <!-- 2. Deductions Editable Table -->
+                <!-- 2. Deductions Editable Table (Category-Wise with Partial Deductions & Remaining Balances) -->
                 <div class="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
-                    <div class="px-4 py-2.5 border-b border-slate-200 bg-slate-50/70">
-                        <span class="text-xs font-extrabold text-slate-800">Deductions</span>
+                    <div class="px-4 py-2.5 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between">
+                        <span class="text-xs font-extrabold text-slate-800">Deductions (Category-Wise)</span>
+                        <span class="text-[10px] text-slate-400 font-medium">Original Bal. &rarr; Deduct Amount &rarr; Remaining Bal.</span>
                     </div>
                     <table class="w-full text-left border-collapse text-xs">
                         <thead class="bg-slate-50/60 text-slate-500 font-bold border-b border-slate-200 text-[11px]">
                             <tr>
                                 <th class="py-2 px-3 border-r border-slate-100">Deduction Type</th>
-                                <th class="py-2 px-3 border-r border-slate-100 text-right w-28">Deduction</th>
-                                <th class="py-2 px-3 border-r border-slate-100 text-right">Balance</th>
-                                <th class="py-2 px-3 text-right">Deposit</th>
+                                <th class="py-2 px-2.5 border-r border-slate-100 text-right w-24">Original Bal.</th>
+                                <th class="py-2 px-2 border-r border-slate-100 text-right w-28">Deduct Amount</th>
+                                <th class="py-2 px-2.5 border-r border-slate-100 text-right w-24">Remaining Bal.</th>
+                                <th class="py-2 px-2.5 text-right w-20">Deposit</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100 text-slate-700 font-semibold">
-                            <tr>
-                                <td class="py-2 px-3 border-r border-slate-100">Food (Feed)</td>
-                                <td class="py-1.5 px-2 border-r border-slate-100 text-right">
-                                    <input type="number" step="0.01" min="0" id="revInputFeedDeduction" oninput="recalcReviewSummary()"
-                                           class="w-full text-right px-2 py-1 text-xs font-mono font-bold text-sky-700 bg-sky-50/40 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                                </td>
-                                <td class="py-2 px-3 border-r border-slate-100 text-right font-mono text-slate-500" id="revFoodBalanceCell">-</td>
-                                <td class="py-2 px-3 text-right font-mono text-slate-500">-</td>
-                            </tr>
-                            <tr>
-                                <td class="py-2 px-3 border-r border-slate-100">Advance</td>
-                                <td class="py-1.5 px-2 border-r border-slate-100 text-right">
-                                    <input type="number" step="0.01" min="0" id="revInputAdvanceDeduction" oninput="recalcReviewSummary()"
-                                           class="w-full text-right px-2 py-1 text-xs font-mono font-bold text-sky-700 bg-sky-50/40 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                                </td>
-                                <td class="py-2 px-3 border-r border-slate-100 text-right font-mono text-slate-500">-</td>
-                                <td class="py-2 px-3 text-right font-mono text-slate-500" id="revAdvanceDepositCell">-</td>
-                            </tr>
-                            <tr>
-                                <td class="py-2 px-3 border-r border-slate-100">Stationary / Other</td>
-                                <td class="py-1.5 px-2 border-r border-slate-100 text-right">
-                                    <input type="number" step="0.01" min="0" id="revInputStationaryDeduction" oninput="recalcReviewSummary()"
-                                           class="w-full text-right px-2 py-1 text-xs font-mono font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                                </td>
-                                <td class="py-2 px-3 border-r border-slate-100 text-right font-mono text-slate-500">-</td>
-                                <td class="py-2 px-3 text-right font-mono text-slate-500">-</td>
-                            </tr>
+                        <tbody id="revDeductionsTbody" class="divide-y divide-slate-100 text-slate-700 font-semibold">
+                            <!-- Populated dynamically by renderReviewDeductionsTable() -->
                         </tbody>
                         <tfoot class="bg-slate-50 font-extrabold text-slate-900 border-t border-slate-200 text-xs">
                             <tr>
                                 <td class="py-2 px-3 border-r border-slate-100">Total</td>
-                                <td class="py-2 px-3 border-r border-slate-100 text-right font-mono" id="revTotalDeductionsCell">0.00</td>
-                                <td class="py-2 px-3 border-r border-slate-100 text-right font-mono" id="revTotalBalanceCell">0.00</td>
-                                <td class="py-2 px-3 text-right font-mono" id="revTotalDepositCell">0.00</td>
+                                <td class="py-2 px-2.5 border-r border-slate-100 text-right font-mono" id="revTotalOrigBalanceCell">0.00</td>
+                                <td class="py-2 px-2 border-r border-slate-100 text-right font-mono text-rose-700" id="revTotalDeductionsCell">0.00</td>
+                                <td class="py-2 px-2.5 border-r border-slate-100 text-right font-mono text-amber-700" id="revTotalRemainingBalanceCell">0.00</td>
+                                <td class="py-2 px-2.5 text-right font-mono text-slate-500" id="revTotalDepositCell">0.00</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -953,24 +930,88 @@
                 // Render Cattle Feeds Table
                 renderReviewCattleFeedsTable();
 
+                // Render Dynamic Category-Wise Deductions Table (Requirement 1, 2, 3, 4)
+                renderReviewDeductionsTable();
+
                 // Populate Additions inputs
                 document.getElementById('revInputOtherCredit').value = parseFloat(data.additions.other_credit || 0).toFixed(2);
                 document.getElementById('revInputTransportCredit').value = parseFloat(data.additions.transport_credit || 0).toFixed(2);
                 document.getElementById('revInputSubsidyCredit').value = parseFloat(data.additions.subsidy_credit || 0).toFixed(2);
                 document.getElementById('revInputIncentiveCredit').value = parseFloat(data.additions.incentive_credit || 0).toFixed(2);
 
-                // Populate Deductions inputs
-                document.getElementById('revInputFeedDeduction').value = parseFloat(data.deduction_inputs.feed_deduction || 0).toFixed(2);
-                document.getElementById('revInputAdvanceDeduction').value = parseFloat(data.deduction_inputs.advance_deduction || 0).toFixed(2);
-                document.getElementById('revInputStationaryDeduction').value = parseFloat(data.deduction_inputs.stationary_deduction || 0).toFixed(2);
-
-                document.getElementById('revFoodBalanceCell').textContent = data.feed_remaining_balance > 0 ? parseFloat(data.feed_remaining_balance).toFixed(2) : '-';
-                document.getElementById('revAdvanceDepositCell').textContent = data.farmer.anamat > 0 ? parseFloat(data.farmer.anamat).toFixed(2) : '-';
+                document.getElementById('revTotalDepositCell').textContent = data.farmer.anamat > 0 ? parseFloat(data.farmer.anamat).toFixed(2) : '0.00';
 
                 recalcReviewSummary();
 
                 if (window.lucide) window.lucide.createIcons();
             });
+    }
+
+    function renderReviewDeductionsTable() {
+        if (!currentReviewData) return;
+        const tbody = document.getElementById('revDeductionsTbody');
+        if (!tbody) return;
+
+        const cats = currentReviewData.categories_breakdown || [];
+        if (cats.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-slate-400 text-xs">No pending loan or deduction records found for this farmer.</td></tr>`;
+            return;
+        }
+
+        let html = '';
+        cats.forEach((cat, idx) => {
+            const key = cat.key || ('cat_' + idx);
+            const origBal = parseFloat(cat.original_balance || 0);
+            const dedAmt = parseFloat(cat.deducted_amount || 0);
+            const remBal = Math.max(0, origBal - dedAmt);
+
+            html += `
+                <tr class="hover:bg-slate-50/70 transition-colors" data-key="${key}">
+                    <td class="py-2 px-3 border-r border-slate-100 font-semibold text-slate-800">
+                        ${cat.name}
+                    </td>
+                    <td class="py-2 px-2.5 border-r border-slate-100 text-right font-mono font-bold text-slate-600" id="orig_bal_${key}">
+                        ${origBal.toFixed(2)}
+                    </td>
+                    <td class="py-1 px-2 border-r border-slate-100 text-right">
+                        <input type="number" step="0.01" min="0" max="${origBal > 0 ? origBal : ''}"
+                               id="input_ded_${key}" 
+                               value="${dedAmt.toFixed(2)}"
+                               data-orig="${origBal}"
+                               data-key="${key}"
+                               oninput="onDeductAmountChanged('${key}')"
+                               placeholder="0.00"
+                               title="Enter amount to deduct in current invoice (original balance is preserved)"
+                               class="w-full text-right px-2 py-1 text-xs font-mono font-bold text-rose-700 bg-rose-50/50 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-rose-500">
+                    </td>
+                    <td class="py-2 px-2.5 border-r border-slate-100 text-right font-mono font-bold text-amber-700" id="rem_bal_${key}">
+                        ${remBal.toFixed(2)}
+                    </td>
+                    <td class="py-2 px-2.5 text-right font-mono text-slate-400 text-[11px]">
+                        ${key === 'advance' && currentReviewData.farmer.anamat > 0 ? parseFloat(currentReviewData.farmer.anamat).toFixed(2) : '-'}
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+    }
+
+    function onDeductAmountChanged(key) {
+        const input = document.getElementById('input_ded_' + key);
+        if (!input) return;
+
+        const origBal = parseFloat(input.dataset.orig || 0);
+        let val = parseFloat(input.value || 0);
+        if (isNaN(val) || val < 0) val = 0;
+
+        const remBal = Math.max(0, origBal - val);
+        const remCell = document.getElementById('rem_bal_' + key);
+        if (remCell) {
+            remCell.textContent = remBal.toFixed(2);
+        }
+
+        recalcReviewSummary();
     }
 
     function setReviewShiftFilter(shift) {
@@ -1096,10 +1137,28 @@
         const incentiveCr = parseFloat(document.getElementById('revInputIncentiveCredit').value || 0);
         const totalAdditions = otherCr + transportCr + subsidyCr + incentiveCr;
 
-        const feedDed = parseFloat(document.getElementById('revInputFeedDeduction').value || 0);
-        const advDed = parseFloat(document.getElementById('revInputAdvanceDeduction').value || 0);
-        const statDed = parseFloat(document.getElementById('revInputStationaryDeduction').value || 0);
-        const totalDeductions = feedDed + advDed + statDed;
+        // Calculate dynamic category deductions
+        let totalDeductions = 0.0;
+        let totalOrigBal = 0.0;
+        let totalRemainingBal = 0.0;
+
+        const dedInputs = document.querySelectorAll('#revDeductionsTbody input[id^="input_ded_"]');
+        if (dedInputs.length > 0) {
+            dedInputs.forEach(inp => {
+                const orig = parseFloat(inp.dataset.orig || 0);
+                const ded = Math.max(0, parseFloat(inp.value || 0));
+                const rem = Math.max(0, orig - ded);
+
+                totalOrigBal += orig;
+                totalDeductions += ded;
+                totalRemainingBal += rem;
+            });
+        } else {
+            const feedDed = parseFloat(document.getElementById('revInputFeedDeduction') ? document.getElementById('revInputFeedDeduction').value : 0);
+            const advDed = parseFloat(document.getElementById('revInputAdvanceDeduction') ? document.getElementById('revInputAdvanceDeduction').value : 0);
+            const statDed = parseFloat(document.getElementById('revInputStationaryDeduction') ? document.getElementById('revInputStationaryDeduction').value : 0);
+            totalDeductions = feedDed + advDed + statDed;
+        }
 
         const totalAmount = milkAmount + totalAdditions;
         const rawPayable = Math.max(0, totalAmount - totalDeductions);
@@ -1108,8 +1167,9 @@
         const remainingBalance = Math.max(0, totalDeductions - totalAmount);
 
         document.getElementById('revTotalAdditionsCell').textContent = totalAdditions.toFixed(2);
+        document.getElementById('revTotalOrigBalanceCell').textContent = totalOrigBal.toFixed(2);
         document.getElementById('revTotalDeductionsCell').textContent = totalDeductions.toFixed(2);
-        document.getElementById('revTotalBalanceCell').textContent = remainingBalance.toFixed(2);
+        document.getElementById('revTotalRemainingBalanceCell').textContent = totalRemainingBal.toFixed(2);
         document.getElementById('revTotalDepositCell').textContent = parseFloat(currentReviewData.farmer.anamat || 0).toFixed(2);
 
         document.getElementById('revSummaryMilkAmount').textContent = milkAmount.toFixed(2);
@@ -1128,14 +1188,24 @@
         btn.disabled = true;
         btnText.textContent = 'Saving...';
 
+        const categoryDeductions = {};
+        const dedInputs = document.querySelectorAll('#revDeductionsTbody input[id^="input_ded_"]');
+        dedInputs.forEach(inp => {
+            const key = inp.dataset.key;
+            if (key) {
+                categoryDeductions[key] = parseFloat(inp.value || 0);
+            }
+        });
+
         const payload = {
             other_credit: parseFloat(document.getElementById('revInputOtherCredit').value || 0),
             transport_credit: parseFloat(document.getElementById('revInputTransportCredit').value || 0),
             subsidy_credit: parseFloat(document.getElementById('revInputSubsidyCredit').value || 0),
             incentive_credit: parseFloat(document.getElementById('revInputIncentiveCredit').value || 0),
-            feed_deduction: parseFloat(document.getElementById('revInputFeedDeduction').value || 0),
-            advance_deduction: parseFloat(document.getElementById('revInputAdvanceDeduction').value || 0),
-            stationary_deduction: parseFloat(document.getElementById('revInputStationaryDeduction').value || 0),
+            feed_deduction: categoryDeductions['feed'] !== undefined ? categoryDeductions['feed'] : 0,
+            advance_deduction: categoryDeductions['advance'] !== undefined ? categoryDeductions['advance'] : 0,
+            stationary_deduction: categoryDeductions['stationary'] !== undefined ? categoryDeductions['stationary'] : 0,
+            category_deductions: categoryDeductions,
         };
 
         fetch(`/farmer-invoices/verify-save/${currentReviewData.id}`, {
@@ -1271,23 +1341,38 @@
                 }
 
                 let deductionsRows = '';
-                if (data.deductions && data.deductions.length > 0) {
+                if (data.categories_breakdown && data.categories_breakdown.length > 0) {
+                    data.categories_breakdown.forEach(cat => {
+                        const orig = parseFloat(cat.original_balance || 0);
+                        const ded = parseFloat(cat.deducted_amount || 0);
+                        const rem = parseFloat(cat.remaining_balance || 0);
+                        if (orig > 0 || ded > 0) {
+                            deductionsRows += `
+                                <tr class="border-b border-slate-100 text-slate-700">
+                                    <td class="py-1.5 px-2 font-semibold">${cat.name}</td>
+                                    <td class="py-1.5 px-2 text-right font-mono text-slate-500">₹${orig.toFixed(2)}</td>
+                                    <td class="py-1.5 px-2 text-right font-mono font-bold text-rose-700">- ₹${ded.toFixed(2)}</td>
+                                    <td class="py-1.5 px-2 text-right font-mono font-bold text-amber-700">₹${rem.toFixed(2)}</td>
+                                </tr>
+                            `;
+                        }
+                    });
+                } else if (data.deductions && data.deductions.length > 0) {
                     data.deductions.forEach(d => {
                         const dDate = (d.entry_date || '-').toString().substring(0, 10);
                         const dRemark = d.comments || d.remarks || '-';
                         deductionsRows += `
                             <tr class="border-b border-slate-100 text-slate-700">
-                                <td class="py-1.5 px-2 font-mono">${dDate}</td>
                                 <td class="py-1.5 px-2 font-medium capitalize">${(d.deduction_type || 'Deduction').replace(/_/g, ' ')}</td>
-                                <td class="py-1.5 px-2 text-slate-500">${dRemark}</td>
-                                <td class="py-1.5 px-2 text-right font-mono font-bold ${d.transaction_type === 'received' ? 'text-amber-700' : 'text-rose-700'}">
-                                    ${d.transaction_type === 'received' ? '+ ₹' : '- ₹'}${parseFloat(d.amount || 0).toFixed(2)}
-                                </td>
+                                <td class="py-1.5 px-2 text-right font-mono text-slate-500">₹${parseFloat(d.amount || 0).toFixed(2)}</td>
+                                <td class="py-1.5 px-2 text-right font-mono font-bold text-rose-700">- ₹${parseFloat(d.amount || 0).toFixed(2)}</td>
+                                <td class="py-1.5 px-2 text-right font-mono font-bold text-amber-700">₹0.00</td>
                             </tr>
                         `;
                     });
-                } else {
-                    deductionsRows = `<tr><td colspan="4" class="py-3 text-center text-slate-400 text-xs">No deductions or credits recorded</td></tr>`;
+                }
+                if (!deductionsRows) {
+                    deductionsRows = `<tr><td colspan="4" class="py-3 text-center text-slate-400 text-xs">No deductions recorded</td></tr>`;
                 }
 
                 content.innerHTML = `
@@ -1358,10 +1443,10 @@
                                 <table class="w-full text-xs text-left">
                                     <thead class="bg-slate-100/80 text-slate-600 font-bold border-b border-slate-200 text-[11px]">
                                         <tr>
-                                            <th class="py-2 px-2">Date</th>
-                                            <th class="py-2 px-2">Type</th>
-                                            <th class="py-2 px-2">Remarks / Details</th>
-                                            <th class="py-2 px-2 text-right">Amount</th>
+                                            <th class="py-2 px-2">Deduction Category</th>
+                                            <th class="py-2 px-2 text-right">Original Balance</th>
+                                            <th class="py-2 px-2 text-right">Deducted In Bill</th>
+                                            <th class="py-2 px-2 text-right">Remaining Balance</th>
                                         </tr>
                                     </thead>
                                     <tbody>${deductionsRows}</tbody>

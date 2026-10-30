@@ -66,6 +66,7 @@ class FarmerInvoiceController extends Controller
                     'incentive_credit' => "ALTER TABLE `farmer_invoices` ADD COLUMN `incentive_credit` DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER `subsidy_credit`",
                     'round_off' => "ALTER TABLE `farmer_invoices` ADD COLUMN `round_off` DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER `total_amount`",
                     'is_edited' => "ALTER TABLE `farmer_invoices` ADD COLUMN `is_edited` TINYINT(1) NOT NULL DEFAULT 0 AFTER `status`",
+                    'deductions_breakdown' => "ALTER TABLE `farmer_invoices` ADD COLUMN `deductions_breakdown` LONGTEXT NULL AFTER `other_deduction`",
                 ];
                 foreach ($newCols as $col => $sql) {
                     if (!Schema::hasColumn('farmer_invoices', $col)) {
@@ -176,19 +177,65 @@ class FarmerInvoiceController extends Controller
         }
 
         $advanceFromLoans = 0.00;
+        $totalLoanPrincipal = 0.00;
         if (Schema::hasTable('farmer_advances')) {
             $advances = FarmerAdvance::where('farmer_id', $farmerId)
-                ->whereBetween('advance_date', [$startDate, $endDate])
                 ->where('status', '!=', 'recovered')
                 ->get();
 
-            $advanceFromLoans = round((float) $advances->sum(function ($adv) {
+            $totalLoanPrincipal = round((float) $advances->sum(function ($adv) {
                 return (float) $adv->principal_balance;
             }), 2);
+
+            // Installment preference
+            $instType = $farmer ? $farmer->getInstallmentDeductionType() : 'Auto';
+            $instAmount = $farmer ? (float) $farmer->getInstallmentAmount() : 0.0;
+
+            if ($instType === 'DeductionOff') {
+                $advanceFromLoans = 0.00;
+            } elseif ($instType === 'Fixed' && $instAmount > 0) {
+                $advanceFromLoans = min($instAmount, $totalLoanPrincipal);
+            } else {
+                // Auto: full outstanding or up to milk amount
+                $advanceFromLoans = $totalLoanPrincipal;
+            }
         }
 
         $advanceDeduction = round($advanceFromLoans + $advanceFromDeductions, 2);
         $otherDeduction = 0.00;
+
+        // Compile category-wise deductions breakdown
+        $deductionsBreakdown = [];
+        if ($stationaryDeduction > 0) {
+            $deductionsBreakdown[] = [
+                'name' => 'Stationary',
+                'category' => 'Stationary',
+                'original_balance' => $stationaryDeduction,
+                'deducted_amount' => $stationaryDeduction,
+                'remaining_balance' => 0.00,
+            ];
+        }
+        if ($feedDeduction > 0) {
+            $deductionsBreakdown[] = [
+                'name' => 'Food / Feed',
+                'category' => 'Feed',
+                'original_balance' => $feedDeduction,
+                'deducted_amount' => $feedDeduction,
+                'remaining_balance' => 0.00,
+            ];
+        }
+        if ($advanceDeduction > 0 || $totalLoanPrincipal > 0) {
+            $origAdv = max($totalLoanPrincipal, $advanceDeduction);
+            $dedAdv = min($advanceDeduction, $origAdv);
+            $remAdv = max(0, $origAdv - $dedAdv);
+            $deductionsBreakdown[] = [
+                'name' => 'Advance / Loan',
+                'category' => 'Advance',
+                'original_balance' => $origAdv,
+                'deducted_amount' => $dedAdv,
+                'remaining_balance' => $remAdv,
+            ];
+        }
 
         $totalCredit = round($otherCredit + $transportCredit + $subsidyCredit + $incentiveCredit, 2);
 
@@ -213,6 +260,7 @@ class FarmerInvoiceController extends Controller
             'feed_deduction' => $feedDeduction,
             'advance_deduction' => $advanceDeduction,
             'other_deduction' => $otherDeduction,
+            'deductions_breakdown' => $deductionsBreakdown,
             'total_deduction' => $totalDeduction,
             'other_credit' => $otherCredit,
             'transport_credit' => $transportCredit,
@@ -489,6 +537,9 @@ class FarmerInvoiceController extends Controller
         $feedPaymentReceived = round((float) $cattleFeeds->sum('paid_amount'), 2);
         $feedRemainingBalance = round((float) $cattleFeeds->sum('remaining_amount'), 2);
 
+        // Fetch dynamic category breakdown
+        $categoriesBreakdown = $invoice->getCategoryDeductionsBreakdown();
+
         $formattedCollections = $collections->map(function ($c) {
             $dt = $c->collection_date instanceof Carbon ? $c->collection_date : Carbon::parse($c->collection_date);
             return [
@@ -534,6 +585,7 @@ class FarmerInvoiceController extends Controller
             'feed_payment_received' => $feedPaymentReceived,
             'feed_remaining_balance' => $feedRemainingBalance,
             'deductions' => $deductions->values(),
+            'categories_breakdown' => $categoriesBreakdown,
             'additions' => [
                 'other_credit' => (float) ($invoice->other_credit ?? 0),
                 'transport_credit' => (float) ($invoice->transport_credit ?? 0),
@@ -578,6 +630,7 @@ class FarmerInvoiceController extends Controller
             'feed_deduction' => 'nullable|numeric|min:0',
             'advance_deduction' => 'nullable|numeric|min:0',
             'round_off' => 'nullable|numeric',
+            'category_deductions' => 'nullable|array',
         ]);
 
         $otherCredit = round((float) ($validated['other_credit'] ?? 0), 2);
@@ -589,7 +642,49 @@ class FarmerInvoiceController extends Controller
         $stationaryDeduction = round((float) ($validated['stationary_deduction'] ?? 0), 2);
         $feedDeduction = round((float) ($validated['feed_deduction'] ?? 0), 2);
         $advanceDeduction = round((float) ($validated['advance_deduction'] ?? 0), 2);
-        $totalDeduction = round($stationaryDeduction + $feedDeduction + $advanceDeduction, 2);
+
+        // Process category-wise deductions if sent from UI
+        $breakdown = $invoice->getCategoryDeductionsBreakdown();
+        if ($request->has('category_deductions') && is_array($request->input('category_deductions'))) {
+            $catInputs = $request->input('category_deductions');
+            $customTotalDed = 0.0;
+            $newBreakdown = [];
+
+            foreach ($breakdown as $bItem) {
+                $cKey = $bItem['key'] ?? $bItem['name'];
+                $dedAmt = isset($catInputs[$cKey]) ? round((float)$catInputs[$cKey], 2) : (float)$bItem['deducted_amount'];
+                // Never deduct more than original outstanding balance
+                $origBal = (float)$bItem['original_balance'];
+                if ($origBal > 0) {
+                    $dedAmt = min($dedAmt, $origBal);
+                }
+                $dedAmt = max(0, $dedAmt);
+                $remBal = max(0, $origBal - $dedAmt);
+
+                $newBreakdown[] = [
+                    'key' => $cKey,
+                    'name' => $bItem['name'],
+                    'category' => $bItem['category'],
+                    'original_balance' => $origBal,
+                    'deducted_amount' => $dedAmt,
+                    'remaining_balance' => $remBal,
+                ];
+                $customTotalDed += $dedAmt;
+
+                // Sync with individual category columns
+                if ($cKey === 'advance' || str_contains(strtolower($cKey), 'advance') || str_contains(strtolower($cKey), 'loan')) {
+                    $advanceDeduction = $dedAmt;
+                } elseif ($cKey === 'feed' || str_contains(strtolower($cKey), 'feed') || str_contains(strtolower($cKey), 'food')) {
+                    $feedDeduction = $dedAmt;
+                } elseif ($cKey === 'stationary' || str_contains(strtolower($cKey), 'stationary')) {
+                    $stationaryDeduction = $dedAmt;
+                }
+            }
+            $breakdown = $newBreakdown;
+            $totalDeduction = round($customTotalDed, 2);
+        } else {
+            $totalDeduction = round($stationaryDeduction + $feedDeduction + $advanceDeduction, 2);
+        }
 
         $milkAmount = round((float) $invoice->milk_amount, 2);
         $totalAmount = round($milkAmount + $totalCredit, 2);
@@ -614,6 +709,7 @@ class FarmerInvoiceController extends Controller
             'stationary_deduction' => $stationaryDeduction,
             'feed_deduction' => $feedDeduction,
             'advance_deduction' => $advanceDeduction,
+            'deductions_breakdown' => $breakdown,
             'total_deduction' => $totalDeduction,
             'total_amount' => $totalAmount,
             'round_off' => $roundOff,

@@ -123,7 +123,7 @@
                 </div>
             </div>
 
-            <!-- Card 2: Deductions Breakdown matching Screenshot 4 -->
+            <!-- Card 2: Deductions Breakdown matching Screenshot 4 & Category-Wise Requirements -->
             <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
                 <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                     <div class="flex items-center gap-2.5">
@@ -131,34 +131,36 @@
                             <i data-lucide="minus-circle" class="w-4 h-4"></i>
                         </div>
                         <div>
-                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">Deductions Breakdown</h3>
-                            <p class="text-[11px] text-slate-500">Stationary, Cattle Feed, Loan & In-Hand Advances</p>
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">Deductions Breakdown (Category-Wise)</h3>
+                            <p class="text-[11px] text-slate-500">Original Balance, Deducted Amount in this Invoice, and Remaining Balance</p>
                         </div>
                     </div>
                     <span class="text-xs font-mono font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
-                        Total: -₹{{ number_format($invoice->total_deduction, 2) }}
+                        Total Deducted: -₹{{ number_format($invoice->total_deduction, 2) }}
                     </span>
                 </div>
+
+                @php
+                    $breakdown = $invoice->getCategoryDeductionsBreakdown();
+                @endphp
 
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse text-xs">
                         <thead>
                             <tr class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 text-[11px]">
-                                <th class="py-2.5 px-3">Date</th>
-                                <th class="py-2.5 px-3">Type</th>
-                                <th class="py-2.5 px-3">Remarks / Description</th>
-                                <th class="py-2.5 px-3 text-right">Amount</th>
+                                <th class="py-2.5 px-3">Deduction Category</th>
+                                <th class="py-2.5 px-3 text-right">Original Balance</th>
+                                <th class="py-2.5 px-3 text-right">Deducted In Bill</th>
+                                <th class="py-2.5 px-3 text-right">Remaining Balance</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 text-slate-700">
-                            @forelse($deductions as $d)
+                            @forelse($breakdown as $b)
                                 <tr class="hover:bg-slate-50/70">
-                                    <td class="py-2 px-3 font-medium">{{ \Carbon\Carbon::parse($d->entry_date)->format('d M Y') }}</td>
-                                    <td class="py-2 px-3 capitalize font-semibold text-slate-800">{{ str_replace('_', ' ', $d->deduction_type) }}</td>
-                                    <td class="py-2 px-3 text-slate-500">{{ $d->comments ?? $d->remarks ?? '-' }}</td>
-                                    <td class="py-2 px-3 text-right font-mono font-bold {{ $d->transaction_type === 'received' ? 'text-amber-700' : 'text-rose-700' }}">
-                                        {{ $d->transaction_type === 'received' ? '+ ₹' : '- ₹' }}{{ number_format($d->amount, 2) }}
-                                    </td>
+                                    <td class="py-2 px-3 font-semibold text-slate-800">{{ $b['name'] }}</td>
+                                    <td class="py-2 px-3 text-right font-mono text-slate-600">₹{{ number_format($b['original_balance'], 2) }}</td>
+                                    <td class="py-2 px-3 text-right font-mono font-bold text-rose-700">- ₹{{ number_format($b['deducted_amount'], 2) }}</td>
+                                    <td class="py-2 px-3 text-right font-mono font-bold text-amber-700">₹{{ number_format($b['remaining_balance'], 2) }}</td>
                                 </tr>
                             @empty
                                 <tr>
@@ -166,6 +168,14 @@
                                 </tr>
                             @endforelse
                         </tbody>
+                        <tfoot class="bg-slate-50/80 font-bold border-t border-slate-200 text-xs">
+                            <tr>
+                                <td class="py-2.5 px-3">Total</td>
+                                <td class="py-2.5 px-3 text-right font-mono text-slate-700">₹{{ number_format(collect($breakdown)->sum('original_balance'), 2) }}</td>
+                                <td class="py-2.5 px-3 text-right font-mono font-black text-rose-700">- ₹{{ number_format($invoice->total_deduction, 2) }}</td>
+                                <td class="py-2.5 px-3 text-right font-mono font-bold text-amber-700">₹{{ number_format(collect($breakdown)->sum('remaining_balance'), 2) }}</td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>
