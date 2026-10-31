@@ -172,6 +172,10 @@ class FarmerDeductionController extends Controller
             'mode' => $deduction->transaction_type,
         ]);
 
+        if ($request->input('redirect_to') === 'collections') {
+            return redirect()->route('collections.index', ['tab' => 'deductions'])->with('success', "Deduction of ₹ " . number_format($deduction->amount, 2) . " for {$farmer->name} recorded successfully!");
+        }
+
         return redirect()->route('deductions.index')->with('success', "Deduction of ₹ " . number_format($deduction->amount, 2) . " for {$farmer->name} recorded successfully!");
     }
 
@@ -332,6 +336,10 @@ class FarmerDeductionController extends Controller
                 }
             }
             fclose($handle);
+        }
+
+        if ($request->input('redirect_to') === 'collections') {
+            return redirect()->route('collections.index', ['tab' => 'deductions'])->with('success', "Import Complete: Successfully imported {$count} deduction records!");
         }
 
         return redirect()->route('deductions.index')->with('success', "Import Complete: Successfully imported {$count} deduction records!");

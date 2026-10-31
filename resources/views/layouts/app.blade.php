@@ -544,7 +544,7 @@
                     </a>
                     <a href="{{ route('buyers.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('buyers.index') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                         <i data-lucide="users-round" class="w-4 h-4 {{ request()->routeIs('buyers.index') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
-                        <span>Buyers (Customers)</span>
+                        <span>Buyer</span>
                     </a>
                     <a href="{{ route('buyers.khata') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('buyers.khata*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                         <i data-lucide="book-open" class="w-4 h-4 {{ request()->routeIs('buyers.khata*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>

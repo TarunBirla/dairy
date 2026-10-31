@@ -13,20 +13,118 @@ use Illuminate\Database\Schema\Blueprint;
 
 class ProductController extends Controller
 {
+    public function __construct()
+    {
+        $this->ensureColumnsExist();
+    }
+
+    private function ensureColumnsExist(): void
+    {
+        try {
+            if (!Schema::hasTable('products')) {
+                return;
+            }
+            if (!Schema::hasColumn('products', 'product_for')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->string('product_for')->default('customer')->after('code');
+                });
+            }
+            if (!Schema::hasColumn('products', 'image')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->string('image')->nullable()->after('in_stock');
+                });
+            }
+            if (!Schema::hasColumn('products', 'manage_stock')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->boolean('manage_stock')->default(true)->after('current_stock');
+                });
+            }
+            if (!Schema::hasColumn('products', 'allow_counter_sales')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->boolean('allow_counter_sales')->default(true)->after('in_stock');
+                });
+            }
+            if (!Schema::hasColumn('products', 'show_on_customer_app')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->boolean('show_on_customer_app')->default(true)->after('allow_counter_sales');
+                });
+            }
+            if (!Schema::hasColumn('products', 'allow_onetime_orders')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->boolean('allow_onetime_orders')->default(true)->after('show_on_customer_app');
+                });
+            }
+            if (!Schema::hasColumn('products', 'schedule_booking_cutoff')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->boolean('schedule_booking_cutoff')->default(false)->after('allow_onetime_orders');
+                });
+            }
+            if (!Schema::hasColumn('products', 'booking_cutoff_morning_day')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->string('booking_cutoff_morning_day', 50)->nullable()->after('schedule_booking_cutoff');
+                });
+            }
+            if (!Schema::hasColumn('products', 'booking_cutoff_morning_time')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->string('booking_cutoff_morning_time', 20)->nullable()->after('booking_cutoff_morning_day');
+                });
+            }
+            if (!Schema::hasColumn('products', 'booking_cutoff_evening_day')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->string('booking_cutoff_evening_day', 50)->nullable()->after('booking_cutoff_morning_time');
+                });
+            }
+            if (!Schema::hasColumn('products', 'booking_cutoff_evening_time')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->string('booking_cutoff_evening_time', 20)->nullable()->after('booking_cutoff_evening_day');
+                });
+            }
+            if (!Schema::hasColumn('products', 'allow_subscription')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->boolean('allow_subscription')->default(true)->after('booking_cutoff_evening_time');
+                });
+            }
+            if (!Schema::hasColumn('products', 'allow_subscription_change')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->boolean('allow_subscription_change')->default(true)->after('allow_subscription');
+                });
+            }
+            if (!Schema::hasColumn('products', 'allow_subscription_cancellation')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->boolean('allow_subscription_cancellation')->default(true)->after('allow_subscription_change');
+                });
+            }
+            if (!Schema::hasColumn('products', 'allow_booking_after_subscription')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->boolean('allow_booking_after_subscription')->default(true)->after('allow_subscription_cancellation');
+                });
+            }
+            if (!Schema::hasColumn('products', 'subscription_cutoff_morning_day')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->string('subscription_cutoff_morning_day', 50)->nullable()->after('allow_booking_after_subscription');
+                });
+            }
+            if (!Schema::hasColumn('products', 'subscription_cutoff_morning_time')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->string('subscription_cutoff_morning_time', 20)->nullable()->after('subscription_cutoff_morning_day');
+                });
+            }
+            if (!Schema::hasColumn('products', 'subscription_cutoff_evening_day')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->string('subscription_cutoff_evening_day', 50)->nullable()->after('subscription_cutoff_morning_time');
+                });
+            }
+            if (!Schema::hasColumn('products', 'subscription_cutoff_evening_time')) {
+                Schema::table('products', function (Blueprint $table) {
+                    $table->string('subscription_cutoff_evening_time', 20)->nullable()->after('subscription_cutoff_evening_day');
+                });
+            }
+        } catch (\Throwable $e) {}
+    }
+
     public function index(Request $request)
     {
-        // Graceful automatic schema check in case migration has not been triggered yet
-        if (Schema::hasTable('products') && !Schema::hasColumn('products', 'product_for')) {
-            Schema::table('products', function (Blueprint $table) {
-                $table->string('product_for')->default('customer')->after('code');
-            });
-        }
-
-        if (Schema::hasTable('products') && !Schema::hasColumn('products', 'image')) {
-            Schema::table('products', function (Blueprint $table) {
-                $table->string('image')->nullable()->after('in_stock');
-            });
-        }
+        $this->ensureColumnsExist();
 
         $query = Product::with('category');
 
@@ -127,7 +225,27 @@ class ProductController extends Controller
             $validated['image'] = 'uploads/products/' . $filename;
         }
 
-        $validated['in_stock'] = ($validated['current_stock'] ?? 0) > 0;
+        // Manage Stock & Availability
+        $validated['manage_stock'] = $request->boolean('manage_stock', true);
+        $validated['allow_counter_sales'] = $request->boolean('allow_counter_sales', true);
+        $validated['show_on_customer_app'] = $request->boolean('show_on_customer_app', true);
+        $validated['in_stock'] = $request->has('in_stock') ? $request->boolean('in_stock') : (($validated['current_stock'] ?? 0) > 0);
+        $validated['allow_onetime_orders'] = $request->boolean('allow_onetime_orders', true);
+        $validated['schedule_booking_cutoff'] = $request->boolean('schedule_booking_cutoff', false);
+        $validated['booking_cutoff_morning_day'] = $request->input('booking_cutoff_morning_day');
+        $validated['booking_cutoff_morning_time'] = $request->input('booking_cutoff_morning_time');
+        $validated['booking_cutoff_evening_day'] = $request->input('booking_cutoff_evening_day');
+        $validated['booking_cutoff_evening_time'] = $request->input('booking_cutoff_evening_time');
+
+        // Subscription Settings
+        $validated['allow_subscription'] = $request->boolean('allow_subscription', true);
+        $validated['allow_subscription_change'] = $request->boolean('allow_subscription_change', true);
+        $validated['allow_subscription_cancellation'] = $request->boolean('allow_subscription_cancellation', true);
+        $validated['allow_booking_after_subscription'] = $request->boolean('allow_booking_after_subscription', true);
+        $validated['subscription_cutoff_morning_day'] = $request->input('subscription_cutoff_morning_day');
+        $validated['subscription_cutoff_morning_time'] = $request->input('subscription_cutoff_morning_time');
+        $validated['subscription_cutoff_evening_day'] = $request->input('subscription_cutoff_evening_day');
+        $validated['subscription_cutoff_evening_time'] = $request->input('subscription_cutoff_evening_time');
 
         $product = Product::create($validated);
 
@@ -198,6 +316,28 @@ class ProductController extends Controller
             }
             $validated['image'] = null;
         }
+
+        // Manage Stock & Availability
+        $validated['manage_stock'] = $request->boolean('manage_stock', false);
+        $validated['allow_counter_sales'] = $request->boolean('allow_counter_sales', false);
+        $validated['show_on_customer_app'] = $request->boolean('show_on_customer_app', false);
+        $validated['in_stock'] = $request->boolean('in_stock', false);
+        $validated['allow_onetime_orders'] = $request->boolean('allow_onetime_orders', false);
+        $validated['schedule_booking_cutoff'] = $request->boolean('schedule_booking_cutoff', false);
+        $validated['booking_cutoff_morning_day'] = $request->input('booking_cutoff_morning_day');
+        $validated['booking_cutoff_morning_time'] = $request->input('booking_cutoff_morning_time');
+        $validated['booking_cutoff_evening_day'] = $request->input('booking_cutoff_evening_day');
+        $validated['booking_cutoff_evening_time'] = $request->input('booking_cutoff_evening_time');
+
+        // Subscription Settings
+        $validated['allow_subscription'] = $request->boolean('allow_subscription', false);
+        $validated['allow_subscription_change'] = $request->boolean('allow_subscription_change', false);
+        $validated['allow_subscription_cancellation'] = $request->boolean('allow_subscription_cancellation', false);
+        $validated['allow_booking_after_subscription'] = $request->boolean('allow_booking_after_subscription', false);
+        $validated['subscription_cutoff_morning_day'] = $request->input('subscription_cutoff_morning_day');
+        $validated['subscription_cutoff_morning_time'] = $request->input('subscription_cutoff_morning_time');
+        $validated['subscription_cutoff_evening_day'] = $request->input('subscription_cutoff_evening_day');
+        $validated['subscription_cutoff_evening_time'] = $request->input('subscription_cutoff_evening_time');
 
         $product->update($validated);
         AuditLog::log('Updated Product', 'Product', $product->id);

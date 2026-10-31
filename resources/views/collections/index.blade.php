@@ -41,6 +41,14 @@
             <i data-lucide="package" class="w-4 h-4 text-indigo-600"></i>
             <span>Product Sale</span>
         </button>
+
+        <button type="button" 
+                @click="currentTopTab = 'deductions'" 
+                :class="currentTopTab === 'deductions' ? 'bg-white text-emerald-800 shadow-xs font-bold border border-slate-200/60' : 'text-slate-600 hover:text-slate-900 font-semibold'"
+                class="px-4 py-2 rounded-xl text-xs transition inline-flex items-center gap-2">
+            <i data-lucide="receipt" class="w-4 h-4 text-rose-600"></i>
+            <span>Deductions</span>
+        </button>
     </div>
 
     <!-- TAB 1: COLLECTIONS -->
@@ -1012,6 +1020,11 @@
     <!-- TAB 3: PRODUCT SALE -->
     <div x-show="currentTopTab === 'product_sales'" x-cloak class="space-y-4 w-full">
         @include('collections.partials.product_sales_tab')
+    </div>
+
+    <!-- TAB 4: DEDUCTIONS -->
+    <div x-show="currentTopTab === 'deductions'" x-cloak class="space-y-4 w-full">
+        @include('collections.partials.deductions_tab')
     </div>
 
 </div>

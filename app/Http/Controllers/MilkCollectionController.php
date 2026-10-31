@@ -655,6 +655,59 @@ class MilkCollectionController extends Controller
         $recentMilkSales = \App\Models\MilkSale::with(['buyer', 'vehicle'])->latest('id')->take(30)->get();
         $products = \App\Models\Product::orderBy('name')->get();
         $recentProductSales = \App\Models\ProductSale::with(['product', 'farmer'])->latest('id')->take(30)->get();
+
+        // Data for Tab 4: Farmer Deductions (Unified with /deductions)
+        $deductionType = $request->get('deduction_type', 'all');
+        $deductionSearch = $request->get('deduction_search');
+        $deductionPerPage = (int) $request->get('deduction_per_page', 15);
+
+        $deductionFarmersQuery = Farmer::where('status', 'active');
+        if (!empty($deductionSearch)) {
+            $deductionFarmersQuery->where(function ($q) use ($deductionSearch) {
+                $q->where('name', 'like', "%{$deductionSearch}%")
+                  ->orWhere('farmer_code', 'like', "%{$deductionSearch}%")
+                  ->orWhere('phone', 'like', "%{$deductionSearch}%");
+            });
+        }
+        if ($deductionType && $deductionType !== 'all') {
+            $deductionFarmersQuery->whereHas('deductions', function ($q) use ($deductionType) {
+                $q->where('deduction_type', $deductionType);
+            });
+        }
+        $deductionFarmersQuery->with(['deductions' => function ($q) use ($deductionType) {
+            if ($deductionType && $deductionType !== 'all') {
+                $q->where('deduction_type', $deductionType);
+            }
+            $q->latest('entry_date');
+        }]);
+        $deductionFarmers = $deductionFarmersQuery->orderBy('name')->paginate($deductionPerPage, ['*'], 'ded_page')->withQueryString();
+
+        $deductionTotalGiven = 0;
+        $deductionTotalReceived = 0;
+        if (\Illuminate\Support\Facades\Schema::hasTable('farmer_deductions')) {
+            $deductionTotalGiven = (float) \App\Models\FarmerDeduction::where('transaction_type', 'given')->sum('amount');
+            $deductionTotalReceived = (float) \App\Models\FarmerDeduction::where('transaction_type', 'received')->sum('amount');
+        }
+        $netDeductionBalance = $deductionTotalGiven - $deductionTotalReceived;
+
+        $deductionFarmerColumns = ['id', 'farmer_code', 'name', 'phone'];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('farmers', 'name_hi')) {
+            $deductionFarmerColumns[] = 'name_hi';
+        }
+        $allDeductionFarmers = Farmer::where('status', 'active')->orderBy('name')->get($deductionFarmerColumns);
+
+        $deductionTypesList = [
+            'cattle_feed' => 'Cattle Feed (पशु आहार)',
+            'medicine' => 'Medicine (दवाई)',
+            'ghee_butter' => 'Ghee / Butter',
+            'doctor_fee' => 'Doctor Fee',
+            'insurance' => 'Insurance',
+            'advance_recovery' => 'Advance Recovery',
+            'store_purchase' => 'Store Purchase',
+            'equipment' => 'Equipment / बर्तन',
+            'other' => 'Other (अन्य)',
+        ];
+
         $activeTab = $request->get('tab', 'collections');
 
         return view('collections.index', compact(
@@ -678,7 +731,16 @@ class MilkCollectionController extends Controller
             'recentMilkSales',
             'products',
             'recentProductSales',
-            'activeTab'
+            'activeTab',
+            'deductionFarmers',
+            'allDeductionFarmers',
+            'deductionType',
+            'deductionSearch',
+            'deductionPerPage',
+            'deductionTotalGiven',
+            'deductionTotalReceived',
+            'netDeductionBalance',
+            'deductionTypesList'
         ));
     }
 

@@ -17,8 +17,12 @@ class Buyer extends Model
         'milk_type',
         'cow_rate_mode',
         'cow_fixed_rate',
+        'cow_rate_chart_id',
+        'cow_rate_value',
         'buffalo_rate_mode',
         'buffalo_fixed_rate',
+        'buffalo_rate_chart_id',
+        'buffalo_rate_value',
         'address',
         'taluka',
         'district',
@@ -30,9 +34,21 @@ class Buyer extends Model
 
     protected $casts = [
         'cow_fixed_rate' => 'decimal:2',
+        'cow_rate_value' => 'decimal:2',
         'buffalo_fixed_rate' => 'decimal:2',
+        'buffalo_rate_value' => 'decimal:2',
         'current_balance' => 'decimal:2',
     ];
+
+    public function cowRateChart()
+    {
+        return $this->belongsTo(RateChart::class, 'cow_rate_chart_id');
+    }
+
+    public function buffaloRateChart()
+    {
+        return $this->belongsTo(RateChart::class, 'buffalo_rate_chart_id');
+    }
 
     public function sales()
     {

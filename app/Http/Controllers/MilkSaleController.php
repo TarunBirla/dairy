@@ -543,15 +543,54 @@ class MilkSaleController extends Controller
             $snf = round(($clr / 4) + (0.21 * $fat) + 0.36, 2);
         }
 
-        // Check if buyer has fixed rate
+        // Check if buyer has custom pricing configuration
         if ($buyerId) {
             $buyer = Buyer::find($buyerId);
             if ($buyer) {
-                if ($milkType === 'cow' && $buyer->cow_fixed_rate > 0) {
-                    return response()->json(['rate' => (float) $buyer->cow_fixed_rate, 'source' => 'buyer_fixed']);
+                $isCow = ($milkType === 'cow');
+                $rateMode = $isCow ? ($buyer->cow_rate_mode ?? 'fixed') : ($buyer->buffalo_rate_mode ?? 'fixed');
+                $fixedRate = (float) ($isCow ? $buyer->cow_fixed_rate : $buyer->buffalo_fixed_rate);
+                $rateChartId = $isCow ? $buyer->cow_rate_chart_id : $buyer->buffalo_rate_chart_id;
+                $adjValue = (float) ($isCow ? $buyer->cow_rate_value : $buyer->buffalo_rate_value);
+
+                if ($rateMode === 'fixed' && $fixedRate > 0) {
+                    return response()->json(['rate' => $fixedRate, 'source' => 'buyer_fixed']);
                 }
-                if ($milkType === 'buffalo' && $buyer->buffalo_fixed_rate > 0) {
-                    return response()->json(['rate' => (float) $buyer->buffalo_fixed_rate, 'source' => 'buyer_fixed']);
+
+                if ($rateMode === 'manual' && $adjValue > 0) {
+                    return response()->json(['rate' => $adjValue, 'source' => 'buyer_manual']);
+                }
+
+                if (in_array($rateMode, ['rate_chart', 'penalty', 'bonus'])) {
+                    $assignedChart = null;
+                    if ($rateChartId) {
+                        $assignedChart = RateChart::where('id', $rateChartId)->where('status', 'active')->first();
+                    }
+                    if (!$assignedChart) {
+                        $assignedChart = RateChart::where('milk_type', $milkType)
+                            ->where('status', 'active')
+                            ->first();
+                    }
+
+                    if ($assignedChart) {
+                        $secondary = ($assignedChart->format === 'fat_clr') ? $clr : $snf;
+                        $baseChartRate = (float) $assignedChart->calculateRate($fat, $secondary);
+                        $finalRate = $baseChartRate;
+
+                        if ($rateMode === 'penalty') {
+                            $finalRate = max(0, $baseChartRate - $adjValue);
+                        } elseif ($rateMode === 'bonus') {
+                            $finalRate = $baseChartRate + $adjValue;
+                        }
+
+                        return response()->json([
+                            'rate' => round($finalRate, 2),
+                            'source' => "buyer_{$rateMode}",
+                            'chart_name' => $assignedChart->name,
+                            'base_rate' => $baseChartRate,
+                            'adjustment' => $adjValue,
+                        ]);
+                    }
                 }
             }
         }

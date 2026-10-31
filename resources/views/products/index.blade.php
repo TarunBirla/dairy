@@ -218,9 +218,20 @@
                                                 </span>
                                             @endif
                                         </div>
-                                        <span class="text-[11px] text-slate-400 font-medium">
-                                            {{ $product->category ? $product->category->name : $product->product_type }}
-                                        </span>
+                                        <div class="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                            <span class="text-[11px] text-slate-400 font-medium">
+                                                {{ $product->category ? $product->category->name : $product->product_type }}
+                                            </span>
+                                            @if($product->allow_counter_sales ?? true)
+                                                <span class="inline-flex items-center px-1 py-0.2 rounded text-[9px] font-semibold bg-slate-100 text-slate-600">Counter</span>
+                                            @endif
+                                            @if($product->show_on_customer_app ?? true)
+                                                <span class="inline-flex items-center px-1 py-0.2 rounded text-[9px] font-semibold bg-sky-50 text-sky-700">App</span>
+                                            @endif
+                                            @if($product->allow_subscription ?? true)
+                                                <span class="inline-flex items-center px-1 py-0.2 rounded text-[9px] font-semibold bg-indigo-50 text-indigo-700">Sub</span>
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
                             </td>
@@ -576,15 +587,303 @@
                     </div>
                 </div>
 
-                <!-- Stock & Alert Threshold -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Initial Opening Stock</label>
-                        <input type="number" step="0.1" name="current_stock" placeholder="0" value="{{ old('current_stock', 0) }}" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition">
+                <!-- 1. Manage Stock (Matching media_1793424418858_58f87a3f.png & media_1793424448784_ee75137e.png) -->
+                <div class="p-4 bg-slate-50/70 rounded-2xl border border-slate-200/80 space-y-3">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="boxes" class="w-4 h-4 text-emerald-600"></i>
+                            <span>Manage Stock</span>
+                        </h4>
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Low Stock Alert Threshold</label>
-                        <input type="number" step="1" name="min_stock_alert" placeholder="5" value="{{ old('min_stock_alert', 5) }}" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition">
+
+                    <div class="flex items-center justify-between py-1">
+                        <div>
+                            <span class="text-xs font-semibold text-slate-800">Configure Stock</span>
+                            <p class="text-[11px] text-slate-400">Enable stock tracking, current count and low stock alerts</p>
+                        </div>
+                        <div class="flex items-center">
+                            <button type="button" 
+                                    @click="manageStock = !manageStock" 
+                                    :class="manageStock ? 'bg-emerald-600' : 'bg-slate-300'"
+                                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none" 
+                                    role="switch">
+                                <span :class="manageStock ? 'translate-x-5' : 'translate-x-0'" 
+                                      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"></span>
+                            </button>
+                            <input type="hidden" name="manage_stock" :value="manageStock ? '1' : '0'">
+                        </div>
+                    </div>
+
+                    <!-- Stock Quantities revealed when Configure Stock is ON -->
+                    <div x-show="manageStock" x-transition class="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-200/60">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1.5">Current Stock Qty</label>
+                            <input type="number" step="0.1" name="current_stock" placeholder="Enter Stock Qty" value="{{ old('current_stock', 0) }}" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none font-bold text-slate-800 transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1.5">Alert Qty</label>
+                            <input type="number" step="1" name="min_stock_alert" placeholder="Enter Alert Qty" value="{{ old('min_stock_alert', 5) }}" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Counter Sales (Matching media_1793424418858_58f87a3f.png) -->
+                <div class="p-4 bg-slate-50/70 rounded-2xl border border-slate-200/80 space-y-3">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="store" class="w-4 h-4 text-emerald-600"></i>
+                            <span>Counter Sales</span>
+                        </h4>
+                    </div>
+
+                    <div class="flex items-center justify-between py-1">
+                        <div>
+                            <span class="text-xs font-semibold text-slate-800">When enabled, this product will appear in counter sales.</span>
+                            <p class="text-[11px] text-slate-400">Available at physical POS counters and dairy stores</p>
+                        </div>
+                        <div class="flex items-center">
+                            <button type="button" 
+                                    @click="allowCounterSales = !allowCounterSales" 
+                                    :class="allowCounterSales ? 'bg-emerald-600' : 'bg-slate-300'"
+                                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none" 
+                                    role="switch">
+                                <span :class="allowCounterSales ? 'translate-x-5' : 'translate-x-0'" 
+                                      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"></span>
+                            </button>
+                            <input type="hidden" name="allow_counter_sales" :value="allowCounterSales ? '1' : '0'">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Customer App Settings (Matching media_1793424418858_58f87a3f.png & media_1793424509201_c12b440a.png) -->
+                <div class="p-4 bg-slate-50/70 rounded-2xl border border-slate-200/80 space-y-3">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="smartphone" class="w-4 h-4 text-emerald-600"></i>
+                            <span>Customer App Settings</span>
+                        </h4>
+                    </div>
+
+                    <!-- Row 1: Show on Customer App -->
+                    <div class="flex items-center justify-between py-2 border-b border-slate-200/60">
+                        <span class="text-xs font-semibold text-slate-800">Show this product on customer app</span>
+                        <div class="flex items-center">
+                            <button type="button" 
+                                    @click="showOnCustomerApp = !showOnCustomerApp" 
+                                    :class="showOnCustomerApp ? 'bg-emerald-600' : 'bg-slate-300'"
+                                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none" 
+                                    role="switch">
+                                <span :class="showOnCustomerApp ? 'translate-x-5' : 'translate-x-0'" 
+                                      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"></span>
+                            </button>
+                            <input type="hidden" name="show_on_customer_app" :value="showOnCustomerApp ? '1' : '0'">
+                        </div>
+                    </div>
+
+                    <!-- Row 2: In Stock Availability -->
+                    <div class="flex items-center justify-between py-2 border-b border-slate-200/60">
+                        <span class="text-xs font-semibold text-slate-800">Product is in Stock? (To show product Availability on the Customer app)</span>
+                        <div class="flex items-center">
+                            <button type="button" 
+                                    @click="inStock = !inStock" 
+                                    :class="inStock ? 'bg-emerald-600' : 'bg-slate-300'"
+                                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none" 
+                                    role="switch">
+                                <span :class="inStock ? 'translate-x-5' : 'translate-x-0'" 
+                                      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"></span>
+                            </button>
+                            <input type="hidden" name="in_stock" :value="inStock ? '1' : '0'">
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Allow One-Time Orders -->
+                    <div class="flex items-center justify-between py-2 border-b border-slate-200/60">
+                        <span class="text-xs font-semibold text-slate-800">For Estore: Allow One-Time Orders for This Product?</span>
+                        <div class="flex items-center">
+                            <button type="button" 
+                                    @click="allowOnetimeOrders = !allowOnetimeOrders" 
+                                    :class="allowOnetimeOrders ? 'bg-emerald-600' : 'bg-slate-300'"
+                                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none" 
+                                    role="switch">
+                                <span :class="allowOnetimeOrders ? 'translate-x-5' : 'translate-x-0'" 
+                                      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"></span>
+                            </button>
+                            <input type="hidden" name="allow_onetime_orders" :value="allowOnetimeOrders ? '1' : '0'">
+                        </div>
+                    </div>
+
+                    <!-- Row 4: Schedule Cut-Off Time -->
+                    <div class="py-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-800">Schedule the cut-off time for order booking from the customer app.</span>
+                            <div class="flex items-center">
+                                <button type="button" 
+                                        @click="scheduleBookingCutoff = !scheduleBookingCutoff" 
+                                        :class="scheduleBookingCutoff ? 'bg-emerald-600' : 'bg-slate-300'"
+                                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none" 
+                                        role="switch">
+                                    <span :class="scheduleBookingCutoff ? 'translate-x-5' : 'translate-x-0'" 
+                                          class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"></span>
+                                </button>
+                                <input type="hidden" name="schedule_booking_cutoff" :value="scheduleBookingCutoff ? '1' : '0'">
+                            </div>
+                        </div>
+
+                        <!-- Revealed Cut-Off Inputs matching media_1793424509201_c12b440a.png -->
+                        <div x-show="scheduleBookingCutoff" x-transition class="mt-3 p-3.5 bg-white rounded-xl border border-slate-200 space-y-3">
+                            <!-- Morning -->
+                            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                                <span class="sm:col-span-3 text-xs font-semibold text-slate-700">Morning</span>
+                                <div class="sm:col-span-5">
+                                    <select name="booking_cutoff_morning_day" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none">
+                                        <option value="">Select day...</option>
+                                        <option value="Same Day">Same Day</option>
+                                        <option value="1 Day Before">1 Day Before</option>
+                                        <option value="2 Days Before">2 Days Before</option>
+                                        <option value="3 Days Before">3 Days Before</option>
+                                    </select>
+                                </div>
+                                <div class="sm:col-span-4 flex items-center gap-2">
+                                    <label class="text-xs text-slate-500 shrink-0">Till Time</label>
+                                    <input type="time" name="booking_cutoff_morning_time" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none">
+                                </div>
+                            </div>
+
+                            <!-- Evening -->
+                            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                                <span class="sm:col-span-3 text-xs font-semibold text-slate-700">Evening</span>
+                                <div class="sm:col-span-5">
+                                    <select name="booking_cutoff_evening_day" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none">
+                                        <option value="">Select day...</option>
+                                        <option value="Same Day">Same Day</option>
+                                        <option value="1 Day Before">1 Day Before</option>
+                                        <option value="2 Days Before">2 Days Before</option>
+                                        <option value="3 Days Before">3 Days Before</option>
+                                    </select>
+                                </div>
+                                <div class="sm:col-span-4 flex items-center gap-2">
+                                    <label class="text-xs text-slate-500 shrink-0">Till Time</label>
+                                    <input type="time" name="booking_cutoff_evening_time" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Product Subscription Settings (Matching media_1793424537512_d35a12f0.png) -->
+                <div class="p-4 bg-slate-50/70 rounded-2xl border border-slate-200/80 space-y-3">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="repeat" class="w-4 h-4 text-emerald-600"></i>
+                            <span>Product Subscription Settings</span>
+                        </h4>
+                    </div>
+
+                    <!-- Row 1: Can Subscribe -->
+                    <div class="flex items-center justify-between py-2 border-b border-slate-200/60">
+                        <span class="text-xs font-semibold text-slate-800">Can customers subscribe to this product?</span>
+                        <div class="flex items-center">
+                            <button type="button" 
+                                    @click="allowSubscription = !allowSubscription" 
+                                    :class="allowSubscription ? 'bg-emerald-600' : 'bg-slate-300'"
+                                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none" 
+                                    role="switch">
+                                <span :class="allowSubscription ? 'translate-x-5' : 'translate-x-0'" 
+                                      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"></span>
+                            </button>
+                            <input type="hidden" name="allow_subscription" :value="allowSubscription ? '1' : '0'">
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Can Change Subscription -->
+                    <div class="flex items-center justify-between py-2 border-b border-slate-200/60">
+                        <span class="text-xs font-semibold text-slate-800">Can customers change the subscription to this product?</span>
+                        <div class="flex items-center">
+                            <button type="button" 
+                                    @click="allowSubscriptionChange = !allowSubscriptionChange" 
+                                    :class="allowSubscriptionChange ? 'bg-emerald-600' : 'bg-slate-300'"
+                                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none" 
+                                    role="switch">
+                                <span :class="allowSubscriptionChange ? 'translate-x-5' : 'translate-x-0'" 
+                                      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"></span>
+                            </button>
+                            <input type="hidden" name="allow_subscription_change" :value="allowSubscriptionChange ? '1' : '0'">
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Allow Cancel Subscription -->
+                    <div class="flex items-center justify-between py-2 border-b border-slate-200/60">
+                        <span class="text-xs font-semibold text-slate-800">Allow Customers to Cancel Their Subscriptions?</span>
+                        <div class="flex items-center">
+                            <button type="button" 
+                                    @click="allowSubscriptionCancellation = !allowSubscriptionCancellation" 
+                                    :class="allowSubscriptionCancellation ? 'bg-emerald-600' : 'bg-slate-300'"
+                                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none" 
+                                    role="switch">
+                                <span :class="allowSubscriptionCancellation ? 'translate-x-5' : 'translate-x-0'" 
+                                      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"></span>
+                            </button>
+                            <input type="hidden" name="allow_subscription_cancellation" :value="allowSubscriptionCancellation ? '1' : '0'">
+                        </div>
+                    </div>
+
+                    <!-- Row 4: Allow Booking After Subscription -->
+                    <div class="flex items-center justify-between py-2 border-b border-slate-200/60">
+                        <span class="text-xs font-semibold text-slate-800">Allow Product Booking After Subscription?</span>
+                        <div class="flex items-center">
+                            <button type="button" 
+                                    @click="allowBookingAfterSubscription = !allowBookingAfterSubscription" 
+                                    :class="allowBookingAfterSubscription ? 'bg-emerald-600' : 'bg-slate-300'"
+                                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none" 
+                                    role="switch">
+                                <span :class="allowBookingAfterSubscription ? 'translate-x-5' : 'translate-x-0'" 
+                                      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"></span>
+                            </button>
+                            <input type="hidden" name="allow_booking_after_subscription" :value="allowBookingAfterSubscription ? '1' : '0'">
+                        </div>
+                    </div>
+
+                    <!-- Cut-Off Timings for Subscriptions matching media_1793424537512_d35a12f0.png -->
+                    <div class="p-3.5 bg-white rounded-xl border border-slate-200 space-y-3">
+                        <!-- Morning -->
+                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                            <span class="sm:col-span-4 text-xs font-semibold text-slate-700">Morning Cut Off Time</span>
+                            <div class="sm:col-span-4">
+                                <select name="subscription_cutoff_morning_day" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none">
+                                    <option value="">Select day...</option>
+                                    <option value="Same Day">Same Day</option>
+                                    <option value="1 Day Before">1 Day Before</option>
+                                    <option value="2 Days Before">2 Days Before</option>
+                                    <option value="3 Days Before">3 Days Before</option>
+                                </select>
+                            </div>
+                            <div class="sm:col-span-4 flex items-center gap-2">
+                                <label class="text-xs text-slate-500 shrink-0">Till Time</label>
+                                <input type="time" name="subscription_cutoff_morning_time" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none">
+                            </div>
+                        </div>
+
+                        <!-- Evening -->
+                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                            <span class="sm:col-span-4 text-xs font-semibold text-slate-700">Evening Cut Off Time</span>
+                            <div class="sm:col-span-4">
+                                <select name="subscription_cutoff_evening_day" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none">
+                                    <option value="">Select day...</option>
+                                    <option value="Same Day">Same Day</option>
+                                    <option value="1 Day Before">1 Day Before</option>
+                                    <option value="2 Days Before">2 Days Before</option>
+                                    <option value="3 Days Before">3 Days Before</option>
+                                </select>
+                            </div>
+                            <div class="sm:col-span-4 flex items-center gap-2">
+                                <label class="text-xs text-slate-500 shrink-0">Till Time</label>
+                                <input type="time" name="subscription_cutoff_evening_time" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none">
+                            </div>
+                        </div>
+
+                        <p class="text-[11px] text-slate-400 italic pt-1 border-t border-slate-100">
+                            *Note: Any change in product subscription via customer app will be immediate if cut-off timing is not mentioned.
+                        </p>
                     </div>
                 </div>
 
@@ -790,6 +1089,18 @@
             quickModalOpen: false,
             quickProduct: null,
             selectedProductFor: '{{ old('product_for', 'customer') }}',
+
+            // Dynamic Switches matching screenshots
+            manageStock: {{ old('manage_stock', '1') ? 'true' : 'false' }},
+            allowCounterSales: {{ old('allow_counter_sales', '1') ? 'true' : 'false' }},
+            showOnCustomerApp: {{ old('show_on_customer_app', '1') ? 'true' : 'false' }},
+            inStock: {{ old('in_stock', '1') ? 'true' : 'false' }},
+            allowOnetimeOrders: {{ old('allow_onetime_orders', '1') ? 'true' : 'false' }},
+            scheduleBookingCutoff: {{ old('schedule_booking_cutoff', '0') ? 'true' : 'false' }},
+            allowSubscription: {{ old('allow_subscription', '1') ? 'true' : 'false' }},
+            allowSubscriptionChange: {{ old('allow_subscription_change', '1') ? 'true' : 'false' }},
+            allowSubscriptionCancellation: {{ old('allow_subscription_cancellation', '1') ? 'true' : 'false' }},
+            allowBookingAfterSubscription: {{ old('allow_booking_after_subscription', '1') ? 'true' : 'false' }},
 
             showCategoryModal: false,
             showUnitModal: false,

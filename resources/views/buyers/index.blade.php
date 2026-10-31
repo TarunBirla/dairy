@@ -115,6 +115,14 @@
                                 <span class="px-2 py-0.5 rounded-md text-[10px] font-bold {{ $b->milk_type === 'cow' ? 'bg-sky-50 text-sky-700 border border-sky-200' : ($b->milk_type === 'buffalo' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200') }}">
                                     {{ $b->milk_type }} Milk
                                 </span>
+                                <div class="text-[10px] text-slate-500 font-mono mt-1 space-y-0.5">
+                                    @if(in_array($b->milk_type, ['cow', 'both']))
+                                        <div><span class="text-sky-700 font-semibold">Cow:</span> {{ ucfirst(str_replace('_', ' ', $b->cow_rate_mode ?? 'fixed')) }} @if($b->cow_rate_mode === 'fixed' && $b->cow_fixed_rate > 0) (₹{{ number_format($b->cow_fixed_rate, 2) }}) @elseif($b->cow_rate_value > 0) (₹{{ number_format($b->cow_rate_value, 2) }}) @endif</div>
+                                    @endif
+                                    @if(in_array($b->milk_type, ['buffalo', 'both']))
+                                        <div><span class="text-amber-700 font-semibold">Buf:</span> {{ ucfirst(str_replace('_', ' ', $b->buffalo_rate_mode ?? 'fixed')) }} @if($b->buffalo_rate_mode === 'fixed' && $b->buffalo_fixed_rate > 0) (₹{{ number_format($b->buffalo_fixed_rate, 2) }}) @elseif($b->buffalo_rate_value > 0) (₹{{ number_format($b->buffalo_rate_value, 2) }}) @endif</div>
+                                    @endif
+                                </div>
                             </td>
                             <td class="py-3 px-3 text-slate-600">
                                 {{ $b->address ?: ($b->taluka ?: ($b->district ?: '-')) }}
@@ -222,48 +230,115 @@
                 </div>
             </div>
 
-            <!-- Section 2: Milk Details matching Screenshot 4 -->
-            <div class="space-y-3">
-                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider pb-1 border-b border-slate-100">Milk Details</h4>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">Milk Type <span class="text-rose-500">*</span></label>
-                        <select name="milk_type" required class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none font-medium">
-                            <option value="both">Both (Cow & Buffalo)</option>
-                            <option value="cow">Cow Milk</option>
-                            <option value="buffalo">Buffalo Milk</option>
-                        </select>
+            <!-- Section 2: Milk Details matching Screenshot 4 & Dynamic Rate Modes -->
+            <div class="space-y-4 p-4 bg-slate-50/70 rounded-2xl border border-slate-200/80">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                    <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="milk" class="w-4 h-4 text-emerald-600"></i>
+                        <span>Milk Details & Pricing</span>
+                    </h4>
+                    <span class="text-[11px] text-slate-500 font-medium">Select type to configure rate rules</span>
+                </div>
+
+                <!-- Milk Type Selector -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Milk Type <span class="text-rose-500">*</span></label>
+                    <select name="milk_type" id="addBuyerMilkType" onchange="syncBuyerMilkTypeFields('add')" required class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-white focus:border-emerald-500 outline-none font-semibold text-slate-800">
+                        <option value="both">Both (Cow & Buffalo)</option>
+                        <option value="cow">Cow Milk</option>
+                        <option value="buffalo">Buffalo Milk</option>
+                    </select>
+                </div>
+
+                <!-- Cow Milk Pricing Section -->
+                <div id="addCowMilkSection" class="p-3.5 bg-white rounded-xl border border-sky-100 shadow-2xs space-y-3">
+                    <div class="flex items-center gap-2 text-xs font-bold text-sky-800">
+                        <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
+                        <span>Cow Milk Pricing</span>
                     </div>
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">Cow Milk Rate Mode</label>
-                        <select name="cow_rate_mode" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none">
-                            <option value="fixed">Fixed Rate</option>
-                            <option value="rate_chart">As per rate chart</option>
-                            <option value="manual">Manual Rate Entry</option>
-                            <option value="penalty">Rate Chart - Penalty</option>
-                            <option value="bonus">Rate Chart - Bonus</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">Cow Fixed Rate (₹)</label>
-                        <input type="number" step="0.01" name="cow_fixed_rate" placeholder="0.00" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none font-mono">
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Cow Milk Rate Mode</label>
+                            <select name="cow_rate_mode" id="addCowRateMode" onchange="syncCowRateModeFields('add')" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none text-xs font-medium">
+                                <option value="fixed">Fixed Rate</option>
+                                <option value="rate_chart">As per rate chart</option>
+                                <option value="manual">Manual Rate Entry</option>
+                                <option value="penalty">Rate Chart - Penalty</option>
+                                <option value="bonus">Rate Chart - Bonus</option>
+                            </select>
+                        </div>
+
+                        <!-- Fixed Rate -->
+                        <div id="addCowFixedRateWrapper">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Cow Fixed Rate (₹)</label>
+                            <input type="number" step="0.01" name="cow_fixed_rate" id="addCowFixedRate" placeholder="0.00" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none font-mono text-xs font-bold text-slate-800">
+                        </div>
+
+                        <!-- Rate Chart Dropdown -->
+                        <div id="addCowRateChartWrapper" class="hidden">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Cow Rate Chart</label>
+                            <select name="cow_rate_chart_id" id="addCowRateChart" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none text-xs font-medium">
+                                <option value="">Select Cow Rate Chart</option>
+                                @foreach($rateCharts ?? [] as $rc)
+                                    @if($rc->milk_type === 'cow' || in_array($rc->milk_type, ['both', 'mixed', 'all']))
+                                        <option value="{{ $rc->id }}">{{ $rc->name }} ({{ ucfirst($rc->milk_type) }} - {{ $rc->format }})</option>
+                                    @endif
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- Rate Value (Manual Rate / Penalty / Bonus) -->
+                        <div id="addCowRateValueWrapper" class="hidden">
+                            <label class="block text-xs font-bold text-slate-700 mb-1" id="addCowRateValueLabel">Cow Manual Rate (₹)</label>
+                            <input type="number" step="0.01" name="cow_rate_value" id="addCowRateValue" placeholder="0.00" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none font-mono text-xs font-bold text-slate-800">
+                        </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">Buffalo Milk Rate Mode</label>
-                        <select name="buffalo_rate_mode" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none">
-                            <option value="fixed">Fixed Rate</option>
-                            <option value="rate_chart">As per rate chart</option>
-                            <option value="manual">Manual Rate Entry</option>
-                            <option value="penalty">Rate Chart - Penalty</option>
-                            <option value="bonus">Rate Chart - Bonus</option>
-                        </select>
+                <!-- Buffalo Milk Pricing Section -->
+                <div id="addBuffaloMilkSection" class="p-3.5 bg-white rounded-xl border border-amber-100 shadow-2xs space-y-3">
+                    <div class="flex items-center gap-2 text-xs font-bold text-amber-800">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <span>Buffalo Milk Pricing</span>
                     </div>
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">Buffalo Fixed Rate (₹)</label>
-                        <input type="number" step="0.01" name="buffalo_fixed_rate" placeholder="0.00" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none font-mono">
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Buffalo Milk Rate Mode</label>
+                            <select name="buffalo_rate_mode" id="addBuffaloRateMode" onchange="syncBuffaloRateModeFields('add')" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none text-xs font-medium">
+                                <option value="fixed">Fixed Rate</option>
+                                <option value="rate_chart">As per rate chart</option>
+                                <option value="manual">Manual Rate Entry</option>
+                                <option value="penalty">Rate Chart - Penalty</option>
+                                <option value="bonus">Rate Chart - Bonus</option>
+                            </select>
+                        </div>
+
+                        <!-- Fixed Rate -->
+                        <div id="addBuffaloFixedRateWrapper">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Buffalo Fixed Rate (₹)</label>
+                            <input type="number" step="0.01" name="buffalo_fixed_rate" id="addBuffaloFixedRate" placeholder="0.00" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none font-mono text-xs font-bold text-slate-800">
+                        </div>
+
+                        <!-- Rate Chart Dropdown -->
+                        <div id="addBuffaloRateChartWrapper" class="hidden">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Buffalo Rate Chart</label>
+                            <select name="buffalo_rate_chart_id" id="addBuffaloRateChart" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none text-xs font-medium">
+                                <option value="">Select Buffalo Rate Chart</option>
+                                @foreach($rateCharts ?? [] as $rc)
+                                    @if($rc->milk_type === 'buffalo' || in_array($rc->milk_type, ['both', 'mixed', 'all']))
+                                        <option value="{{ $rc->id }}">{{ $rc->name }} ({{ ucfirst($rc->milk_type) }} - {{ $rc->format }})</option>
+                                    @endif
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- Rate Value (Manual Rate / Penalty / Bonus) -->
+                        <div id="addBuffaloRateValueWrapper" class="hidden">
+                            <label class="block text-xs font-bold text-slate-700 mb-1" id="addBuffaloRateValueLabel">Buffalo Manual Rate (₹)</label>
+                            <input type="number" step="0.01" name="buffalo_rate_value" id="addBuffaloRateValue" placeholder="0.00" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none font-mono text-xs font-bold text-slate-800">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -350,43 +425,115 @@
                 </div>
             </div>
 
-            <div class="space-y-3">
-                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider pb-1 border-b border-slate-100">Milk Details</h4>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">Milk Type</label>
-                        <select name="milk_type" id="editBuyerMilkType" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none">
-                            <option value="both">Both (Cow & Buffalo)</option>
-                            <option value="cow">Cow Milk</option>
-                            <option value="buffalo">Buffalo Milk</option>
-                        </select>
+            <!-- Section 2: Milk Details matching Screenshot 4 & Dynamic Rate Modes -->
+            <div class="space-y-4 p-4 bg-slate-50/70 rounded-2xl border border-slate-200/80">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                    <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="milk" class="w-4 h-4 text-emerald-600"></i>
+                        <span>Milk Details & Pricing</span>
+                    </h4>
+                    <span class="text-[11px] text-slate-500 font-medium">Select type to configure rate rules</span>
+                </div>
+
+                <!-- Milk Type Selector -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Milk Type <span class="text-rose-500">*</span></label>
+                    <select name="milk_type" id="editBuyerMilkType" onchange="syncBuyerMilkTypeFields('edit')" required class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-white focus:border-emerald-500 outline-none font-semibold text-slate-800">
+                        <option value="both">Both (Cow & Buffalo)</option>
+                        <option value="cow">Cow Milk</option>
+                        <option value="buffalo">Buffalo Milk</option>
+                    </select>
+                </div>
+
+                <!-- Cow Milk Pricing Section -->
+                <div id="editCowMilkSection" class="p-3.5 bg-white rounded-xl border border-sky-100 shadow-2xs space-y-3">
+                    <div class="flex items-center gap-2 text-xs font-bold text-sky-800">
+                        <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
+                        <span>Cow Milk Pricing</span>
                     </div>
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">Cow Rate Mode</label>
-                        <select name="cow_rate_mode" id="editCowRateMode" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none">
-                            <option value="fixed">Fixed Rate</option>
-                            <option value="rate_chart">As per rate chart</option>
-                            <option value="manual">Manual Rate Entry</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">Cow Fixed Rate (₹)</label>
-                        <input type="number" step="0.01" name="cow_fixed_rate" id="editCowFixedRate" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none font-mono">
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Cow Milk Rate Mode</label>
+                            <select name="cow_rate_mode" id="editCowRateMode" onchange="syncCowRateModeFields('edit')" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none text-xs font-medium">
+                                <option value="fixed">Fixed Rate</option>
+                                <option value="rate_chart">As per rate chart</option>
+                                <option value="manual">Manual Rate Entry</option>
+                                <option value="penalty">Rate Chart - Penalty</option>
+                                <option value="bonus">Rate Chart - Bonus</option>
+                            </select>
+                        </div>
+
+                        <!-- Fixed Rate -->
+                        <div id="editCowFixedRateWrapper">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Cow Fixed Rate (₹)</label>
+                            <input type="number" step="0.01" name="cow_fixed_rate" id="editCowFixedRate" placeholder="0.00" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none font-mono text-xs font-bold text-slate-800">
+                        </div>
+
+                        <!-- Rate Chart Dropdown -->
+                        <div id="editCowRateChartWrapper" class="hidden">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Cow Rate Chart</label>
+                            <select name="cow_rate_chart_id" id="editCowRateChart" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none text-xs font-medium">
+                                <option value="">Select Cow Rate Chart</option>
+                                @foreach($rateCharts ?? [] as $rc)
+                                    @if($rc->milk_type === 'cow' || in_array($rc->milk_type, ['both', 'mixed', 'all']))
+                                        <option value="{{ $rc->id }}">{{ $rc->name }} ({{ ucfirst($rc->milk_type) }} - {{ $rc->format }})</option>
+                                    @endif
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- Rate Value (Manual Rate / Penalty / Bonus) -->
+                        <div id="editCowRateValueWrapper" class="hidden">
+                            <label class="block text-xs font-bold text-slate-700 mb-1" id="editCowRateValueLabel">Cow Manual Rate (₹)</label>
+                            <input type="number" step="0.01" name="cow_rate_value" id="editCowRateValue" placeholder="0.00" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none font-mono text-xs font-bold text-slate-800">
+                        </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">Buffalo Rate Mode</label>
-                        <select name="buffalo_rate_mode" id="editBuffaloRateMode" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none">
-                            <option value="fixed">Fixed Rate</option>
-                            <option value="rate_chart">As per rate chart</option>
-                            <option value="manual">Manual Rate Entry</option>
-                        </select>
+                <!-- Buffalo Milk Pricing Section -->
+                <div id="editBuffaloMilkSection" class="p-3.5 bg-white rounded-xl border border-amber-100 shadow-2xs space-y-3">
+                    <div class="flex items-center gap-2 text-xs font-bold text-amber-800">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <span>Buffalo Milk Pricing</span>
                     </div>
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">Buffalo Fixed Rate (₹)</label>
-                        <input type="number" step="0.01" name="buffalo_fixed_rate" id="editBuffaloFixedRate" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none font-mono">
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Buffalo Milk Rate Mode</label>
+                            <select name="buffalo_rate_mode" id="editBuffaloRateMode" onchange="syncBuffaloRateModeFields('edit')" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none text-xs font-medium">
+                                <option value="fixed">Fixed Rate</option>
+                                <option value="rate_chart">As per rate chart</option>
+                                <option value="manual">Manual Rate Entry</option>
+                                <option value="penalty">Rate Chart - Penalty</option>
+                                <option value="bonus">Rate Chart - Bonus</option>
+                            </select>
+                        </div>
+
+                        <!-- Fixed Rate -->
+                        <div id="editBuffaloFixedRateWrapper">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Buffalo Fixed Rate (₹)</label>
+                            <input type="number" step="0.01" name="buffalo_fixed_rate" id="editBuffaloFixedRate" placeholder="0.00" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none font-mono text-xs font-bold text-slate-800">
+                        </div>
+
+                        <!-- Rate Chart Dropdown -->
+                        <div id="editBuffaloRateChartWrapper" class="hidden">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Buffalo Rate Chart</label>
+                            <select name="buffalo_rate_chart_id" id="editBuffaloRateChart" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none text-xs font-medium">
+                                <option value="">Select Buffalo Rate Chart</option>
+                                @foreach($rateCharts ?? [] as $rc)
+                                    @if($rc->milk_type === 'buffalo' || in_array($rc->milk_type, ['both', 'mixed', 'all']))
+                                        <option value="{{ $rc->id }}">{{ $rc->name }} ({{ ucfirst($rc->milk_type) }} - {{ $rc->format }})</option>
+                                    @endif
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- Rate Value (Manual Rate / Penalty / Bonus) -->
+                        <div id="editBuffaloRateValueWrapper" class="hidden">
+                            <label class="block text-xs font-bold text-slate-700 mb-1" id="editBuffaloRateValueLabel">Buffalo Manual Rate (₹)</label>
+                            <input type="number" step="0.01" name="buffalo_rate_value" id="editBuffaloRateValue" placeholder="0.00" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none font-mono text-xs font-bold text-slate-800">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -435,9 +582,112 @@
 
 @push('scripts')
 <script>
+    function syncBuyerMilkTypeFields(prefix) {
+        const typeSelect = document.getElementById(prefix === 'add' ? 'addBuyerMilkType' : 'editBuyerMilkType');
+        const val = typeSelect ? typeSelect.value : 'both';
+        const cowSec = document.getElementById(prefix === 'add' ? 'addCowMilkSection' : 'editCowMilkSection');
+        const bufSec = document.getElementById(prefix === 'add' ? 'addBuffaloMilkSection' : 'editBuffaloMilkSection');
+
+        if (cowSec) {
+            if (val === 'cow' || val === 'both') {
+                cowSec.classList.remove('hidden');
+            } else {
+                cowSec.classList.add('hidden');
+            }
+        }
+
+        if (bufSec) {
+            if (val === 'buffalo' || val === 'both') {
+                bufSec.classList.remove('hidden');
+            } else {
+                bufSec.classList.add('hidden');
+            }
+        }
+    }
+
+    function syncCowRateModeFields(prefix) {
+        const modeSelect = document.getElementById(prefix === 'add' ? 'addCowRateMode' : 'editCowRateMode');
+        const mode = modeSelect ? modeSelect.value : 'fixed';
+
+        const fixedWrap = document.getElementById(prefix === 'add' ? 'addCowFixedRateWrapper' : 'editCowFixedRateWrapper');
+        const chartWrap = document.getElementById(prefix === 'add' ? 'addCowRateChartWrapper' : 'editCowRateChartWrapper');
+        const valWrap = document.getElementById(prefix === 'add' ? 'addCowRateValueWrapper' : 'editCowRateValueWrapper');
+        const valLabel = document.getElementById(prefix === 'add' ? 'addCowRateValueLabel' : 'editCowRateValueLabel');
+
+        // Reset display
+        if (fixedWrap) fixedWrap.classList.add('hidden');
+        if (chartWrap) chartWrap.classList.add('hidden');
+        if (valWrap) valWrap.classList.add('hidden');
+
+        if (mode === 'fixed') {
+            if (fixedWrap) fixedWrap.classList.remove('hidden');
+        } else if (mode === 'rate_chart') {
+            if (chartWrap) chartWrap.classList.remove('hidden');
+        } else if (mode === 'manual') {
+            if (valWrap) {
+                valWrap.classList.remove('hidden');
+                if (valLabel) valLabel.textContent = 'Cow Manual Rate (₹)';
+            }
+        } else if (mode === 'penalty') {
+            if (chartWrap) chartWrap.classList.remove('hidden');
+            if (valWrap) {
+                valWrap.classList.remove('hidden');
+                if (valLabel) valLabel.textContent = 'Cow Penalty (₹/Ltr deduction)';
+            }
+        } else if (mode === 'bonus') {
+            if (chartWrap) chartWrap.classList.remove('hidden');
+            if (valWrap) {
+                valWrap.classList.remove('hidden');
+                if (valLabel) valLabel.textContent = 'Cow Bonus (₹/Ltr addition)';
+            }
+        }
+    }
+
+    function syncBuffaloRateModeFields(prefix) {
+        const modeSelect = document.getElementById(prefix === 'add' ? 'addBuffaloRateMode' : 'editBuffaloRateMode');
+        const mode = modeSelect ? modeSelect.value : 'fixed';
+
+        const fixedWrap = document.getElementById(prefix === 'add' ? 'addBuffaloFixedRateWrapper' : 'editBuffaloFixedRateWrapper');
+        const chartWrap = document.getElementById(prefix === 'add' ? 'addBuffaloRateChartWrapper' : 'editBuffaloRateChartWrapper');
+        const valWrap = document.getElementById(prefix === 'add' ? 'addBuffaloRateValueWrapper' : 'editBuffaloRateValueWrapper');
+        const valLabel = document.getElementById(prefix === 'add' ? 'addBuffaloRateValueLabel' : 'editBuffaloRateValueLabel');
+
+        // Reset display
+        if (fixedWrap) fixedWrap.classList.add('hidden');
+        if (chartWrap) chartWrap.classList.add('hidden');
+        if (valWrap) valWrap.classList.add('hidden');
+
+        if (mode === 'fixed') {
+            if (fixedWrap) fixedWrap.classList.remove('hidden');
+        } else if (mode === 'rate_chart') {
+            if (chartWrap) chartWrap.classList.remove('hidden');
+        } else if (mode === 'manual') {
+            if (valWrap) {
+                valWrap.classList.remove('hidden');
+                if (valLabel) valLabel.textContent = 'Buffalo Manual Rate (₹)';
+            }
+        } else if (mode === 'penalty') {
+            if (chartWrap) chartWrap.classList.remove('hidden');
+            if (valWrap) {
+                valWrap.classList.remove('hidden');
+                if (valLabel) valLabel.textContent = 'Buffalo Penalty (₹/Ltr deduction)';
+            }
+        } else if (mode === 'bonus') {
+            if (chartWrap) chartWrap.classList.remove('hidden');
+            if (valWrap) {
+                valWrap.classList.remove('hidden');
+                if (valLabel) valLabel.textContent = 'Buffalo Bonus (₹/Ltr addition)';
+            }
+        }
+    }
+
     function openAddBuyerModal() {
+        syncBuyerMilkTypeFields('add');
+        syncCowRateModeFields('add');
+        syncBuffaloRateModeFields('add');
         document.getElementById('addBuyerModal').classList.remove('hidden');
     }
+
     function closeAddBuyerModal() {
         document.getElementById('addBuyerModal').classList.add('hidden');
     }
@@ -448,20 +698,54 @@
         document.getElementById('editBuyerCode').value = b.buyer_code;
         document.getElementById('editBuyerName').value = b.name;
         document.getElementById('editBuyerPhone').value = b.phone || '';
-        document.getElementById('editBuyerMilkType').value = b.milk_type;
-        document.getElementById('editCowRateMode').value = b.cow_rate_mode;
-        document.getElementById('editCowFixedRate').value = b.cow_fixed_rate;
-        document.getElementById('editBuffaloRateMode').value = b.buffalo_rate_mode;
-        document.getElementById('editBuffaloFixedRate').value = b.buffalo_fixed_rate;
+
+        // Milk Type & Rates
+        const milkType = b.milk_type || 'both';
+        document.getElementById('editBuyerMilkType').value = milkType;
+
+        // Cow
+        document.getElementById('editCowRateMode').value = b.cow_rate_mode || 'fixed';
+        document.getElementById('editCowFixedRate').value = b.cow_fixed_rate || '';
+        if (document.getElementById('editCowRateChart')) {
+            document.getElementById('editCowRateChart').value = b.cow_rate_chart_id || '';
+        }
+        if (document.getElementById('editCowRateValue')) {
+            document.getElementById('editCowRateValue').value = b.cow_rate_value || '';
+        }
+
+        // Buffalo
+        document.getElementById('editBuffaloRateMode').value = b.buffalo_rate_mode || 'fixed';
+        document.getElementById('editBuffaloFixedRate').value = b.buffalo_fixed_rate || '';
+        if (document.getElementById('editBuffaloRateChart')) {
+            document.getElementById('editBuffaloRateChart').value = b.buffalo_rate_chart_id || '';
+        }
+        if (document.getElementById('editBuffaloRateValue')) {
+            document.getElementById('editBuffaloRateValue').value = b.buffalo_rate_value || '';
+        }
+
         document.getElementById('editAddress').value = b.address || '';
         document.getElementById('editTaluka').value = b.taluka || '';
         document.getElementById('editDistrict').value = b.district || '';
         document.getElementById('editDetails').value = b.details || '';
-        document.getElementById('editStatus').value = b.status;
+        document.getElementById('editStatus').value = b.status || 'active';
+
+        // Trigger dynamic field sync
+        syncBuyerMilkTypeFields('edit');
+        syncCowRateModeFields('edit');
+        syncBuffaloRateModeFields('edit');
+
         document.getElementById('editBuyerModal').classList.remove('hidden');
     }
+
     function closeEditBuyerModal() {
         document.getElementById('editBuyerModal').classList.add('hidden');
     }
+
+    // Initialize on DOM load
+    document.addEventListener('DOMContentLoaded', function() {
+        syncBuyerMilkTypeFields('add');
+        syncCowRateModeFields('add');
+        syncBuffaloRateModeFields('add');
+    });
 </script>
 @endpush

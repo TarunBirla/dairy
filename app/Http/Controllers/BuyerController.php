@@ -32,8 +32,12 @@ class BuyerController extends Controller
                     $table->string('milk_type')->default('both');
                     $table->string('cow_rate_mode')->default('fixed');
                     $table->decimal('cow_fixed_rate', 10, 2)->default(0.00);
+                    $table->unsignedBigInteger('cow_rate_chart_id')->nullable();
+                    $table->decimal('cow_rate_value', 10, 2)->nullable()->default(0.00);
                     $table->string('buffalo_rate_mode')->default('fixed');
                     $table->decimal('buffalo_fixed_rate', 10, 2)->default(0.00);
+                    $table->unsignedBigInteger('buffalo_rate_chart_id')->nullable();
+                    $table->decimal('buffalo_rate_value', 10, 2)->nullable()->default(0.00);
                     $table->text('address')->nullable();
                     $table->string('taluka')->nullable();
                     $table->string('district')->nullable();
@@ -43,6 +47,27 @@ class BuyerController extends Controller
                     $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
                     $table->timestamps();
                 });
+            } else {
+                if (!Schema::hasColumn('buyers', 'cow_rate_chart_id')) {
+                    Schema::table('buyers', function (Blueprint $table) {
+                        $table->unsignedBigInteger('cow_rate_chart_id')->nullable()->after('cow_rate_mode');
+                    });
+                }
+                if (!Schema::hasColumn('buyers', 'cow_rate_value')) {
+                    Schema::table('buyers', function (Blueprint $table) {
+                        $table->decimal('cow_rate_value', 10, 2)->nullable()->default(0.00)->after('cow_rate_chart_id');
+                    });
+                }
+                if (!Schema::hasColumn('buyers', 'buffalo_rate_chart_id')) {
+                    Schema::table('buyers', function (Blueprint $table) {
+                        $table->unsignedBigInteger('buffalo_rate_chart_id')->nullable()->after('buffalo_rate_mode');
+                    });
+                }
+                if (!Schema::hasColumn('buyers', 'buffalo_rate_value')) {
+                    Schema::table('buyers', function (Blueprint $table) {
+                        $table->decimal('buffalo_rate_value', 10, 2)->nullable()->default(0.00)->after('buffalo_rate_chart_id');
+                    });
+                }
             }
 
             if (!Schema::hasTable('buyer_payments')) {
@@ -89,10 +114,13 @@ class BuyerController extends Controller
 
         $buyers = $query->latest('id')->paginate(20)->withQueryString();
 
+        // Active Rate Charts for Buyer pricing modes (rate_chart, penalty, bonus)
+        $rateCharts = \App\Models\RateChart::where('status', 'active')->orderBy('name')->get();
+
         // Generate next suggested buyer code
         $nextCode = 'BUY' . str_pad((Buyer::max('id') + 1), 3, '0', STR_PAD_LEFT);
 
-        return view('buyers.index', compact('buyers', 'search', 'status', 'nextCode'));
+        return view('buyers.index', compact('buyers', 'rateCharts', 'search', 'status', 'nextCode'));
     }
 
     /**
@@ -106,10 +134,14 @@ class BuyerController extends Controller
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:100',
             'milk_type' => 'required|string|in:cow,buffalo,both',
-            'cow_rate_mode' => 'nullable|string',
+            'cow_rate_mode' => 'nullable|string|in:fixed,rate_chart,manual,penalty,bonus',
             'cow_fixed_rate' => 'nullable|numeric|min:0',
-            'buffalo_rate_mode' => 'nullable|string',
+            'cow_rate_chart_id' => 'nullable|exists:rate_charts,id',
+            'cow_rate_value' => 'nullable|numeric',
+            'buffalo_rate_mode' => 'nullable|string|in:fixed,rate_chart,manual,penalty,bonus',
             'buffalo_fixed_rate' => 'nullable|numeric|min:0',
+            'buffalo_rate_chart_id' => 'nullable|exists:rate_charts,id',
+            'buffalo_rate_value' => 'nullable|numeric',
             'address' => 'nullable|string',
             'taluka' => 'nullable|string|max:100',
             'district' => 'nullable|string|max:100',
@@ -119,8 +151,12 @@ class BuyerController extends Controller
 
         $validated['cow_rate_mode'] = $validated['cow_rate_mode'] ?? 'fixed';
         $validated['cow_fixed_rate'] = $validated['cow_fixed_rate'] ?? 0;
+        $validated['cow_rate_chart_id'] = $validated['cow_rate_chart_id'] ?: null;
+        $validated['cow_rate_value'] = $validated['cow_rate_value'] ?? 0;
         $validated['buffalo_rate_mode'] = $validated['buffalo_rate_mode'] ?? 'fixed';
         $validated['buffalo_fixed_rate'] = $validated['buffalo_fixed_rate'] ?? 0;
+        $validated['buffalo_rate_chart_id'] = $validated['buffalo_rate_chart_id'] ?: null;
+        $validated['buffalo_rate_value'] = $validated['buffalo_rate_value'] ?? 0;
         $validated['status'] = $validated['status'] ?? 'active';
         $validated['created_by'] = Auth::id();
 
@@ -150,16 +186,29 @@ class BuyerController extends Controller
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:100',
             'milk_type' => 'required|string|in:cow,buffalo,both',
-            'cow_rate_mode' => 'nullable|string',
+            'cow_rate_mode' => 'nullable|string|in:fixed,rate_chart,manual,penalty,bonus',
             'cow_fixed_rate' => 'nullable|numeric|min:0',
-            'buffalo_rate_mode' => 'nullable|string',
+            'cow_rate_chart_id' => 'nullable|exists:rate_charts,id',
+            'cow_rate_value' => 'nullable|numeric',
+            'buffalo_rate_mode' => 'nullable|string|in:fixed,rate_chart,manual,penalty,bonus',
             'buffalo_fixed_rate' => 'nullable|numeric|min:0',
+            'buffalo_rate_chart_id' => 'nullable|exists:rate_charts,id',
+            'buffalo_rate_value' => 'nullable|numeric',
             'address' => 'nullable|string',
             'taluka' => 'nullable|string|max:100',
             'district' => 'nullable|string|max:100',
             'details' => 'nullable|string',
             'status' => 'nullable|string|in:active,inactive',
         ]);
+
+        $validated['cow_rate_mode'] = $validated['cow_rate_mode'] ?? 'fixed';
+        $validated['cow_fixed_rate'] = $validated['cow_fixed_rate'] ?? 0;
+        $validated['cow_rate_chart_id'] = $validated['cow_rate_chart_id'] ?: null;
+        $validated['cow_rate_value'] = $validated['cow_rate_value'] ?? 0;
+        $validated['buffalo_rate_mode'] = $validated['buffalo_rate_mode'] ?? 'fixed';
+        $validated['buffalo_fixed_rate'] = $validated['buffalo_fixed_rate'] ?? 0;
+        $validated['buffalo_rate_chart_id'] = $validated['buffalo_rate_chart_id'] ?: null;
+        $validated['buffalo_rate_value'] = $validated['buffalo_rate_value'] ?? 0;
 
         $buyer->update($validated);
 
