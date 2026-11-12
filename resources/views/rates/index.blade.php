@@ -489,24 +489,67 @@
                     <h4 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                         <i data-lucide="users" class="w-3.5 h-3.5 text-emerald-600"></i>
                         Farmers
+                        <span id="assignSelectedCountBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold ml-1">0 selected</span>
                     </h4>
                     <div class="flex gap-2">
                         <button type="button" onclick="toggleAllAssignFarmers(true)" class="text-[11px] text-blue-600 hover:underline">Select all</button>
                         <button type="button" onclick="toggleAllAssignFarmers(false)" class="text-[11px] text-slate-500 hover:underline">Clear</button>
                     </div>
                 </div>
+
+                <!-- Farmer Search Input & Quick Select Dropdown -->
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 mb-2.5">
+                    <!-- Live Search text input -->
+                    <div class="sm:col-span-6 relative">
+                        <input type="text" 
+                               id="assignFarmerSearchInput" 
+                               onkeyup="filterAssignFarmersList()" 
+                               placeholder="Search farmer name, code, village..." 
+                               class="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition">
+                        <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2"></i>
+                    </div>
+
+                    <!-- Quick Dropdown to Select/Add Farmer -->
+                    <div class="sm:col-span-6 relative">
+                        <select id="assignFarmerQuickSelect" 
+                                onchange="selectFarmerFromAssignDropdown(this.value)" 
+                                class="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition font-medium">
+                            <option value="">-- Quick Dropdown: Choose Farmer --</option>
+                            @foreach($farmers as $fmr)
+                                <option value="{{ $fmr->id }}">
+                                    [{{ $fmr->farmer_code }}] {{ $fmr->name }} {{ $fmr->phone ? '(' . $fmr->phone . ')' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Farmers Checkbox Grid -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto p-2 bg-slate-50 rounded-xl border border-slate-200" id="assignFarmersList">
                     @forelse($farmers as $fmr)
-                        <label class="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200/80 cursor-pointer text-xs">
-                            <input type="checkbox" name="farmer_ids[]" value="{{ $fmr->id }}" class="assign-farmer-cb rounded text-emerald-600 focus:ring-emerald-500">
-                            <div class="truncate">
-                                <span class="font-bold text-slate-900 block truncate">{{ $fmr->name }}</span>
-                                <span class="text-[10px] text-slate-400 font-mono">[{{ $fmr->farmer_code }}]</span>
+                        <label class="assign-farmer-card flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200/80 cursor-pointer text-xs hover:border-emerald-300 transition"
+                               data-search="{{ strtolower($fmr->name . ' ' . ($fmr->name_hi ?? '') . ' ' . $fmr->farmer_code . ' ' . ($fmr->phone ?? '') . ' ' . ($fmr->village ?? '')) }}"
+                               data-farmer-id="{{ $fmr->id }}">
+                            <input type="checkbox" name="farmer_ids[]" value="{{ $fmr->id }}" onchange="updateAssignSelectedCount()" class="assign-farmer-cb rounded text-emerald-600 focus:ring-emerald-500">
+                            <div class="truncate flex-1">
+                                <div class="flex items-center gap-1.5 truncate">
+                                    <span class="px-1 py-0.2 bg-emerald-50 text-emerald-800 text-[10px] font-mono font-bold rounded border border-emerald-200">
+                                        {{ $fmr->farmer_code }}
+                                    </span>
+                                    <span class="font-bold text-slate-900 truncate">{{ $fmr->name }}</span>
+                                </div>
+                                <div class="text-[10px] text-slate-400 truncate flex items-center gap-2 mt-0.5">
+                                    @if($fmr->phone) <span>📞 {{ $fmr->phone }}</span> @endif
+                                    @if($fmr->village) <span>🏡 {{ $fmr->village }}</span> @endif
+                                </div>
                             </div>
                         </label>
                     @empty
                         <div class="col-span-2 text-center py-3 text-xs text-slate-400">No farmers available</div>
                     @endforelse
+                </div>
+                <div id="assignFarmerNoMatch" class="hidden text-center py-3 text-xs text-slate-400">
+                    No farmers match your search.
                 </div>
             </div>
 
@@ -664,8 +707,15 @@
         form.action = `/rates/${rateId}/assign`;
         document.getElementById('assignModalSubtitle').textContent = `Assign chart "${rateName}" to collection centers and farmers.`;
         
-        // Reset checkboxes first
+        // Reset search, dropdown, and checkboxes
+        const searchInput = document.getElementById('assignFarmerSearchInput');
+        if (searchInput) searchInput.value = '';
+        const quickSelect = document.getElementById('assignFarmerQuickSelect');
+        if (quickSelect) quickSelect.value = '';
+        filterAssignFarmersList();
+
         document.querySelectorAll('.assign-farmer-cb').forEach(cb => cb.checked = false);
+        updateAssignSelectedCount();
 
         // Fetch already assigned farmers to pre-check
         fetch(`/rates/${rateId}/assigned-farmers`)
@@ -678,6 +728,7 @@
                             cb.checked = true;
                         }
                     });
+                    updateAssignSelectedCount();
                 }
             })
             .catch(() => {});
@@ -691,7 +742,67 @@
     }
 
     function toggleAllAssignFarmers(select) {
-        document.querySelectorAll('.assign-farmer-cb').forEach(cb => cb.checked = select);
+        document.querySelectorAll('.assign-farmer-cb').forEach(cb => {
+            // Only affect currently visible cards if filtered, or all if none filtered
+            const card = cb.closest('.assign-farmer-card');
+            if (!card || card.style.display !== 'none') {
+                cb.checked = select;
+            }
+        });
+        updateAssignSelectedCount();
+    }
+
+    function filterAssignFarmersList() {
+        const q = (document.getElementById('assignFarmerSearchInput')?.value || '').toLowerCase().trim();
+        const cards = document.querySelectorAll('.assign-farmer-card');
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const searchData = card.getAttribute('data-search') || '';
+            if (!q || searchData.includes(q)) {
+                card.style.display = 'flex';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        const noMatch = document.getElementById('assignFarmerNoMatch');
+        if (noMatch) {
+            if (visibleCount === 0 && cards.length > 0) {
+                noMatch.classList.remove('hidden');
+            } else {
+                noMatch.classList.add('hidden');
+            }
+        }
+    }
+
+    function selectFarmerFromAssignDropdown(farmerId) {
+        if (!farmerId) return;
+
+        const targetCard = document.querySelector(`.assign-farmer-card[data-farmer-id="${farmerId}"]`);
+        if (targetCard) {
+            targetCard.style.display = 'flex';
+            const cb = targetCard.querySelector('.assign-farmer-cb');
+            if (cb) {
+                cb.checked = true;
+                updateAssignSelectedCount();
+                // Scroll card into view and give quick highlight
+                targetCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                targetCard.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-50/50');
+                setTimeout(() => {
+                    targetCard.classList.remove('ring-2', 'ring-emerald-500', 'bg-emerald-50/50');
+                }, 1500);
+            }
+        }
+    }
+
+    function updateAssignSelectedCount() {
+        const totalChecked = document.querySelectorAll('.assign-farmer-cb:checked').length;
+        const badge = document.getElementById('assignSelectedCountBadge');
+        if (badge) {
+            badge.textContent = `${totalChecked} selected`;
+        }
     }
 
     // Assigned Farmers Modal Controls
