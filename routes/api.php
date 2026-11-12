@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthApiController;
 use App\Http\Controllers\Api\ProcurementApiController;
+use App\Http\Controllers\Api\MobileDairyApiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -47,7 +48,26 @@ $registerProcurementRoutes = function () {
         Route::put('/farmers/{farmer}', [ProcurementApiController::class, 'farmersUpdate']);
         Route::delete('/farmers/{farmer}', [ProcurementApiController::class, 'farmersDestroy']);
 
-        // 3. Rate Charts (Fat/SNF)
+        // 3. Mobile Dairy Suite (8-IN-1 Dedicated Software)
+        Route::prefix('mobile-dairy')->group(function () {
+            Route::get('/farmers', [MobileDairyApiController::class, 'farmersHub']);
+            Route::get('/farmer/{farmer}', [MobileDairyApiController::class, 'farmerSuite']);
+            Route::post('/calc-rate', [MobileDairyApiController::class, 'calculateRate']);
+            Route::post('/milk-entry/{farmer}', [MobileDairyApiController::class, 'storeMilkEntry']);
+            Route::put('/milk-entry/{collection}', [MobileDairyApiController::class, 'updateMilkEntry']);
+            Route::post('/loans/{farmer}', [MobileDairyApiController::class, 'storeLoan']);
+            Route::post('/loans/{loan}/repayment', [MobileDairyApiController::class, 'storeLoanRepayment']);
+            Route::post('/deductions/{farmer}', [MobileDairyApiController::class, 'storeDeduction']);
+            Route::get('/products', [MobileDairyApiController::class, 'products']);
+            Route::post('/products/{farmer}', [MobileDairyApiController::class, 'storeProductSale']);
+            Route::post('/emergency/{farmer}', [MobileDairyApiController::class, 'storeEmergencyFund']);
+            Route::post('/emergency/{emergencyFund}/recovery', [MobileDairyApiController::class, 'recordEmergencyRecovery']);
+            Route::post('/invoices/{farmer}', [MobileDairyApiController::class, 'generateInvoice']);
+            Route::post('/invoices/{invoice}/mark-paid', [MobileDairyApiController::class, 'markInvoicePaid']);
+            Route::get('/invoices/{invoice}/slip', [MobileDairyApiController::class, 'invoiceSlip']);
+        });
+
+        // 4. Rate Charts (Fat/SNF)
         Route::get('/rate-charts', [ProcurementApiController::class, 'rateChartsIndex']);
         Route::post('/rate-charts', [ProcurementApiController::class, 'rateChartsStore']);
         Route::post('/rate-charts/apply-correction', [ProcurementApiController::class, 'rateChartsApplyCorrection']);
