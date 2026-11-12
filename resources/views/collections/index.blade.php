@@ -214,8 +214,13 @@
 
                     <!-- ROW 2 (MIDDLE ROW): FARMER CODE | FARMER NAME | SAMPLE NO. (AUTO) -->
                     <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end" id="farmer_select_col" @click.away="farmerDropdownOpen = false; codeDropdownOpen = false;">
-                        <!-- Farmer Code (4 cols) -->
-                        <div class="sm:col-span-3 relative">
+                        <!-- Farmer Code (Shown if canSearchByCode is true) -->
+                        <div x-show="canSearchByCode" 
+                             :class="{
+                                 'sm:col-span-3': canSearchByName,
+                                 'sm:col-span-9': !canSearchByName
+                             }" 
+                             class="relative">
                             <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Farmer Code *</label>
                             <div class="flex items-stretch h-7">
                                 <input type="text" 
@@ -270,8 +275,13 @@
                             </div>
                         </div>
 
-                        <!-- Farmer Name (Searchable Dropdown, 5 cols) -->
-                        <div class="sm:col-span-6 relative">
+                        <!-- Farmer Name (Shown if canSearchByName is true) -->
+                        <div x-show="canSearchByName" 
+                             :class="{
+                                 'sm:col-span-6': canSearchByCode,
+                                 'sm:col-span-9': !canSearchByCode
+                             }" 
+                             class="relative">
                             <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Farmer Name *</label>
                             <div class="flex items-stretch h-7 relative">
                                 <input type="text" 
@@ -331,9 +341,9 @@
                                     No farmer matches "<span class="font-semibold text-slate-600" x-text="farmerSearchText"></span>"
                                 </div>
                             </div>
-
-                            <input type="hidden" name="farmer_id" :value="form.farmer_id">
                         </div>
+
+                        <input type="hidden" name="farmer_id" :value="form.farmer_id">
 
                         <!-- Sample No. (Auto, 3 cols) -->
                         <div class="sm:col-span-3">
@@ -1173,13 +1183,15 @@ function milkCollectionManager() {
         },
 
         get canSearchByCode() {
-            const mode = (this.config.farmer_search_mode || 'Both').toLowerCase();
-            return mode.includes('code') || mode.includes('both');
+            const mode = (this.config.farmer_search_mode || 'Both').trim();
+            if (mode === 'Farmer Name Only') return false;
+            return true;
         },
 
         get canSearchByName() {
-            const mode = (this.config.farmer_search_mode || 'Both').toLowerCase();
-            return mode.includes('name') || mode.includes('both');
+            const mode = (this.config.farmer_search_mode || 'Both').trim();
+            if (mode === 'Farmer Code Only') return false;
+            return true;
         },
 
         get filteredFarmersByCode() {
