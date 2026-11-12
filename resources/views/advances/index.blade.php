@@ -89,12 +89,12 @@
                 </div>
             </div>
 
-            <!-- Filter Bar: All Farmers, Search input, Search, Reset, Print -->
-            <form method="GET" action="{{ route('advances.index') }}" class="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-2">
+            <!-- Filter Bar: All Farmers, Date Range, Search input, Search, Reset, Print -->
+            <form method="GET" action="{{ route('advances.index') }}" class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-2 items-end">
                 <!-- Farmer Dropdown matching reference -->
-                <div class="sm:col-span-4 md:col-span-3">
+                <div class="sm:col-span-3 md:col-span-3">
                     <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Farmer Filter</label>
-                    <select name="farmer_id" class="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 transition">
+                    <select name="farmer_id" class="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 transition">
                         <option value="">All Farmers</option>
                         @foreach($allFarmers as $f)
                             <option value="{{ $f->id }}" {{ request('farmer_id') == $f->id ? 'selected' : '' }}>
@@ -104,33 +104,54 @@
                     </select>
                 </div>
 
+                <!-- Start Date -->
+                <div class="sm:col-span-2 md:col-span-2">
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Start Date</label>
+                    <input 
+                        type="date" 
+                        name="start_date" 
+                        value="{{ request('start_date') }}"
+                        class="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:bg-white transition"
+                    >
+                </div>
+
+                <!-- End Date -->
+                <div class="sm:col-span-2 md:col-span-2">
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">End Date</label>
+                    <input 
+                        type="date" 
+                        name="end_date" 
+                        value="{{ request('end_date') }}"
+                        class="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:bg-white transition"
+                    >
+                </div>
+
                 <!-- Search Input: Search farmer, phone, voucher... -->
-                <div class="sm:col-span-5 md:col-span-6">
+                <div class="sm:col-span-3 md:col-span-3">
                     <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Search</label>
                     <div class="relative">
-                        <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                        <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
                         <input 
                             type="text" 
                             name="search" 
                             value="{{ request('search') }}"
-                            placeholder="Search farmer, phone, voucher..." 
-                            class="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:bg-white transition"
+                            placeholder="Search farmer, voucher..." 
+                            class="w-full pl-7 pr-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:bg-white transition"
                         >
                     </div>
                 </div>
 
                 <!-- Buttons: Search, Reset, Print matching reference -->
-                <div class="sm:col-span-3 md:col-span-3 flex items-end gap-2">
-                    <button type="submit" class="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition flex items-center gap-1.5">
+                <div class="sm:col-span-2 md:col-span-2 flex items-center gap-1.5 justify-end">
+                    <button type="submit" class="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition flex items-center gap-1">
                         <i data-lucide="search" class="w-3.5 h-3.5"></i>
                         <span>Search</span>
                     </button>
-                    <a href="{{ route('advances.index') }}" class="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition">
+                    <a href="{{ route('advances.index') }}" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition">
                         Reset
                     </a>
-                    <a href="{{ route('advances.print', request()->query()) }}" target="_blank" class="px-3 py-1.5 text-xs font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 rounded-lg transition flex items-center gap-1">
+                    <a href="{{ route('advances.print', request()->query()) }}" target="_blank" class="px-2.5 py-1.5 text-xs font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 rounded-lg transition flex items-center gap-1" title="Print Advances">
                         <i data-lucide="printer" class="w-3.5 h-3.5"></i>
-                        <span>Print</span>
                     </a>
                 </div>
             </form>

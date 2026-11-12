@@ -479,6 +479,19 @@
                     </div>
                 </div>
 
+                <!-- 12. Farmer Search Mode in Collection -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Farmer Search Mode</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-medium text-slate-900" x-text="farmerSearchMode"></span>
+                        <button type="button" @click="openModal('farmerSearchMode')" class="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
             </div>
 
         </div>
@@ -1111,6 +1124,37 @@
             <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
                 <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
                 <button type="button" @click="saveSetting('route_wise_collection', selectedRouteWiseCollection, 'routeWiseCollection')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 6C: Farmer Search Mode in Collection -->
+    <div x-show="modal === 'farmerSearchMode'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+        <div @click.away="modal = null" class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#52b79a] text-white flex items-center justify-between font-bold text-sm">
+                <h4>Farmer Search Mode</h4>
+                <button type="button" @click="modal = null" class="text-white hover:text-slate-200 text-lg leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="farmer_search_mode_radio" value="Both" x-model="selectedFarmerSearchMode" class="text-[#005c53]">
+                    <span class="font-semibold">Both (Farmer Code & Name)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="farmer_search_mode_radio" value="Farmer Code Only" x-model="selectedFarmerSearchMode" class="text-[#005c53]">
+                    <span class="font-semibold">Farmer Code Only</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-slate-700">
+                    <input type="radio" name="farmer_search_mode_radio" value="Farmer Name Only" x-model="selectedFarmerSearchMode" class="text-[#005c53]">
+                    <span class="font-semibold">Farmer Name Only</span>
+                </label>
+                <p class="text-[11px] text-slate-500 pt-1">
+                    Select how farmers can be searched on the Milk Collection screen. When searching, suggestions dropdown will be displayed accordingly.
+                </p>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs font-bold">
+                <button type="button" @click="modal = null" class="px-4 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                <button type="button" @click="saveSetting('farmer_search_mode', selectedFarmerSearchMode, 'farmerSearchMode')" class="px-5 py-1.5 rounded bg-[#005c53] hover:bg-[#004740] text-white">Save</button>
             </div>
         </div>
     </div>
@@ -3213,6 +3257,7 @@ function centerInformationApp() {
         collectionInput: {!! json_encode($settings["collection_input"] ?? "Manual + Automatic") !!},
         offlineCollection: {!! json_encode($settings["offline_collection"] ?? "On") !!},
         routeWiseCollection: {!! json_encode($settings["route_wise_collection"] ?? "On") !!},
+        farmerSearchMode: {!! json_encode($settings["farmer_search_mode"] ?? "Both") !!},
         morningShiftTime: {!! json_encode($settings["morning_shift_time"] ?? "Not Available") !!},
         eveningShiftTime: {!! json_encode($settings["evening_shift_time"] ?? "Not Available") !!},
         printFormat: {!! json_encode($printSetting["format"] ?? "Format-2") !!},
@@ -3373,6 +3418,7 @@ function centerInformationApp() {
         selectedCollectionInput: {!! json_encode($settings["collection_input"] ?? "Manual + Automatic") !!},
         selectedOfflineCollection: {!! json_encode($settings["offline_collection"] ?? "On") !!},
         selectedRouteWiseCollection: {!! json_encode($settings["route_wise_collection"] ?? "On") !!},
+        selectedFarmerSearchMode: {!! json_encode($settings["farmer_search_mode"] ?? "Both") !!},
 
         // Shift Time Models
         morningStartHour: '01',
@@ -3476,6 +3522,7 @@ function centerInformationApp() {
                 if (key === 'collection_input') this.collectionInput = val;
                 if (key === 'offline_collection') this.offlineCollection = val;
                 if (key === 'route_wise_collection') this.routeWiseCollection = val;
+                if (key === 'farmer_search_mode') this.farmerSearchMode = val;
                 if (key === 'farmer_app_link_in_sms') this.farmerAppLinkInSms = val;
                 if (key === 'total_in_collection_sms') this.totalInCollectionSms = val;
                 if (key === 'center_name_in_sms') this.centerNameInSms = val;

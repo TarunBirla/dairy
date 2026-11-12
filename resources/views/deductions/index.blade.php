@@ -285,12 +285,21 @@
                     <i data-lucide="tag" class="w-3.5 h-3.5 text-blue-600"></i>
                     Deduction Type *
                 </label>
-                <select name="deduction_type" id="field_deduction_type" required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-500 outline-none font-medium">
+                <select name="deduction_type" id="field_deduction_type" onchange="toggleCustomDeductionType(this.value)" required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-500 outline-none font-medium">
                     <option value="">Select Type</option>
                     @foreach($deductionTypesList as $k => $lbl)
                         <option value="{{ $k }}">{{ $lbl }}</option>
                     @endforeach
                 </select>
+            </div>
+
+            <!-- Custom Deduction Type Input (shown when 'other' is selected) -->
+            <div id="custom_deduction_type_wrapper" class="hidden">
+                <label class="block text-xs font-bold text-blue-700 mb-1 flex items-center gap-1.5">
+                    <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-600"></i>
+                    Specify Deduction Type Name *
+                </label>
+                <input type="text" name="custom_deduction_type" id="field_custom_deduction_type" placeholder="e.g. Medicine, Transport, Equipments..." class="w-full px-3 py-2 text-xs border border-blue-300 rounded-xl bg-blue-50/50 focus:bg-white focus:border-blue-600 outline-none font-bold text-slate-800">
             </div>
 
             <!-- 4. Transaction Type (Arrows icon: Given / Received Radio) -->
@@ -446,6 +455,21 @@
 </div>
 
 <script>
+    function toggleCustomDeductionType(val) {
+        const wrapper = document.getElementById('custom_deduction_type_wrapper');
+        const input = document.getElementById('field_custom_deduction_type');
+        if (!wrapper || !input) return;
+        if (val === 'other') {
+            wrapper.classList.remove('hidden');
+            input.setAttribute('required', 'required');
+            input.focus();
+        } else {
+            wrapper.classList.add('hidden');
+            input.removeAttribute('required');
+            input.value = '';
+        }
+    }
+
     // Add / Edit Modal Controls
     function openAddDeductionModal(defaultFarmerId = null) {
         document.getElementById('deductionModalTitle').textContent = 'Add Deduction';
@@ -454,6 +478,7 @@
         document.getElementById('formMethodContainer').innerHTML = '';
         
         resetDeductionForm();
+        toggleCustomDeductionType('');
         if (defaultFarmerId) {
             document.getElementById('field_farmer_id').value = defaultFarmerId;
         }
@@ -470,7 +495,18 @@
 
         document.getElementById('field_farmer_id').value = farmerId;
         document.getElementById('field_entry_date').value = date;
-        document.getElementById('field_deduction_type').value = type;
+        
+        const typeSelect = document.getElementById('field_deduction_type');
+        const standardOptions = Array.from(typeSelect.options).map(o => o.value);
+        if (standardOptions.includes(type)) {
+            typeSelect.value = type;
+            toggleCustomDeductionType(type);
+        } else {
+            typeSelect.value = 'other';
+            toggleCustomDeductionType('other');
+            const customInput = document.getElementById('field_custom_deduction_type');
+            if (customInput) customInput.value = type;
+        }
         
         const radio = document.querySelector(`input[name="transaction_type"][value="${transType}"]`);
         if (radio) radio.checked = true;
@@ -489,6 +525,8 @@
     function resetDeductionForm() {
         document.getElementById('deductionForm').reset();
         document.getElementById('field_entry_date').value = new Date().toISOString().split('T')[0];
+        toggleCustomDeductionType('');
+    }
     }
 
     // View Details Modal Controls

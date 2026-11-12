@@ -76,7 +76,6 @@
                         <th class="py-3 px-3">Advance Amount</th>
                         <th class="py-3 px-3">Paid</th>
                         <th class="py-3 px-3">Paid Date</th>
-                        <th class="py-3 px-3">Interest Rate</th>
                         <th class="py-3 px-3">Principal Balance</th>
                         <th class="py-3 px-3">Interest Balance</th>
                         <th class="py-3 px-3">Total Balance</th>
@@ -120,11 +119,6 @@
                             <!-- Paid Date (-) -->
                             <td class="py-3 px-3 text-slate-500">
                                 {{ $adv->paid_date ? $adv->paid_date->format('d M Y') : '-' }}
-                            </td>
-
-                            <!-- Interest Rate (0.00%) -->
-                            <td class="py-3 px-3 text-slate-600">
-                                {{ number_format($adv->interest_rate ?? 0, 2) }}%
                             </td>
 
                             <!-- Principal Balance (Rs. 500.00) -->

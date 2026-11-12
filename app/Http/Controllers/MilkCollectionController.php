@@ -26,6 +26,7 @@ class MilkCollectionController extends Controller
         $shiftSetting = SystemSetting::get('collection_shift', 'Morning + Evening');
         $showPreviousCollection = SystemSetting::get('show_previous_collection', "Yesterday's both shift");
         $routeWiseCollection = SystemSetting::get('route_wise_collection', 'On');
+        $farmerSearchMode = SystemSetting::get('farmer_search_mode', 'Both');
         $rateChartStatus = SystemSetting::get('rate_chart_status', 'On');
         $farmerWiseRate = SystemSetting::get('farmer_wise_rate', 'As per Rate Chart');
         $shiftMorningBonus = (float) SystemSetting::get('shift_wise_morning', '0.00');
@@ -115,6 +116,7 @@ class MilkCollectionController extends Controller
             'default_shift' => $defaultShift,
             'show_previous_collection' => $showPreviousCollection,
             'route_wise_collection' => $routeWiseCollection,
+            'farmer_search_mode' => $farmerSearchMode,
             'center_vehicle_route' => $centerVehicleRoute,
             'rate_chart_status' => $rateChartStatus,
             'farmer_wise_rate' => $farmerWiseRate,

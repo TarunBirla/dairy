@@ -213,24 +213,60 @@
                     </div>
 
                     <!-- ROW 2 (MIDDLE ROW): FARMER CODE | FARMER NAME | SAMPLE NO. (AUTO) -->
-                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end" id="farmer_select_col" @click.away="farmerDropdownOpen = false">
+                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end" id="farmer_select_col" @click.away="farmerDropdownOpen = false; codeDropdownOpen = false;">
                         <!-- Farmer Code (4 cols) -->
-                        <div class="sm:col-span-3">
+                        <div class="sm:col-span-3 relative">
                             <label class="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Farmer Code *</label>
                             <div class="flex items-stretch h-7">
                                 <input type="text" 
                                        id="quick_farmer_code_input" 
                                        placeholder="e.g. 001 or 101" 
                                        x-model="quickFarmerCode" 
-                                       @keydown.enter.prevent="lookupFarmerByCode()" 
-                                       @blur="lookupFarmerByCode()" 
+                                       @focus="if (canSearchByCode) codeDropdownOpen = true;"
+                                       @click="if (canSearchByCode) codeDropdownOpen = true;"
+                                       @input="if (canSearchByCode) { codeDropdownOpen = true; codeHighlightedIndex = 0; }"
+                                       @keydown.arrow-down.prevent="highlightNextCodeFarmer()"
+                                       @keydown.arrow-up.prevent="highlightPrevCodeFarmer()"
+                                       @keydown.enter.prevent="selectHighlightedCodeFarmer()"
+                                       @keydown.escape="codeDropdownOpen = false"
+                                       @blur="setTimeout(() => { lookupFarmerByCode(); codeDropdownOpen = false; }, 200)"
+                                       autocomplete="off"
                                        class="w-full px-2.5 text-[11px] font-bold text-slate-900 bg-slate-50 focus:bg-white border border-r-0 border-slate-200 rounded-l-md focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition">
                                 <button type="button"
-                                        @click="lookupFarmerByCode()"
+                                        @click="if (canSearchByCode) { codeDropdownOpen = !codeDropdownOpen; if (codeDropdownOpen) document.getElementById('quick_farmer_code_input').focus(); } else { lookupFarmerByCode(); }"
                                         title="Search Farmer Code"
                                         class="px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-r-md flex items-center justify-center transition shrink-0">
                                     <i data-lucide="search" class="w-3.5 h-3.5"></i>
                                 </button>
+                            </div>
+
+                            <!-- Live Dropdown Suggestions for Farmer Code -->
+                            <div x-show="codeDropdownOpen && canSearchByCode" 
+                                 x-cloak
+                                 class="absolute left-0 right-0 top-full mt-1 z-[999999] bg-white border border-slate-200 rounded-xl shadow-xl max-h-56 overflow-y-auto divide-y divide-slate-100 min-w-[240px]">
+                                <template x-for="(farmer, idx) in filteredFarmersByCode" :key="'code-' + farmer.id">
+                                    <div @mousedown.prevent="chooseFarmer(farmer); codeDropdownOpen = false;"
+                                         @mouseenter="codeHighlightedIndex = idx"
+                                         :class="codeHighlightedIndex === idx ? 'bg-emerald-50 text-emerald-950 font-semibold' : 'hover:bg-slate-50 text-slate-800'"
+                                         class="px-3 py-1.5 cursor-pointer transition flex items-center justify-between text-xs">
+                                        <div class="min-w-0 pr-2">
+                                            <div class="truncate flex items-center gap-1.5">
+                                                <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-900 border border-emerald-200 rounded font-mono text-[10px] font-bold" x-text="farmer.farmer_code || ('FAR-' + farmer.id)"></span>
+                                                <span class="font-bold text-slate-900 truncate" x-text="farmer.name"></span>
+                                            </div>
+                                            <div class="text-[10px] text-slate-400 truncate flex items-center gap-1.5">
+                                                <span x-show="farmer.phone" x-text="farmer.phone"></span>
+                                                <span x-show="farmer.village" x-text="'• ' + farmer.village"></span>
+                                            </div>
+                                        </div>
+                                        <span class="text-[9.5px] px-1.5 py-0.5 rounded font-bold border shrink-0" 
+                                              :class="farmer.animal_type === 'buffalo' ? 'bg-indigo-50 text-indigo-800 border-indigo-200' : 'bg-amber-50 text-amber-800 border-amber-200'"
+                                              x-text="farmer.animal_type === 'buffalo' ? '🐃 Buff' : '🐄 Cow'"></span>
+                                    </div>
+                                </template>
+                                <div x-show="filteredFarmersByCode.length === 0" class="p-3 text-center text-xs text-slate-400">
+                                    No code matches "<span class="font-semibold text-slate-600" x-text="quickFarmerCode"></span>"
+                                </div>
                             </div>
                         </div>
 
@@ -242,28 +278,29 @@
                                        id="farmer_search_input"
                                        placeholder="Search Name, Code, Phone..."
                                        x-model="farmerSearchText"
-                                       @focus="farmerDropdownOpen = true"
-                                       @click="farmerDropdownOpen = true"
-                                       @input="farmerDropdownOpen = true; highlightedIndex = 0;"
+                                       @focus="if (canSearchByName) farmerDropdownOpen = true;"
+                                       @click="if (canSearchByName) farmerDropdownOpen = true;"
+                                       @input="if (canSearchByName) { farmerDropdownOpen = true; highlightedIndex = 0; }"
                                        @keydown.arrow-down.prevent="highlightNextFarmer()"
                                        @keydown.arrow-up.prevent="highlightPrevFarmer()"
                                        @keydown.enter.prevent="selectHighlightedFarmer()"
                                        @keydown.escape="farmerDropdownOpen = false"
+                                       @blur="setTimeout(() => { farmerDropdownOpen = false; }, 200)"
                                        autocomplete="off"
                                        class="w-full px-2.5 text-[11px] font-bold text-slate-800 border border-r-0 border-slate-200 rounded-l-md bg-slate-50 focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition">
                                 <button type="button" 
-                                        @click="farmerDropdownOpen = !farmerDropdownOpen; if (farmerDropdownOpen) document.getElementById('farmer_search_input').focus();"
+                                        @click="if (canSearchByName) { farmerDropdownOpen = !farmerDropdownOpen; if (farmerDropdownOpen) document.getElementById('farmer_search_input').focus(); }"
                                         class="px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-r-md flex items-center justify-center transition shrink-0">
                                     <i data-lucide="search" class="w-3.5 h-3.5"></i>
                                 </button>
                             </div>
 
                             <!-- Live Dropdown List of Farmers -->
-                            <div x-show="farmerDropdownOpen" 
+                            <div x-show="farmerDropdownOpen && canSearchByName" 
                                  x-cloak
                                  class="absolute left-0 right-0 top-full mt-1 z-[999999] bg-white border border-slate-200 rounded-xl shadow-xl max-h-56 overflow-y-auto divide-y divide-slate-100">
                                 <template x-for="(farmer, idx) in filteredFarmers" :key="farmer.id">
-                                    <div @click="chooseFarmer(farmer)"
+                                    <div @mousedown.prevent="chooseFarmer(farmer)"
                                          @mouseenter="highlightedIndex = idx"
                                          :class="highlightedIndex === idx ? 'bg-emerald-50 text-emerald-950 font-semibold' : 'hover:bg-slate-50 text-slate-800'"
                                          class="px-3 py-1.5 cursor-pointer transition flex items-center justify-between text-xs">
@@ -1070,6 +1107,8 @@ function milkCollectionManager() {
         allFarmers: @json($farmers),
         selectedRouteId: '',
         quickFarmerCode: '',
+        codeDropdownOpen: false,
+        codeHighlightedIndex: 0,
         farmerSearchText: '',
         farmerDropdownOpen: false,
         highlightedIndex: 0,
@@ -1130,6 +1169,56 @@ function milkCollectionManager() {
             if (total > 0) {
                 this.form.quantity_liters = parseFloat(total.toFixed(2));
                 this.onQuantityChange();
+            }
+        },
+
+        get canSearchByCode() {
+            const mode = (this.config.farmer_search_mode || 'Both').toLowerCase();
+            return mode.includes('code') || mode.includes('both');
+        },
+
+        get canSearchByName() {
+            const mode = (this.config.farmer_search_mode || 'Both').toLowerCase();
+            return mode.includes('name') || mode.includes('both');
+        },
+
+        get filteredFarmersByCode() {
+            let list = this.allFarmers;
+            if (this.config.route_wise_collection === 'On' && this.selectedRouteId) {
+                list = list.filter(f => String(f.route_id || '') === String(this.selectedRouteId));
+            }
+            if (!this.quickFarmerCode || this.quickFarmerCode.trim() === '') {
+                return list.slice(0, 30);
+            }
+            const q = this.quickFarmerCode.toLowerCase().trim();
+            const numOnly = q.replace(/\D/g, '').replace(/^0+/, '') || '';
+
+            return list.filter(f => {
+                const code = (f.farmer_code || '').toLowerCase();
+                const num = (code.replace(/\D/g, '') || String(f.id)).replace(/^0+/, '');
+                return code.indexOf(q) > -1 || (numOnly && num.indexOf(numOnly) > -1) || String(f.id) === q;
+            }).slice(0, 30);
+        },
+
+        highlightNextCodeFarmer() {
+            if (this.codeHighlightedIndex < this.filteredFarmersByCode.length - 1) {
+                this.codeHighlightedIndex++;
+            }
+        },
+
+        highlightPrevCodeFarmer() {
+            if (this.codeHighlightedIndex > 0) {
+                this.codeHighlightedIndex--;
+            }
+        },
+
+        selectHighlightedCodeFarmer() {
+            if (this.filteredFarmersByCode.length > 0 && this.filteredFarmersByCode[this.codeHighlightedIndex]) {
+                this.chooseFarmer(this.filteredFarmersByCode[this.codeHighlightedIndex]);
+                this.codeDropdownOpen = false;
+            } else {
+                this.lookupFarmerByCode();
+                this.codeDropdownOpen = false;
             }
         },
 

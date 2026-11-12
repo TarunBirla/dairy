@@ -302,8 +302,8 @@
                         <th class="py-2.5 px-3">Vehicle</th>
                         <th class="py-2.5 px-3">Shift</th>
                         <th class="py-2.5 px-3">Milk Type</th>
-                        <th class="py-2.5 px-3 text-right">Liters</th>
                         <th class="py-2.5 px-3 text-right">Qty (kg)</th>
+                        <th class="py-2.5 px-3 text-right">Liters</th>
                         <th class="py-2.5 px-3 text-right">FAT</th>
                         <th class="py-2.5 px-3 text-right">SNF</th>
                         <th class="py-2.5 px-3 text-right">CLR</th>
@@ -344,12 +344,13 @@
                                     {{ $s->milk_type }} Milk
                                 </span>
                             </td>
-                            <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
-                                {{ number_format($s->quantity_liters, 2) }}
-                            </td>
                             <td class="py-2.5 px-3 text-right font-mono text-slate-600">
                                 {{ number_format((float)($s->quantity_kg ?? 0), 2) }} kg
                             </td>
+                            <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+                                {{ number_format($s->quantity_liters, 2) }}
+                            </td>
+                            
                             <td class="py-2.5 px-3 text-right font-mono text-slate-600">
                                 {{ number_format($s->fat_percentage, 2) }}
                             </td>

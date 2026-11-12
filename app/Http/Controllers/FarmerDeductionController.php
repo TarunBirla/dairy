@@ -129,10 +129,15 @@ class FarmerDeductionController extends Controller
             'farmer_id' => 'required|exists:farmers,id',
             'entry_date' => 'required|date',
             'deduction_type' => 'required|string|max:100',
+            'custom_deduction_type' => 'nullable|string|max:100',
             'transaction_type' => 'required|in:given,received',
             'amount' => 'required|numeric|min:0.01',
             'comments' => 'nullable|string|max:1000',
         ]);
+
+        if ($validated['deduction_type'] === 'other' && !empty($request->custom_deduction_type)) {
+            $validated['deduction_type'] = trim($request->custom_deduction_type);
+        }
 
         $farmer = Farmer::findOrFail($validated['farmer_id']);
 
@@ -187,10 +192,16 @@ class FarmerDeductionController extends Controller
         $validated = $request->validate([
             'entry_date' => 'required|date',
             'deduction_type' => 'required|string|max:100',
+            'custom_deduction_type' => 'nullable|string|max:100',
             'transaction_type' => 'required|in:given,received',
             'amount' => 'required|numeric|min:0.01',
             'comments' => 'nullable|string|max:1000',
         ]);
+
+        if ($validated['deduction_type'] === 'other' && !empty($request->custom_deduction_type)) {
+            $validated['deduction_type'] = trim($request->custom_deduction_type);
+        }
+        unset($validated['custom_deduction_type']);
 
         $farmer = $deduction->farmer;
 

@@ -44,7 +44,6 @@
                     <th class="p-2 border-r border-slate-300 text-right">Advance Amount</th>
                     <th class="p-2 border-r border-slate-300 text-right">Paid</th>
                     <th class="p-2 border-r border-slate-300">Paid Date</th>
-                    <th class="p-2 border-r border-slate-300 text-right">Rate</th>
                     <th class="p-2 border-r border-slate-300 text-right">Principal Bal</th>
                     <th class="p-2 border-r border-slate-300 text-right">Interest Bal</th>
                     <th class="p-2 border-r border-slate-300 text-right">Total Balance</th>
@@ -61,7 +60,6 @@
                         <td class="p-2 border-r border-slate-200 text-right font-mono font-semibold">Rs. {{ number_format($adv->amount, 2) }}</td>
                         <td class="p-2 border-r border-slate-200 text-right font-mono text-emerald-700">Rs. {{ number_format($adv->total_paid, 2) }}</td>
                         <td class="p-2 border-r border-slate-200 font-mono">{{ $adv->paid_date ? $adv->paid_date->format('d M Y') : '-' }}</td>
-                        <td class="p-2 border-r border-slate-200 text-right font-mono">{{ number_format($adv->interest_rate ?? 0, 2) }}%</td>
                         <td class="p-2 border-r border-slate-200 text-right font-mono">Rs. {{ number_format($adv->principal_balance, 2) }}</td>
                         <td class="p-2 border-r border-slate-200 text-right font-mono">Rs. {{ number_format($adv->interest_balance ?? 0, 2) }}</td>
                         <td class="p-2 border-r border-slate-200 text-right font-mono font-bold text-rose-700">Rs. {{ number_format($adv->total_balance, 2) }}</td>
@@ -79,7 +77,6 @@
                         <td class="p-2 text-center" colspan="4">Total</td>
                         <td class="p-2 text-right font-mono">Rs. {{ number_format($advances->sum('amount'), 2) }}</td>
                         <td class="p-2 text-right font-mono text-emerald-700">Rs. {{ number_format($advances->sum(function($a){ return $a->total_paid; }), 2) }}</td>
-                        <td class="p-2">-</td>
                         <td class="p-2">-</td>
                         <td class="p-2 text-right font-mono">Rs. {{ number_format($advances->sum(function($a){ return $a->principal_balance; }), 2) }}</td>
                         <td class="p-2 text-right font-mono">Rs. {{ number_format($advances->sum('interest_balance'), 2) }}</td>

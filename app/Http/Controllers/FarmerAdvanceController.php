@@ -89,9 +89,34 @@ class FarmerAdvanceController extends Controller
      */
     public function index(Request $request)
     {
-        $farmersQuery = Farmer::with(['advances' => function ($q) {
+        $startDate = $request->filled('start_date') ? $request->start_date : null;
+        $endDate = $request->filled('end_date') ? $request->end_date : null;
+
+        $farmersQuery = Farmer::with(['advances' => function ($q) use ($startDate, $endDate) {
+            if ($startDate && $endDate) {
+                $q->whereBetween('advance_date', [$startDate, $endDate]);
+            } elseif ($startDate) {
+                $q->where('advance_date', '>=', $startDate);
+            } elseif ($endDate) {
+                $q->where('advance_date', '<=', $endDate);
+            }
             $q->latest('advance_date');
         }]);
+
+        // If date range is specified, only include farmers who have advances within this date range
+        if ($startDate && $endDate) {
+            $farmersQuery->whereHas('advances', function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('advance_date', [$startDate, $endDate]);
+            });
+        } elseif ($startDate) {
+            $farmersQuery->whereHas('advances', function ($q) use ($startDate) {
+                $q->where('advance_date', '>=', $startDate);
+            });
+        } elseif ($endDate) {
+            $farmersQuery->whereHas('advances', function ($q) use ($endDate) {
+                $q->where('advance_date', '<=', $endDate);
+            });
+        }
 
         // Filter by specific farmer
         if ($request->filled('farmer_id')) {
@@ -115,9 +140,18 @@ class FarmerAdvanceController extends Controller
         $allFarmers = Farmer::orderBy('name')->get();
         $farmers = $farmersQuery->orderBy('name')->paginate(15)->withQueryString();
 
-        // Calculate summary cards across all advances
-        $totalAdvance = (float) FarmerAdvance::sum('amount');
-        $totalPaid = (float) (FarmerAdvance::sum('paid_amount') ?: FarmerAdvance::sum('deducted_amount'));
+        // Calculate summary cards across advances (respecting date range if applied)
+        $summaryAdvQuery = FarmerAdvance::query();
+        if ($startDate && $endDate) {
+            $summaryAdvQuery->whereBetween('advance_date', [$startDate, $endDate]);
+        } elseif ($startDate) {
+            $summaryAdvQuery->where('advance_date', '>=', $startDate);
+        } elseif ($endDate) {
+            $summaryAdvQuery->where('advance_date', '<=', $endDate);
+        }
+
+        $totalAdvance = (float) (clone $summaryAdvQuery)->sum('amount');
+        $totalPaid = (float) ((clone $summaryAdvQuery)->sum('paid_amount') ?: (clone $summaryAdvQuery)->sum('deducted_amount'));
         $totalBalance = max(0, $totalAdvance - $totalPaid);
 
         // Next sequential voucher number
