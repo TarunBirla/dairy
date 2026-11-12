@@ -558,6 +558,14 @@
                         <i data-lucide="table-properties" class="w-4 h-4 {{ request()->routeIs('milk-sales.rate-chart*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
                         <span>Rate Chart</span>
                     </a>
+                    <!-- Sales Details Report (Direct Sidebar Link) -->
+                    <a href="{{ route('reports.milk-sales.date-wise') }}" class="flex items-center justify-between px-3 py-2 rounded-lg transition {{ request()->routeIs('reports.milk-sales.*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                        <div class="flex items-center gap-2.5">
+                            <i data-lucide="file-spreadsheet" class="w-4 h-4 {{ request()->routeIs('reports.milk-sales.*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
+                            <span>Sale Report</span>
+                        </div>
+                        <span class="text-[9px] px-1.5 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded">New</span>
+                    </a>
                 </div>
             </div>
 

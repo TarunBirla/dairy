@@ -924,13 +924,82 @@ Route::middleware('auth')->group(function () {
         Route::get('/profit-loss', [ExpenseController::class, 'profitLoss'])->name('profit-loss');
     });
 
-    // Reports & Analytics
+    // Reports & Analytics (Comprehensive Mobile Dairy Parity)
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
-        Route::get('/collections', [ReportController::class, 'collections'])->name('collections');
-        Route::get('/deliveries', [ReportController::class, 'deliveries'])->name('deliveries');
-        Route::get('/sales', [ReportController::class, 'sales'])->name('sales');
-        Route::get('/dues', [ReportController::class, 'dues'])->name('dues');
+        
+        // 1. Collection Reports
+        Route::prefix('collections')->name('collections.')->group(function () {
+            Route::get('/date-wise', [ReportController::class, 'collectionsDateWise'])->name('date-wise');
+            Route::get('/farmer-wise', [ReportController::class, 'collectionsFarmerWise'])->name('farmer-wise');
+            Route::get('/farmer-summary', [ReportController::class, 'collectionsFarmerSummary'])->name('farmer-summary');
+            Route::get('/center-summary', [ReportController::class, 'collectionsCenterSummary'])->name('center-summary');
+            Route::get('/window', [ReportController::class, 'collectionsWindow'])->name('window');
+        });
+
+        // 2. Bill Reports
+        Route::prefix('bills')->name('bills.')->group(function () {
+            Route::get('/date-wise', [ReportController::class, 'billsDateWise'])->name('date-wise');
+            Route::get('/farmer-wise', [ReportController::class, 'billsFarmerWise'])->name('farmer-wise');
+            Route::get('/farmer-bills', [ReportController::class, 'billsFarmerBills'])->name('farmer-bills');
+            Route::get('/payment-register', [ReportController::class, 'billsPaymentRegister'])->name('payment-register');
+            Route::get('/bank-file', [ReportController::class, 'billsBankFile'])->name('bank-file');
+        });
+
+        // 3. Cattle Feed Sale Reports
+        Route::prefix('cattle-feed/sales')->name('cattle-feed.sales.')->group(function () {
+            Route::get('/date-wise', [ReportController::class, 'feedSalesDateWise'])->name('date-wise');
+            Route::get('/farmer-wise', [ReportController::class, 'feedSalesFarmerWise'])->name('farmer-wise');
+            Route::get('/summary', [ReportController::class, 'feedSalesSummary'])->name('summary');
+            Route::get('/register', [ReportController::class, 'feedSalesRegister'])->name('register');
+        });
+
+        // 4. Cattle Feed Purchase Reports
+        Route::prefix('cattle-feed/purchases')->name('cattle-feed.purchases.')->group(function () {
+            Route::get('/stock-summary', [ReportController::class, 'feedStockSummary'])->name('stock-summary');
+            Route::get('/stock-purchase', [ReportController::class, 'feedStockPurchase'])->name('stock-purchase');
+            Route::get('/dealer-summary', [ReportController::class, 'feedDealerSummary'])->name('dealer-summary');
+            Route::get('/profit-loss', [ReportController::class, 'feedProfitLoss'])->name('profit-loss');
+        });
+
+        // 5. Milk Sale Reports
+        Route::prefix('milk-sales')->name('milk-sales.')->group(function () {
+            Route::get('/date-wise', [ReportController::class, 'milkSalesDateWise'])->name('date-wise');
+            Route::get('/customer-wise', [ReportController::class, 'milkSalesCustomerWise'])->name('customer-wise');
+            Route::get('/sale-bill-customer-wise', [ReportController::class, 'milkSalesSaleBillCustomerWise'])->name('sale-bill-customer-wise');
+            Route::get('/customer-khata', [ReportController::class, 'milkSalesCustomerKhata'])->name('customer-khata');
+        });
+
+        // 6. Advance Reports
+        Route::prefix('advances')->name('advances.')->group(function () {
+            Route::get('/farmer-wise', [ReportController::class, 'advancesFarmerWise'])->name('farmer-wise');
+            Route::get('/farmer-advance-wise', [ReportController::class, 'advancesFarmerAdvanceWise'])->name('farmer-advance-wise');
+            Route::get('/loan-report', [ReportController::class, 'advancesLoanReport'])->name('loan-report');
+            Route::get('/center-loan-summary', [ReportController::class, 'advancesCenterLoanSummary'])->name('center-loan-summary');
+            Route::get('/farmer-loan-summary', [ReportController::class, 'advancesFarmerLoanSummary'])->name('farmer-loan-summary');
+        });
+
+        // 7. Master Reports
+        Route::prefix('masters')->name('masters.')->group(function () {
+            Route::get('/farmer-list', [ReportController::class, 'masterFarmerList'])->name('farmer-list');
+            Route::get('/milk-sale-farmer-list', [ReportController::class, 'masterMilkSaleFarmerList'])->name('milk-sale-farmer-list');
+            Route::get('/food-dealer-list', [ReportController::class, 'masterFoodDealerList'])->name('food-dealer-list');
+        });
+
+        // 8. Other Reports
+        Route::prefix('others')->name('others.')->group(function () {
+            Route::get('/passbook', [ReportController::class, 'otherPassbook'])->name('passbook');
+            Route::get('/milk-sale-purchase', [ReportController::class, 'otherMilkSalePurchase'])->name('milk-sale-purchase');
+            Route::get('/milk-profit-loss', [ReportController::class, 'otherMilkProfitLoss'])->name('milk-profit-loss');
+            Route::get('/dairy-expense', [ReportController::class, 'otherDairyExpense'])->name('dairy-expense');
+            Route::get('/incentive-calculator', [ReportController::class, 'otherIncentiveCalculator'])->name('incentive-calculator');
+        });
+
+        // Legacy shortcuts
+        Route::get('/collections', [ReportController::class, 'collectionsDateWise'])->name('collections');
+        Route::get('/deliveries', [ReportController::class, 'collectionsDateWise'])->name('deliveries');
+        Route::get('/sales', [ReportController::class, 'milkSalesDateWise'])->name('sales');
+        Route::get('/dues', [ReportController::class, 'advancesFarmerWise'])->name('dues');
     });
 
     // Users & Roles & Permission Matrix
