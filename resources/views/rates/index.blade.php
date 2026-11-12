@@ -464,22 +464,59 @@
 
             <!-- Centers Selection -->
             <div>
-                <h4 class="text-xs font-bold text-slate-800 mb-2 flex items-center gap-1.5">
-                    <i data-lucide="building" class="w-3.5 h-3.5 text-blue-600"></i>
-                    Collection Centers
-                </h4>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-slate-50 rounded-xl border border-slate-200">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <i data-lucide="building" class="w-3.5 h-3.5 text-blue-600"></i>
+                        Collection Centers
+                        <span id="assignCenterCountBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-bold ml-1">0 selected</span>
+                    </h4>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="toggleAllAssignCenters(true)" class="text-[11px] text-blue-600 hover:underline">Select all</button>
+                        <button type="button" onclick="toggleAllAssignCenters(false)" class="text-[11px] text-slate-500 hover:underline">Clear</button>
+                    </div>
+                </div>
+
+                <!-- Center Search with Auto-Suggestions Popup -->
+                <div class="relative mb-2">
+                    <input type="text" 
+                           id="assignCenterSearchInput" 
+                           oninput="onAssignCenterSearchInput(this.value)" 
+                           onfocus="showCenterSuggestions()"
+                           placeholder="Search collection center by name or code..." 
+                           autocomplete="off"
+                           class="w-full pl-8 pr-8 py-1.5 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
+                    <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2"></i>
+                    <button type="button" 
+                            onclick="clearAssignCenterSearch()" 
+                            id="assignCenterClearBtn" 
+                            class="hidden absolute right-2.5 top-2 text-slate-400 hover:text-slate-600">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+
+                    <!-- Suggestions Dropdown for Centers -->
+                    <div id="assignCenterSuggestions" 
+                         class="hidden absolute left-0 right-0 top-full mt-1 z-30 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto divide-y divide-slate-100">
+                    </div>
+                </div>
+
+                <!-- Centers Checkbox Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-slate-50 rounded-xl border border-slate-200" id="assignCentersList">
                     @forelse($collectionCenters as $center)
-                        <label class="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200/80 cursor-pointer text-xs">
-                            <input type="checkbox" name="center_ids[]" value="{{ $center->id }}" class="rounded text-blue-600 focus:ring-blue-500">
-                            <div>
-                                <span class="font-bold text-slate-900 block">{{ $center->name }}</span>
+                        <label class="assign-center-card flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200/80 cursor-pointer text-xs hover:border-blue-300 transition"
+                               data-search="{{ strtolower($center->name . ' ' . $center->code) }}"
+                               data-center-id="{{ $center->id }}">
+                            <input type="checkbox" name="center_ids[]" value="{{ $center->id }}" onchange="updateAssignCenterCount()" class="assign-center-cb rounded text-blue-600 focus:ring-blue-500">
+                            <div class="truncate flex-1">
+                                <span class="font-bold text-slate-900 block truncate">{{ $center->name }}</span>
                                 <span class="text-[10px] text-slate-400 font-mono">{{ $center->code }}</span>
                             </div>
                         </label>
                     @empty
                         <div class="col-span-2 text-center py-3 text-xs text-slate-400">No centers available</div>
                     @endforelse
+                </div>
+                <div id="assignCenterNoMatch" class="hidden text-center py-2 text-xs text-slate-400">
+                    No centers match your search.
                 </div>
             </div>
 
@@ -497,24 +534,37 @@
                     </div>
                 </div>
 
-                <!-- Farmer Search Input & Quick Select Dropdown -->
+                <!-- Farmer Search with Live Suggestions Dropdown Popup + Quick Dropdown -->
                 <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 mb-2.5">
-                    <!-- Live Search text input -->
+                    <!-- Search Input with Auto-Suggestions Popup -->
                     <div class="sm:col-span-6 relative">
                         <input type="text" 
                                id="assignFarmerSearchInput" 
-                               onkeyup="filterAssignFarmersList()" 
-                               placeholder="Search farmer name, code, village..." 
-                               class="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition">
+                               oninput="onAssignFarmerSearchInput(this.value)" 
+                               onfocus="showFarmerSuggestions()"
+                               placeholder="Type name, code, phone (shows suggestions)..." 
+                               autocomplete="off"
+                               class="w-full pl-8 pr-8 py-1.5 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition">
                         <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2"></i>
+                        <button type="button" 
+                                onclick="clearAssignFarmerSearch()" 
+                                id="assignFarmerClearBtn" 
+                                class="hidden absolute right-2.5 top-2 text-slate-400 hover:text-slate-600">
+                            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                        </button>
+
+                        <!-- Live Suggestions Dropdown -->
+                        <div id="assignFarmerSuggestions" 
+                             class="hidden absolute left-0 right-0 top-full mt-1 z-30 bg-white border border-slate-200 rounded-xl shadow-xl max-h-56 overflow-y-auto divide-y divide-slate-100">
+                        </div>
                     </div>
 
-                    <!-- Quick Dropdown to Select/Add Farmer -->
+                    <!-- Quick Dropdown: Choose Farmer -->
                     <div class="sm:col-span-6 relative">
                         <select id="assignFarmerQuickSelect" 
                                 onchange="selectFarmerFromAssignDropdown(this.value)" 
                                 class="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition font-medium">
-                            <option value="">-- Quick Dropdown: Choose Farmer --</option>
+                            <option value="">-- Choose from Farmer Dropdown --</option>
                             @foreach($farmers as $fmr)
                                 <option value="{{ $fmr->id }}">
                                     [{{ $fmr->farmer_code }}] {{ $fmr->name }} {{ $fmr->phone ? '(' . $fmr->phone . ')' : '' }}
@@ -529,7 +579,11 @@
                     @forelse($farmers as $fmr)
                         <label class="assign-farmer-card flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200/80 cursor-pointer text-xs hover:border-emerald-300 transition"
                                data-search="{{ strtolower($fmr->name . ' ' . ($fmr->name_hi ?? '') . ' ' . $fmr->farmer_code . ' ' . ($fmr->phone ?? '') . ' ' . ($fmr->village ?? '')) }}"
-                               data-farmer-id="{{ $fmr->id }}">
+                               data-farmer-id="{{ $fmr->id }}"
+                               data-farmer-name="{{ $fmr->name }}"
+                               data-farmer-code="{{ $fmr->farmer_code }}"
+                               data-farmer-phone="{{ $fmr->phone ?? '' }}"
+                               data-farmer-village="{{ $fmr->village ?? '' }}">
                             <input type="checkbox" name="farmer_ids[]" value="{{ $fmr->id }}" onchange="updateAssignSelectedCount()" class="assign-farmer-cb rounded text-emerald-600 focus:ring-emerald-500">
                             <div class="truncate flex-1">
                                 <div class="flex items-center gap-1.5 truncate">
@@ -707,17 +761,21 @@
         form.action = `/rates/${rateId}/assign`;
         document.getElementById('assignModalSubtitle').textContent = `Assign chart "${rateName}" to collection centers and farmers.`;
         
-        // Reset search, dropdown, and checkboxes
-        const searchInput = document.getElementById('assignFarmerSearchInput');
-        if (searchInput) searchInput.value = '';
+        // Reset Center Search & Suggestions
+        clearAssignCenterSearch();
+
+        // Reset Farmer Search & Suggestions & Dropdown
+        clearAssignFarmerSearch();
         const quickSelect = document.getElementById('assignFarmerQuickSelect');
         if (quickSelect) quickSelect.value = '';
-        filterAssignFarmersList();
 
+        // Reset all checkboxes
+        document.querySelectorAll('.assign-center-cb').forEach(cb => cb.checked = false);
         document.querySelectorAll('.assign-farmer-cb').forEach(cb => cb.checked = false);
+        updateAssignCenterCount();
         updateAssignSelectedCount();
 
-        // Fetch already assigned farmers to pre-check
+        // Fetch already assigned centers & farmers to pre-check
         fetch(`/rates/${rateId}/assigned-farmers`)
             .then(res => res.json())
             .then(data => {
@@ -739,21 +797,156 @@
 
     function closeAssignModal() {
         document.getElementById('assignModal').classList.add('hidden');
+        hideCenterSuggestions();
+        hideFarmerSuggestions();
     }
 
-    function toggleAllAssignFarmers(select) {
-        document.querySelectorAll('.assign-farmer-cb').forEach(cb => {
-            // Only affect currently visible cards if filtered, or all if none filtered
-            const card = cb.closest('.assign-farmer-card');
+    /* ---------- CENTER SEARCH & AUTO-SUGGESTIONS ---------- */
+    function onAssignCenterSearchInput(val) {
+        const clearBtn = document.getElementById('assignCenterClearBtn');
+        if (clearBtn) {
+            clearBtn.classList.toggle('hidden', !val);
+        }
+        filterAssignCentersList(val);
+        renderCenterSuggestions(val);
+    }
+
+    function clearAssignCenterSearch() {
+        const input = document.getElementById('assignCenterSearchInput');
+        if (input) input.value = '';
+        const clearBtn = document.getElementById('assignCenterClearBtn');
+        if (clearBtn) clearBtn.classList.add('hidden');
+        filterAssignCentersList('');
+        hideCenterSuggestions();
+    }
+
+    function filterAssignCentersList(val) {
+        const q = (val || '').toLowerCase().trim();
+        const cards = document.querySelectorAll('.assign-center-card');
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const searchData = card.getAttribute('data-search') || '';
+            if (!q || searchData.includes(q)) {
+                card.style.display = 'flex';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        const noMatch = document.getElementById('assignCenterNoMatch');
+        if (noMatch) {
+            noMatch.classList.toggle('hidden', visibleCount > 0 || cards.length === 0);
+        }
+    }
+
+    function renderCenterSuggestions(val) {
+        const suggestionsBox = document.getElementById('assignCenterSuggestions');
+        if (!suggestionsBox) return;
+
+        const q = (val || '').toLowerCase().trim();
+        if (!q) {
+            suggestionsBox.classList.add('hidden');
+            return;
+        }
+
+        const cards = Array.from(document.querySelectorAll('.assign-center-card'));
+        const matched = cards.filter(c => (c.getAttribute('data-search') || '').includes(q)).slice(0, 8);
+
+        if (matched.length === 0) {
+            suggestionsBox.innerHTML = '<div class="p-2.5 text-center text-xs text-slate-400">No matching centers</div>';
+            suggestionsBox.classList.remove('hidden');
+            return;
+        }
+
+        suggestionsBox.innerHTML = matched.map(c => {
+            const id = c.getAttribute('data-center-id');
+            const name = c.querySelector('span.font-bold')?.textContent || '';
+            const code = c.querySelector('span.font-mono')?.textContent || '';
+            const isChecked = c.querySelector('.assign-center-cb')?.checked;
+
+            return `
+                <div onclick="toggleCenterFromSuggestion('${id}')" 
+                     class="px-3 py-2 cursor-pointer hover:bg-blue-50 transition flex items-center justify-between text-xs ${isChecked ? 'bg-blue-50/60' : ''}">
+                    <div class="truncate">
+                        <span class="font-bold text-slate-900">${name}</span>
+                        <span class="text-[10px] text-slate-400 font-mono ml-1.5">[${code}]</span>
+                    </div>
+                    <span class="text-[10px] px-2 py-0.5 rounded font-bold ${isChecked ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}">
+                        ${isChecked ? '✓ Selected' : '+ Select'}
+                    </span>
+                </div>
+            `;
+        }).join('');
+
+        suggestionsBox.classList.remove('hidden');
+    }
+
+    function showCenterSuggestions() {
+        const val = document.getElementById('assignCenterSearchInput')?.value || '';
+        if (val.trim()) renderCenterSuggestions(val);
+    }
+
+    function hideCenterSuggestions() {
+        const suggestionsBox = document.getElementById('assignCenterSuggestions');
+        if (suggestionsBox) setTimeout(() => suggestionsBox.classList.add('hidden'), 200);
+    }
+
+    function toggleCenterFromSuggestion(centerId) {
+        const card = document.querySelector(`.assign-center-card[data-center-id="${centerId}"]`);
+        if (card) {
+            const cb = card.querySelector('.assign-center-cb');
+            if (cb) {
+                cb.checked = !cb.checked;
+                updateAssignCenterCount();
+                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                card.classList.add('ring-2', 'ring-blue-500');
+                setTimeout(() => card.classList.remove('ring-2', 'ring-blue-500'), 1200);
+            }
+        }
+        hideCenterSuggestions();
+    }
+
+    function toggleAllAssignCenters(select) {
+        document.querySelectorAll('.assign-center-cb').forEach(cb => {
+            const card = cb.closest('.assign-center-card');
             if (!card || card.style.display !== 'none') {
                 cb.checked = select;
             }
         });
-        updateAssignSelectedCount();
+        updateAssignCenterCount();
     }
 
-    function filterAssignFarmersList() {
-        const q = (document.getElementById('assignFarmerSearchInput')?.value || '').toLowerCase().trim();
+    function updateAssignCenterCount() {
+        const totalChecked = document.querySelectorAll('.assign-center-cb:checked').length;
+        const badge = document.getElementById('assignCenterCountBadge');
+        if (badge) {
+            badge.textContent = `${totalChecked} selected`;
+        }
+    }
+
+    /* ---------- FARMER SEARCH & AUTO-SUGGESTIONS ---------- */
+    function onAssignFarmerSearchInput(val) {
+        const clearBtn = document.getElementById('assignFarmerClearBtn');
+        if (clearBtn) {
+            clearBtn.classList.toggle('hidden', !val);
+        }
+        filterAssignFarmersList(val);
+        renderFarmerSuggestions(val);
+    }
+
+    function clearAssignFarmerSearch() {
+        const input = document.getElementById('assignFarmerSearchInput');
+        if (input) input.value = '';
+        const clearBtn = document.getElementById('assignFarmerClearBtn');
+        if (clearBtn) clearBtn.classList.add('hidden');
+        filterAssignFarmersList('');
+        hideFarmerSuggestions();
+    }
+
+    function filterAssignFarmersList(query = null) {
+        const q = (query !== null ? query : (document.getElementById('assignFarmerSearchInput')?.value || '')).toLowerCase().trim();
         const cards = document.querySelectorAll('.assign-farmer-card');
         let visibleCount = 0;
 
@@ -769,12 +962,83 @@
 
         const noMatch = document.getElementById('assignFarmerNoMatch');
         if (noMatch) {
-            if (visibleCount === 0 && cards.length > 0) {
-                noMatch.classList.remove('hidden');
-            } else {
-                noMatch.classList.add('hidden');
-            }
+            noMatch.classList.toggle('hidden', visibleCount > 0 || cards.length === 0);
         }
+    }
+
+    function renderFarmerSuggestions(val) {
+        const suggestionsBox = document.getElementById('assignFarmerSuggestions');
+        if (!suggestionsBox) return;
+
+        const q = (val || '').toLowerCase().trim();
+        if (!q) {
+            suggestionsBox.classList.add('hidden');
+            return;
+        }
+
+        const cards = Array.from(document.querySelectorAll('.assign-farmer-card'));
+        const matched = cards.filter(c => (c.getAttribute('data-search') || '').includes(q)).slice(0, 10);
+
+        if (matched.length === 0) {
+            suggestionsBox.innerHTML = '<div class="p-3 text-center text-xs text-slate-400">No matching farmers found</div>';
+            suggestionsBox.classList.remove('hidden');
+            return;
+        }
+
+        suggestionsBox.innerHTML = matched.map(c => {
+            const id = c.getAttribute('data-farmer-id');
+            const name = c.getAttribute('data-farmer-name');
+            const code = c.getAttribute('data-farmer-code');
+            const phone = c.getAttribute('data-farmer-phone');
+            const village = c.getAttribute('data-farmer-village');
+            const isChecked = c.querySelector('.assign-farmer-cb')?.checked;
+
+            return `
+                <div onclick="toggleFarmerFromSuggestion('${id}')" 
+                     class="px-3 py-2 cursor-pointer hover:bg-emerald-50 transition flex items-center justify-between text-xs ${isChecked ? 'bg-emerald-50/60' : ''}">
+                    <div class="truncate pr-2">
+                        <div class="flex items-center gap-1.5 truncate">
+                            <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-900 border border-emerald-200 rounded font-mono text-[10px] font-bold">${code}</span>
+                            <span class="font-bold text-slate-900 truncate">${name}</span>
+                        </div>
+                        <div class="text-[10px] text-slate-400 truncate flex items-center gap-2 mt-0.5">
+                            ${phone ? `<span>📞 ${phone}</span>` : ''}
+                            ${village ? `<span>🏡 ${village}</span>` : ''}
+                        </div>
+                    </div>
+                    <span class="text-[10px] px-2 py-0.5 rounded font-bold shrink-0 ${isChecked ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'}">
+                        ${isChecked ? '✓ Selected' : '+ Select'}
+                    </span>
+                </div>
+            `;
+        }).join('');
+
+        suggestionsBox.classList.remove('hidden');
+    }
+
+    function showFarmerSuggestions() {
+        const val = document.getElementById('assignFarmerSearchInput')?.value || '';
+        if (val.trim()) renderFarmerSuggestions(val);
+    }
+
+    function hideFarmerSuggestions() {
+        const suggestionsBox = document.getElementById('assignFarmerSuggestions');
+        if (suggestionsBox) setTimeout(() => suggestionsBox.classList.add('hidden'), 200);
+    }
+
+    function toggleFarmerFromSuggestion(farmerId) {
+        selectFarmerFromAssignDropdown(farmerId);
+        hideFarmerSuggestions();
+    }
+
+    function toggleAllAssignFarmers(select) {
+        document.querySelectorAll('.assign-farmer-cb').forEach(cb => {
+            const card = cb.closest('.assign-farmer-card');
+            if (!card || card.style.display !== 'none') {
+                cb.checked = select;
+            }
+        });
+        updateAssignSelectedCount();
     }
 
     function selectFarmerFromAssignDropdown(farmerId) {
@@ -787,7 +1051,6 @@
             if (cb) {
                 cb.checked = true;
                 updateAssignSelectedCount();
-                // Scroll card into view and give quick highlight
                 targetCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 targetCard.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-50/50');
                 setTimeout(() => {
