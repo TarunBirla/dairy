@@ -687,7 +687,7 @@
             <div class="menu-group">
                 <p class="px-2 pb-1 text-[10px] font-bold tracking-wider uppercase text-slate-400">Sales & Customers</p>
                 <div class="space-y-0.5">
-                    <a href="{{ route('pos.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('pos.index') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                    <a href="{{ route('pos.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ (request()->routeIs('pos.index') || request()->routeIs('pos.hub') || request()->routeIs('pos.terminal') || request()->routeIs('pos.reports')) ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                         <i data-lucide="store" class="w-4 h-4 text-emerald-600"></i>
                         <span>POS Counter Billing</span>
                     </a>

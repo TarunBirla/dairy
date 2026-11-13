@@ -334,8 +334,10 @@ class ReportController extends Controller
         ];
 
         return view('reports.generic_report', [
-            'title' => 'Date Wise Collection Report',
+            'title' => 'Date Wise',
+            'subtitle' => 'Collection Report (Center Level)',
             'category' => 'Collection Reports',
+            'filterType' => 'date_wise',
             'startDate' => $startDate,
             'endDate' => $endDate,
             'hasCenterFilter' => true,
@@ -352,16 +354,113 @@ class ReportController extends Controller
 
     public function collectionsFarmerWise(Request $request)
     {
-        return $this->collectionsDateWise($request);
+        $startDate = $request->get('start_date', Carbon::today()->subDays(7)->format('Y-m-d'));
+        $endDate = $request->get('end_date', Carbon::today()->format('Y-m-d'));
+        $centers = CollectionCenter::all();
+        $farmers = Farmer::orderBy('name')->get();
+
+        $query = MilkCollection::with(['farmer', 'collectionCenter'])
+            ->whereBetween('collection_date', [$startDate, $endDate]);
+
+        if ($request->filled('shift') && $request->shift !== 'all') {
+            $query->where('shift', $request->shift);
+        }
+
+        if ($request->filled('milk_type') && $request->milk_type !== 'all') {
+            $query->where('milk_type', $request->milk_type);
+        }
+
+        if ($request->filled('farmer_id')) {
+            $query->where('farmer_id', $request->farmer_id);
+        }
+
+        $sortBy = $request->get('sort_by', 'date');
+        $orderBy = $request->get('order_by', 'asc');
+        $dir = strtolower($orderBy) === 'desc' ? 'desc' : 'asc';
+
+        if ($sortBy === 'farmer_code') {
+            $query->join('farmers', 'milk_collections.farmer_id', '=', 'farmers.id')
+                  ->orderBy('farmers.farmer_code', $dir)
+                  ->select('milk_collections.*');
+        } elseif ($sortBy === 'farmer_name') {
+            $query->join('farmers', 'milk_collections.farmer_id', '=', 'farmers.id')
+                  ->orderBy('farmers.name', $dir)
+                  ->select('milk_collections.*');
+        } else {
+            $query->orderBy('collection_date', $dir);
+        }
+
+        $paginator = $query->paginate(20)->withQueryString();
+
+        $rows = collect($paginator->items())->map(function ($c, $idx) use ($paginator) {
+            return [
+                'sr_no' => $paginator->firstItem() + $idx,
+                'date' => $c->collection_date ? Carbon::parse($c->collection_date)->format('d/m/Y') : '-',
+                'shift' => ucfirst($c->shift),
+                'farmer' => '<b>' . ($c->farmer->name ?? 'N/A') . '</b><br><span class="text-[10px] text-slate-400 font-mono">' . ($c->farmer->farmer_code ?? '') . '</span>',
+                'milk_type' => ucfirst($c->milk_type),
+                'liters' => number_format($c->quantity_liters, 2),
+                'fat' => number_format($c->fat, 2) . '%',
+                'snf' => number_format($c->snf, 2) . '%',
+                'clr' => number_format($c->clr, 1),
+                'rate' => '₹ ' . number_format($c->rate, 2),
+                'amount' => '<b class="text-emerald-700">₹ ' . number_format($c->net_amount, 2) . '</b>',
+            ];
+        });
+
+        $columns = [
+            ['key' => 'sr_no', 'label' => 'SrNo', 'align' => 'center'],
+            ['key' => 'date', 'label' => 'Date'],
+            ['key' => 'shift', 'label' => 'Shift'],
+            ['key' => 'farmer', 'label' => 'Farmer Name & Code'],
+            ['key' => 'milk_type', 'label' => 'Milk Type'],
+            ['key' => 'liters', 'label' => 'Qty (Ltr)', 'align' => 'right'],
+            ['key' => 'fat', 'label' => 'FAT', 'align' => 'right'],
+            ['key' => 'snf', 'label' => 'SNF', 'align' => 'right'],
+            ['key' => 'clr', 'label' => 'CLR', 'align' => 'right'],
+            ['key' => 'rate', 'label' => 'Rate', 'align' => 'right'],
+            ['key' => 'amount', 'label' => 'Net Amount', 'align' => 'right'],
+        ];
+
+        return view('reports.generic_report', [
+            'title' => 'Farmer Wise',
+            'category' => 'Collection Reports',
+            'filterType' => 'farmer_wise',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'centers' => $centers,
+            'farmers' => $farmers,
+            'columns' => $columns,
+            'rows' => $rows,
+            'paginator' => $paginator,
+            'summaryCards' => [
+                ['label' => 'Total Liters Procured', 'value' => number_format((clone $query)->sum('quantity_liters'), 2) . ' Ltr', 'color' => 'text-slate-900'],
+                ['label' => 'Total Farmer Payout', 'value' => '₹ ' . number_format((clone $query)->sum('net_amount'), 2), 'color' => 'text-emerald-700'],
+            ],
+        ]);
     }
 
     public function collectionsFarmerSummary(Request $request)
     {
         $startDate = $request->get('start_date', Carbon::today()->subDays(10)->format('Y-m-d'));
         $endDate = $request->get('end_date', Carbon::today()->format('Y-m-d'));
+        $centers = CollectionCenter::all();
+        $farmers = Farmer::orderBy('name')->get();
 
-        $query = MilkCollection::with('farmer')
+        $query = MilkCollection::with(['farmer', 'collectionCenter'])
             ->whereBetween('collection_date', [$startDate, $endDate]);
+
+        if ($request->filled('center_id')) {
+            $query->where('collection_center_id', $request->center_id);
+        }
+
+        if ($request->filled('shift') && $request->shift !== 'all') {
+            $query->where('shift', $request->shift);
+        }
+
+        if ($request->filled('milk_type') && $request->milk_type !== 'all') {
+            $query->where('milk_type', $request->milk_type);
+        }
 
         $grouped = $query->get()->groupBy('farmer_id');
         $rows = [];
@@ -397,13 +496,13 @@ class ReportController extends Controller
         ];
 
         return view('reports.generic_report', [
-            'title' => 'Farmer Wise Summary Report',
+            'title' => 'Farmer Wise Summary',
             'category' => 'Collection Reports',
+            'filterType' => 'farmer_summary',
             'startDate' => $startDate,
             'endDate' => $endDate,
-            'hasCenterFilter' => true,
-            'hasShiftFilter' => false,
-            'hasMilkTypeFilter' => false,
+            'centers' => $centers,
+            'farmers' => $farmers,
             'columns' => $columns,
             'rows' => $rows,
             'paginator' => null,
@@ -416,7 +515,61 @@ class ReportController extends Controller
 
     public function collectionsCenterSummary(Request $request)
     {
-        return $this->collectionsFarmerSummary($request);
+        $startDate = $request->get('start_date', Carbon::today()->subDays(10)->format('Y-m-d'));
+        $endDate = $request->get('end_date', Carbon::today()->format('Y-m-d'));
+        $centers = CollectionCenter::all();
+
+        $query = MilkCollection::with('collectionCenter')
+            ->whereBetween('collection_date', [$startDate, $endDate]);
+
+        if ($request->filled('milk_type') && $request->milk_type !== 'all') {
+            $query->where('milk_type', $request->milk_type);
+        }
+
+        $grouped = $query->get()->groupBy('collection_center_id');
+        $rows = [];
+
+        foreach ($grouped as $centerId => $items) {
+            $center = $items->first()->collectionCenter;
+            $liters = $items->sum('quantity_liters');
+            $amt = $items->sum('net_amount');
+            $avgFat = $items->avg('fat') ?: 0;
+            $avgSnf = $items->avg('snf') ?: 0;
+
+            $rows[] = [
+                'center_name' => '<b>' . ($center->name ?? 'Main Center') . '</b>',
+                'collections_count' => $items->count(),
+                'liters' => number_format($liters, 2),
+                'fat' => number_format($avgFat, 2) . '%',
+                'snf' => number_format($avgSnf, 2) . '%',
+                'amount' => '<b class="text-emerald-700">₹ ' . number_format($amt, 2) . '</b>',
+            ];
+        }
+
+        $columns = [
+            ['key' => 'center_name', 'label' => 'Collection Center'],
+            ['key' => 'collections_count', 'label' => 'Total Entries', 'align' => 'right'],
+            ['key' => 'liters', 'label' => 'Total Milk (Ltr)', 'align' => 'right'],
+            ['key' => 'fat', 'label' => 'Avg FAT', 'align' => 'right'],
+            ['key' => 'snf', 'label' => 'Avg SNF', 'align' => 'right'],
+            ['key' => 'amount', 'label' => 'Total Payout', 'align' => 'right'],
+        ];
+
+        return view('reports.generic_report', [
+            'title' => 'Center Wise Summary',
+            'category' => 'Collection Reports',
+            'filterType' => 'center_summary',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'centers' => $centers,
+            'columns' => $columns,
+            'rows' => $rows,
+            'paginator' => null,
+            'summaryCards' => [
+                ['label' => 'Centers Active', 'value' => count($rows), 'color' => 'text-slate-900'],
+                ['label' => 'Total Milk Procured', 'value' => number_format(collect($rows)->sum('liters'), 2) . ' Ltr', 'color' => 'text-slate-900'],
+            ],
+        ]);
     }
 
     public function collectionsWindow(Request $request)

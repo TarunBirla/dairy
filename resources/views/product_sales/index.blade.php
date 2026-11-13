@@ -458,89 +458,229 @@
                     </div>
                 </div>
 
-                <!-- Row 2: Product, Unit & Quantity -->
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <!-- Product -->
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Product *</label>
-                        <select 
-                            name="product_id" 
-                            id="sale_product_select" 
-                            x-model="form.product_id" 
-                            @change="onProductChange($event.target.value)" 
-                            required 
-                            class="w-full text-xs px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none"
-                        >
-                            <option value="">Select Product</option>
-                            @foreach($products as $prod)
-                                <option 
-                                    value="{{ $prod->id }}" 
-                                    data-name="{{ $prod->name }}" 
-                                    data-unit="{{ $prod->unit }}" 
-                                    data-price="{{ $prod->price }}"
-                                    data-stock="{{ $prod->current_stock }}"
+                <!-- Multi-Product Section (Create Mode) / Single-Product (Edit Mode) -->
+                <template x-if="!isEdit">
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                    <i data-lucide="package" class="w-3.5 h-3.5 text-emerald-600"></i>
+                                    <span>Products & Items List</span>
+                                </h4>
+                                <p class="text-[11px] text-slate-400">Add one or more products for this farmer sale</p>
+                            </div>
+                            <button 
+                                type="button" 
+                                @click="addItem()" 
+                                class="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-lg transition border border-emerald-200"
+                            >
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                                <span>+ Add Another Product</span>
+                            </button>
+                        </div>
+
+                        <!-- Item Rows -->
+                        <div class="space-y-2.5">
+                            <template x-for="(item, index) in items" :key="index">
+                                <div class="p-3 bg-slate-50 border border-slate-200/90 rounded-xl relative group">
+                                    <div class="grid grid-cols-12 gap-2.5 items-end">
+                                        <!-- Product Select -->
+                                        <div class="col-span-12 sm:col-span-5">
+                                            <label class="block text-[11px] font-bold text-slate-600 mb-1">
+                                                Product <span x-text="'#' + (index + 1)"></span> *
+                                            </label>
+                                            <select 
+                                                x-model="item.product_id" 
+                                                @change="onItemProductChange(index, $event.target)" 
+                                                required 
+                                                class="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                                            >
+                                                <option value="">Select Product</option>
+                                                @foreach($products as $prod)
+                                                    <option 
+                                                        value="{{ $prod->id }}" 
+                                                        data-name="{{ $prod->name }}" 
+                                                        data-unit="{{ $prod->unit }}" 
+                                                        data-price="{{ $prod->price }}"
+                                                        data-stock="{{ $prod->current_stock }}"
+                                                    >
+                                                        {{ $prod->name }} (Stock: {{ $prod->current_stock }} {{ $prod->unit }})
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+
+                                        <!-- Unit -->
+                                        <div class="col-span-4 sm:col-span-2">
+                                            <label class="block text-[11px] font-bold text-slate-600 mb-1">Unit</label>
+                                            <input 
+                                                type="text" 
+                                                x-model="item.unit" 
+                                                placeholder="e.g. kg" 
+                                                class="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-lg bg-white uppercase font-bold text-slate-700 outline-none"
+                                            >
+                                        </div>
+
+                                        <!-- Quantity -->
+                                        <div class="col-span-4 sm:col-span-2">
+                                            <label class="block text-[11px] font-bold text-slate-600 mb-1">Qty *</label>
+                                            <input 
+                                                type="number" 
+                                                step="0.01" 
+                                                min="0.01" 
+                                                x-model.number="item.quantity" 
+                                                @input="updateItemTotal(index)" 
+                                                required 
+                                                placeholder="1.00" 
+                                                class="w-full px-2.5 py-2 text-xs font-bold text-slate-900 border border-slate-200 rounded-lg bg-white outline-none"
+                                            >
+                                        </div>
+
+                                        <!-- Rate -->
+                                        <div class="col-span-4 sm:col-span-2">
+                                            <label class="block text-[11px] font-bold text-slate-600 mb-1">Rate (₹) *</label>
+                                            <input 
+                                                type="number" 
+                                                step="0.01" 
+                                                min="0" 
+                                                x-model.number="item.rate" 
+                                                @input="updateItemTotal(index)" 
+                                                required 
+                                                placeholder="0.00" 
+                                                class="w-full px-2.5 py-2 text-xs font-bold text-slate-900 border border-slate-200 rounded-lg bg-white outline-none"
+                                            >
+                                        </div>
+
+                                        <!-- Remove button -->
+                                        <div class="col-span-12 sm:col-span-1 flex items-center justify-end sm:justify-center">
+                                            <button 
+                                                type="button" 
+                                                @click="removeItem(index)" 
+                                                x-show="items.length > 1" 
+                                                class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition" 
+                                                title="Remove item"
+                                            >
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Item Subtotal display -->
+                                    <div class="flex items-center justify-between text-[11px] text-slate-500 mt-2 pt-1 border-t border-slate-200/60">
+                                        <span>Item Total:</span>
+                                        <span class="font-mono font-bold text-emerald-700" x-text="'₹ ' + ((item.quantity || 0) * (item.rate || 0)).toFixed(2)"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Multi-Item Summary strip -->
+                        <div class="p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl flex items-center justify-between text-xs font-bold">
+                            <div class="flex items-center gap-3">
+                                <span class="text-slate-600">Total Items: <span class="text-slate-900 font-mono" x-text="items.length"></span></span>
+                                <span class="text-slate-600">Total Qty: <span class="text-slate-900 font-mono" x-text="computedTotalQuantity"></span></span>
+                            </div>
+                            <div class="text-emerald-800 text-sm">
+                                Grand Total: <span class="font-mono font-black text-emerald-700 text-base" x-text="'₹ ' + computedTotalAmount"></span>
+                            </div>
+                        </div>
+
+                        <!-- Hidden serialized items and primary fields -->
+                        <input type="hidden" name="items" :value="JSON.stringify(items)">
+                        <input type="hidden" name="product_id" :value="items[0] ? items[0].product_id : ''">
+                        <input type="hidden" name="unit" :value="items[0] ? items[0].unit : 'kg'">
+                        <input type="hidden" name="quantity" :value="items[0] ? items[0].quantity : 1">
+                        <input type="hidden" name="rate" :value="items[0] ? items[0].rate : 0">
+                    </div>
+                </template>
+
+                <!-- Single-Product Section (Edit Mode) -->
+                <template x-if="isEdit">
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <!-- Product -->
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Product *</label>
+                                <select 
+                                    name="product_id" 
+                                    id="sale_product_select" 
+                                    x-model="form.product_id" 
+                                    @change="onProductChange($event.target.value)" 
+                                    required 
+                                    class="w-full text-xs px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none"
                                 >
-                                    {{ $prod->name }} (Stock: {{ $prod->current_stock }} {{ $prod->unit }})
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
+                                    <option value="">Select Product</option>
+                                    @foreach($products as $prod)
+                                        <option 
+                                            value="{{ $prod->id }}" 
+                                            data-name="{{ $prod->name }}" 
+                                            data-unit="{{ $prod->unit }}" 
+                                            data-price="{{ $prod->price }}"
+                                            data-stock="{{ $prod->current_stock }}"
+                                        >
+                                            {{ $prod->name }} (Stock: {{ $prod->current_stock }} {{ $prod->unit }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
 
-                    <!-- Unit -->
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Unit (UOM)</label>
-                        <input 
-                            type="text" 
-                            name="unit" 
-                            x-model="form.unit" 
-                            required 
-                            placeholder="e.g. kg, liter" 
-                            class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none font-semibold uppercase"
-                        >
-                    </div>
+                            <!-- Unit -->
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Unit (UOM)</label>
+                                <input 
+                                    type="text" 
+                                    name="unit" 
+                                    x-model="form.unit" 
+                                    required 
+                                    placeholder="e.g. kg, liter" 
+                                    class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none font-semibold uppercase"
+                                >
+                            </div>
 
-                    <!-- Quantity -->
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Quantity *</label>
-                        <input 
-                            type="number" 
-                            step="0.01" 
-                            name="quantity" 
-                            x-model.number="form.quantity" 
-                            @input="recalculate()" 
-                            required 
-                            placeholder="0.00" 
-                            class="w-full px-3.5 py-2.5 text-xs font-bold text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none"
-                        >
-                    </div>
-                </div>
+                            <!-- Quantity -->
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Quantity *</label>
+                                <input 
+                                    type="number" 
+                                    step="0.01" 
+                                    name="quantity" 
+                                    x-model.number="form.quantity" 
+                                    @input="recalculate()" 
+                                    required 
+                                    placeholder="0.00" 
+                                    class="w-full px-3.5 py-2.5 text-xs font-bold text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none"
+                                >
+                            </div>
+                        </div>
 
-                <!-- Row 3: Rate, Total Amount -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Rate (₹) *</label>
-                        <input 
-                            type="number" 
-                            step="0.01" 
-                            name="rate" 
-                            x-model.number="form.rate" 
-                            @input="recalculate()" 
-                            required 
-                            placeholder="0.00" 
-                            class="w-full px-3.5 py-2.5 text-xs font-bold text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none"
-                        >
-                    </div>
+                        <!-- Rate & Total -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Rate (₹) *</label>
+                                <input 
+                                    type="number" 
+                                    step="0.01" 
+                                    name="rate" 
+                                    x-model.number="form.rate" 
+                                    @input="recalculate()" 
+                                    required 
+                                    placeholder="0.00" 
+                                    class="w-full px-3.5 py-2.5 text-xs font-bold text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none"
+                                >
+                            </div>
 
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Total Amount (₹)</label>
-                        <input 
-                            type="text" 
-                            readonly 
-                            :value="'₹ ' + computedTotalAmount" 
-                            class="w-full px-3.5 py-2.5 text-xs font-black text-emerald-700 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none font-mono text-sm"
-                        >
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Total Amount (₹)</label>
+                                <input 
+                                    type="text" 
+                                    readonly 
+                                    :value="'₹ ' + computedTotalAmount" 
+                                    class="w-full px-3.5 py-2.5 text-xs font-black text-emerald-700 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none font-mono text-sm"
+                                >
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </template>
 
                 <!-- Row 4: Paid Amount? (Yes / No Toggle) matching reference -->
                 <div>
@@ -755,6 +895,11 @@ function saleProductManager() {
         isEdit: false,
         editId: null,
 
+        // Multi-product items for Create mode
+        items: [
+            { product_id: '', unit: 'kg', quantity: 1, rate: '', total: 0 }
+        ],
+
         form: {
             sale_number: '{{ $nextSaleNumber }}',
             sale_date: '{{ date('Y-m-d') }}',
@@ -777,10 +922,66 @@ function saleProductManager() {
             });
         },
 
+        addItem() {
+            this.items.push({
+                product_id: '',
+                unit: 'kg',
+                quantity: 1,
+                rate: '',
+                total: 0
+            });
+            this.$nextTick(() => {
+                if (window.lucide) window.lucide.createIcons();
+            });
+            this.recalculate();
+        },
+
+        removeItem(index) {
+            if (this.items.length > 1) {
+                this.items.splice(index, 1);
+                this.recalculate();
+            }
+        },
+
+        onItemProductChange(index, selectElem) {
+            const opt = selectElem.options[selectElem.selectedIndex];
+            if (opt && opt.value) {
+                this.items[index].unit = opt.getAttribute('data-unit') || 'kg';
+                const price = parseFloat(opt.getAttribute('data-price')) || 0;
+                if (!this.items[index].rate && price > 0) {
+                    this.items[index].rate = price;
+                }
+            }
+            this.updateItemTotal(index);
+        },
+
+        updateItemTotal(index) {
+            const qty = parseFloat(this.items[index].quantity) || 0;
+            const rate = parseFloat(this.items[index].rate) || 0;
+            this.items[index].total = parseFloat((qty * rate).toFixed(2));
+            this.recalculate();
+        },
+
+        get computedTotalQuantity() {
+            if (this.isEdit) {
+                return (parseFloat(this.form.quantity) || 0).toFixed(2);
+            }
+            const total = this.items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
+            return total.toFixed(2);
+        },
+
         get computedTotalAmount() {
-            const qty = parseFloat(this.form.quantity) || 0;
-            const rate = parseFloat(this.form.rate) || 0;
-            return (qty * rate).toFixed(2);
+            if (this.isEdit) {
+                const qty = parseFloat(this.form.quantity) || 0;
+                const rate = parseFloat(this.form.rate) || 0;
+                return (qty * rate).toFixed(2);
+            }
+            const sum = this.items.reduce((acc, item) => {
+                const qty = parseFloat(item.quantity) || 0;
+                const rate = parseFloat(item.rate) || 0;
+                return acc + (qty * rate);
+            }, 0);
+            return sum.toFixed(2);
         },
 
         get computedRemainingAmount() {
@@ -790,13 +991,18 @@ function saleProductManager() {
         },
 
         recalculate() {
-            // Reactive triggers
+            if (this.form.is_paid == 1 && (!this.form.paid_amount || this.form.paid_amount == 0)) {
+                this.form.paid_amount = parseFloat(this.computedTotalAmount);
+            }
         },
 
         openCreateModal() {
             this.isEdit = false;
             this.editId = null;
             this.resetForm();
+            this.items = [
+                { product_id: '', unit: 'kg', quantity: 1, rate: '', total: 0 }
+            ];
             this.modalOpen = true;
             this.$nextTick(() => {
                 if (window.lucide) window.lucide.createIcons();

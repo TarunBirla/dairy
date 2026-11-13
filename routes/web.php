@@ -880,6 +880,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('product-sales', ProductSaleController::class);
     Route::get('product-sales/{product_sale}/print', [ProductSaleController::class, 'printSlip'])->name('product-sales.print');
     Route::post('product-sales/{product_sale}/mark-paid', [ProductSaleController::class, 'markPaid'])->name('product-sales.mark-paid');
+    Route::get('system/migrate-product-sales', [ProductSaleController::class, 'runMigration'])->name('system.migrate-product-sales');
 
     // Inventory Ledger & Bottle Management
     Route::prefix('inventory')->name('inventory.')->group(function () {
@@ -895,7 +896,11 @@ Route::middleware('auth')->group(function () {
     // POS & Counter Billing
     Route::prefix('pos')->name('pos.')->group(function () {
         Route::get('/', [PosController::class, 'index'])->name('index');
+        Route::get('/hub', [PosController::class, 'hub'])->name('hub');
+        Route::get('/terminal', [PosController::class, 'terminal'])->name('terminal');
+        Route::get('/reports', [PosController::class, 'reports'])->name('reports');
         Route::post('/', [PosController::class, 'store'])->name('store');
+        Route::delete('/orders/{order}', [PosController::class, 'destroy'])->name('orders.destroy');
         Route::get('/receipt/{order}', [PosController::class, 'receipt'])->name('receipt');
         Route::get('/history', [PosController::class, 'history'])->name('history');
         Route::get('/cashbook', [PosController::class, 'cashbook'])->name('cashbook');

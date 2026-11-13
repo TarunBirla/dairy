@@ -5,10 +5,20 @@
 @section('header_title', 'Retail Counter & Booth POS Terminal')
 
 @section('header_action')
-    <a href="{{ route('pos.history') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition">
-        <i data-lucide="history" class="w-3.5 h-3.5"></i>
-        <span>Today's Sales History</span>
-    </a>
+    <div class="flex items-center gap-2">
+        <a href="{{ route('pos.hub') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg shadow-2xs transition">
+            <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+            <span>Counter sales</span>
+        </a>
+        <a href="{{ route('pos.reports') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg shadow-2xs transition">
+            <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+            <span>Reports</span>
+        </a>
+        <a href="{{ route('pos.history') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition">
+            <i data-lucide="history" class="w-3.5 h-3.5"></i>
+            <span>Today's Sales History</span>
+        </a>
+    </div>
 @endsection
 
 @section('content')

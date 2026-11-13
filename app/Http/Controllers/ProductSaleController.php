@@ -49,8 +49,34 @@ class ProductSaleController extends Controller
                     $table->softDeletes();
                 });
             }
+
+            if (Schema::hasTable('product_sales') && !Schema::hasColumn('product_sales', 'group_sale_number')) {
+                Schema::table('product_sales', function (Blueprint $table) {
+                    $table->string('group_sale_number')->nullable()->after('sale_number');
+                });
+            }
         } catch (\Throwable $e) {
             // Ignore in constructor
+        }
+    }
+
+    /**
+     * Dedicated live migration endpoint to ensure columns/tables are up to date.
+     */
+    public function runMigration()
+    {
+        try {
+            $this->ensureSchema();
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Product sales database updated successfully. Multi-product sale parameter group_sale_number is ready.',
+                'timestamp' => now()->toDateTimeString(),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 500);
         }
     }
 
@@ -123,132 +149,195 @@ class ProductSaleController extends Controller
     }
 
     /**
-     * Store newly created sale entry.
+     * Store newly created sale entry (supports single product as well as multiple products for a farmer).
      */
     public function store(Request $request)
     {
-        // Resilient normalization for diverse form submissions
-        $rate = $request->input('rate', $request->input('unit_price'));
+        $this->ensureSchema();
+
         $saleDate = $request->input('sale_date', now()->format('Y-m-d'));
         $paymentMode = $request->input('payment_mode', $request->input('payment_method', 'Ledger'));
         if (strcasecmp($paymentMode, 'Credit') === 0) {
             $paymentMode = 'Ledger';
         }
-        $paidAmount = (float) $request->input('paid_amount', 0);
-        $qty = (float) $request->input('quantity', 1);
-        $total = round($qty * (float) ($rate ?? 0), 2);
-        $isPaid = $request->has('is_paid') ? (string) $request->input('is_paid') : (($paidAmount >= $total && $total > 0) ? '1' : '0');
-        $unit = $request->input('unit', 'kg');
 
-        $request->merge([
-            'rate' => $rate,
-            'sale_date' => $saleDate,
-            'payment_mode' => $paymentMode,
-            'is_paid' => $isPaid,
-            'unit' => $unit,
-        ]);
+        // Support both itemized multiple products and single product submission
+        $rawItems = $request->input('items');
+        if (is_string($rawItems)) {
+            $rawItems = json_decode($rawItems, true);
+        }
 
-        $validated = $request->validate([
-            'sale_date' => 'required|date',
-            'farmer_id' => 'nullable|exists:farmers,id',
-            'farmer_name' => 'nullable|string|max:255',
-            'farmer_code' => 'nullable|string|max:50',
-            'product_id' => 'required|exists:products,id',
-            'unit' => 'required|string|max:50',
-            'quantity' => 'required|numeric|min:0.01',
-            'rate' => 'required|numeric|min:0',
-            'is_paid' => 'required|in:0,1',
-            'paid_amount' => 'nullable|numeric',
-            'payment_mode' => 'required|string|in:Cash,UPI,Bank Transfer,Ledger',
-            'remarks' => 'nullable|string|max:1000',
-        ]);
+        $items = [];
+        if (is_array($rawItems) && count($rawItems) > 0) {
+            foreach ($rawItems as $itm) {
+                if (!empty($itm['product_id']) && (float)($itm['quantity'] ?? 0) > 0) {
+                    $items[] = [
+                        'product_id' => $itm['product_id'],
+                        'unit' => $itm['unit'] ?? 'kg',
+                        'quantity' => (float)$itm['quantity'],
+                        'rate' => (float)($itm['rate'] ?? 0),
+                    ];
+                }
+            }
+        }
 
-        $product = Product::findOrFail($validated['product_id']);
-        $quantity = (float) $validated['quantity'];
-        $rate = (float) $validated['rate'];
-        $totalAmount = round($quantity * $rate, 2);
+        // Fallback to single product fields if items array not provided
+        if (empty($items) && $request->filled('product_id')) {
+            $rate = $request->input('rate', $request->input('unit_price', 0));
+            $items[] = [
+                'product_id' => $request->input('product_id'),
+                'unit' => $request->input('unit', 'kg'),
+                'quantity' => (float)$request->input('quantity', 1),
+                'rate' => (float)$rate,
+            ];
+        }
 
-        // Check stock availability
-        if ($product->current_stock < $quantity) {
+        if (empty($items)) {
             return back()->withInput()->withErrors([
-                'quantity' => "Insufficient stock for {$product->name}. Available: {$product->current_stock} {$product->unit}"
+                'product_id' => 'Please add at least one product with valid quantity to record a sale.'
             ]);
         }
 
-        // Resolve Farmer
+        // Validate Farmer
         $farmer = null;
-        if (!empty($validated['farmer_id'])) {
-            $farmer = Farmer::find($validated['farmer_id']);
+        if ($request->filled('farmer_id')) {
+            $farmer = Farmer::find($request->farmer_id);
         }
-        $farmerName = $farmer ? $farmer->name : ($validated['farmer_name'] ?? 'Direct Farmer');
-        $farmerCode = $farmer ? $farmer->farmer_code : ($validated['farmer_code'] ?? null);
+        $farmerName = $farmer ? $farmer->name : ($request->input('farmer_name') ?: 'Direct Farmer');
+        $farmerCode = $farmer ? $farmer->farmer_code : ($request->input('farmer_code') ?: null);
 
-        $isPaid = (bool) $validated['is_paid'];
-        $paidAmount = $isPaid ? (float) ($validated['paid_amount'] ?? $totalAmount) : 0.00;
-        $remainingAmount = round($totalAmount - $paidAmount, 2);
+        // Pre-validate stock and load products
+        $preparedItems = [];
+        $grandTotalAmount = 0.00;
 
-        $saleNumber = 'SAL-' . date('ymd') . '-' . sprintf('%03d', (ProductSale::count() + 1));
+        foreach ($items as $idx => $itm) {
+            $product = Product::find($itm['product_id']);
+            if (!$product) {
+                return back()->withInput()->withErrors([
+                    'product_id' => "Product (ID #{$itm['product_id']}) not found."
+                ]);
+            }
 
-        $sale = ProductSale::create([
-            'sale_number' => $saleNumber,
-            'sale_date' => $validated['sale_date'],
-            'farmer_id' => $farmer ? $farmer->id : null,
-            'farmer_code' => $farmerCode,
-            'farmer_name' => $farmerName,
-            'product_id' => $product->id,
-            'product_name' => $product->name,
-            'unit' => $validated['unit'] ?: ($product->unit ?: 'kg'),
-            'quantity' => $quantity,
-            'rate' => $rate,
-            'total_amount' => $totalAmount,
-            'is_paid' => $isPaid,
-            'paid_amount' => $paidAmount,
-            'remaining_amount' => $remainingAmount,
-            'payment_mode' => $validated['payment_mode'],
-            'remarks' => $validated['remarks'] ?? null,
-            'recorded_by' => Auth::id(),
-        ]);
+            if ($product->current_stock < $itm['quantity']) {
+                return back()->withInput()->withErrors([
+                    'quantity' => "Insufficient stock for {$product->name}. Available: {$product->current_stock} {$product->unit}, requested: {$itm['quantity']}"
+                ]);
+            }
 
-        // Reduce Product Stock
-        $newStock = max(0, (float) $product->current_stock - $quantity);
-        $product->update([
-            'current_stock' => $newStock,
-            'in_stock' => $newStock > 0,
-        ]);
+            $lineTotal = round($itm['quantity'] * $itm['rate'], 2);
+            $grandTotalAmount += $lineTotal;
 
-        // Record Inventory Transaction
-        InventoryTransaction::create([
-            'product_id' => $product->id,
-            'transaction_type' => 'sale_outward',
-            'quantity' => $quantity,
-            'unit_cost' => $rate,
-            'balance_after' => $newStock,
-            'reference_type' => 'product_sale',
-            'reference_id' => $sale->id,
-            'recorded_by' => Auth::id(),
-            'notes' => "Sales Product #{$saleNumber} to {$farmerName} ({$validated['payment_mode']})",
-        ]);
+            $preparedItems[] = [
+                'product' => $product,
+                'unit' => $itm['unit'] ?: ($product->unit ?: 'kg'),
+                'quantity' => $itm['quantity'],
+                'rate' => $itm['rate'],
+                'total_amount' => $lineTotal,
+            ];
+        }
 
-        AuditLog::log('Created Sales Product Entry', 'ProductSale', $sale->id, [
-            'sale_number' => $saleNumber,
+        // Payment logic
+        $isPaid = $request->input('is_paid', 1) == 1;
+        $totalPaidInput = $isPaid ? (float) $request->input('paid_amount', $grandTotalAmount) : 0.00;
+        $totalPaidAmount = min($totalPaidInput, $grandTotalAmount);
+        $totalRemainingAmount = round(max(0, $grandTotalAmount - $totalPaidAmount), 2);
+
+        // Base sale number
+        $baseSaleNumber = 'SAL-' . date('ymd') . '-' . sprintf('%03d', (ProductSale::count() + 1));
+        $createdSales = [];
+        $itemCount = count($preparedItems);
+
+        // Track distribution of paid amount across multiple items
+        $remainingPaidToAllocate = $totalPaidAmount;
+
+        foreach ($preparedItems as $index => $itemData) {
+            $product = $itemData['product'];
+            $lineTotal = $itemData['total_amount'];
+
+            // Suffix sale number if multiple items to ensure uniqueness
+            $saleNumber = ($itemCount > 1) ? "{$baseSaleNumber}-" . ($index + 1) : $baseSaleNumber;
+
+            if ($isPaid) {
+                if ($index === $itemCount - 1) {
+                    $itemPaid = round($remainingPaidToAllocate, 2);
+                } else {
+                    $prop = ($grandTotalAmount > 0) ? ($lineTotal / $grandTotalAmount) : 0;
+                    $itemPaid = round(min($remainingPaidToAllocate, $totalPaidAmount * $prop), 2);
+                    $remainingPaidToAllocate -= $itemPaid;
+                }
+            } else {
+                $itemPaid = 0.00;
+            }
+
+            $itemRemaining = round(max(0, $lineTotal - $itemPaid), 2);
+
+            $sale = ProductSale::create([
+                'sale_number' => $saleNumber,
+                'group_sale_number' => ($itemCount > 1) ? $baseSaleNumber : null,
+                'sale_date' => $saleDate,
+                'farmer_id' => $farmer ? $farmer->id : null,
+                'farmer_code' => $farmerCode,
+                'farmer_name' => $farmerName,
+                'product_id' => $product->id,
+                'product_name' => $product->name,
+                'unit' => $itemData['unit'],
+                'quantity' => $itemData['quantity'],
+                'rate' => $itemData['rate'],
+                'total_amount' => $lineTotal,
+                'is_paid' => ($itemRemaining <= 0),
+                'paid_amount' => $itemPaid,
+                'remaining_amount' => $itemRemaining,
+                'payment_mode' => $paymentMode,
+                'remarks' => $request->input('remarks'),
+                'recorded_by' => Auth::id(),
+            ]);
+
+            // Deduct stock
+            $newStock = max(0, (float) $product->current_stock - $itemData['quantity']);
+            $product->update([
+                'current_stock' => $newStock,
+                'in_stock' => $newStock > 0,
+            ]);
+
+            // Inventory transaction
+            InventoryTransaction::create([
+                'product_id' => $product->id,
+                'transaction_type' => 'sale_outward',
+                'quantity' => $itemData['quantity'],
+                'unit_cost' => $itemData['rate'],
+                'balance_after' => $newStock,
+                'reference_type' => 'product_sale',
+                'reference_id' => $sale->id,
+                'recorded_by' => Auth::id(),
+                'notes' => "Sale #{$saleNumber} to {$farmerName} ({$paymentMode})",
+            ]);
+
+            $createdSales[] = $sale;
+        }
+
+        AuditLog::log('Created Product Sale(s)', 'ProductSale', $createdSales[0]->id, [
+            'base_sale_number' => $baseSaleNumber,
+            'items_count' => $itemCount,
             'farmer' => $farmerName,
-            'product' => $product->name,
-            'quantity' => $quantity,
-            'total' => $totalAmount,
+            'grand_total' => $grandTotalAmount,
         ]);
+
+        $successMsg = ($itemCount > 1)
+            ? "Successfully recorded sale of {$itemCount} products for {$farmerName} (Total ₹" . number_format($grandTotalAmount, 2) . ") under #{$baseSaleNumber}!"
+            : "Sale #{$baseSaleNumber} for {$preparedItems[0]['product']->name} (₹" . number_format($grandTotalAmount, 2) . ") recorded successfully!";
 
         if ($request->filled('redirect_to_farmer')) {
             return redirect()->route('farmers.show', ['farmer' => $request->redirect_to_farmer, 'tab' => 'purchases'])
-                             ->with('success', "Purchase #{$saleNumber} for {$product->name} (₹{$totalAmount}) recorded successfully!");
+                             ->with('success', $successMsg);
         }
 
         if ($request->input('redirect_to') === 'collections') {
             return redirect()->route('collections.index', ['tab' => 'product_sales'])
-                             ->with('success', "Sale #{$saleNumber} for {$product->name} (₹{$totalAmount}) recorded successfully!");
+                             ->with('success', $successMsg);
         }
 
         return redirect()->route('product-sales.index')
-                         ->with('success', "Sale #{$saleNumber} for {$product->name} (₹{$totalAmount}) recorded successfully!");
+                         ->with('success', $successMsg);
     }
 
     /**
