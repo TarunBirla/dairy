@@ -85,7 +85,7 @@ class DeliveryController extends Controller
         $shift = $request->get('shift', 'morning');
         $routeId = $request->get('route_id');
 
-        $query = DailyDelivery::with(['customer', 'product', 'route', 'deliveryBoy'])
+        $query = DailyDelivery::with(['customer.vacations', 'product', 'route', 'deliveryBoy'])
             ->whereDate('delivery_date', $date)
             ->where('shift', $shift);
 
@@ -116,7 +116,10 @@ class DeliveryController extends Controller
         $generatedCount = 0;
 
         foreach ($subscriptions as $sub) {
-            if (!$sub->shouldDeliverOn($date, $shift)) {
+            $customer = $sub->customer;
+            $isOnVacation = $customer && $customer->isOnVacation($date, $shift);
+
+            if (!$sub->shouldDeliverOn($date, $shift) && !$isOnVacation) {
                 continue;
             }
 
@@ -127,6 +130,10 @@ class DeliveryController extends Controller
                 ->exists();
 
             if (!$exists) {
+                $status = $isOnVacation ? 'skipped' : 'pending';
+                $vacation = $isOnVacation ? $customer->getVacationOn($date, $shift) : null;
+                $failureReason = $isOnVacation ? 'Customer on vacation: ' . ($vacation->reason ?? 'Leave scheduled') : null;
+
                 DailyDelivery::create([
                     'delivery_date' => $date,
                     'shift' => $shift,
@@ -140,7 +147,8 @@ class DeliveryController extends Controller
                     'delivered_quantity' => 0,
                     'unit_price' => $sub->unit_price,
                     'total_amount' => round($sub->quantity * $sub->unit_price, 2),
-                    'status' => 'pending',
+                    'status' => $status,
+                    'failure_reason' => $failureReason,
                 ]);
                 $generatedCount++;
             }
@@ -155,7 +163,7 @@ class DeliveryController extends Controller
         $today = Carbon::today();
         $shift = (date('H') >= 14) ? 'evening' : 'morning';
 
-        $query = DailyDelivery::with(['customer', 'product', 'route'])
+        $query = DailyDelivery::with(['customer.vacations', 'product', 'route'])
             ->whereDate('delivery_date', $today)
             ->where('shift', $shift);
 

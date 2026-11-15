@@ -109,12 +109,19 @@
                                 ₹ {{ number_format($del->total_amount, 2) }}
                             </td>
                             <td class="py-3.5 px-4">
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase
-                                    {{ $del->status === 'delivered' ? 'bg-emerald-100 text-emerald-800' : ($del->status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600') }}">
-                                    {{ $del->status }}
-                                </span>
-                                @if($del->failure_reason)
-                                    <span class="block text-[10px] text-slate-400 mt-0.5">{{ $del->failure_reason }}</span>
+                                @if($del->customer->isOnVacation($date, $shift) || str_contains(strtolower($del->failure_reason ?? ''), 'vacation') || str_contains(strtolower($del->failure_reason ?? ''), 'leave'))
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-rose-100 text-rose-800 border border-rose-200">
+                                        ON VACATION
+                                    </span>
+                                    <span class="block text-[10px] text-rose-600 font-semibold mt-0.5">{{ $del->failure_reason ?? 'Leave scheduled' }}</span>
+                                @else
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase
+                                        {{ $del->status === 'delivered' ? 'bg-emerald-100 text-emerald-800' : ($del->status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600') }}">
+                                        {{ $del->status }}
+                                    </span>
+                                    @if($del->failure_reason)
+                                        <span class="block text-[10px] text-slate-400 mt-0.5">{{ $del->failure_reason }}</span>
+                                    @endif
                                 @endif
                             </td>
                             <td class="py-3.5 px-4 text-right pr-6">

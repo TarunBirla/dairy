@@ -817,6 +817,14 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{subscription}', [SubscriptionController::class, 'destroy'])->name('destroy');
     });
 
+    // Customer Vacations (Leave) Management
+    Route::prefix('vacations')->name('vacations.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\CustomerVacationController::class, 'index'])->name('index');
+        Route::post('/', [\App\Http\Controllers\CustomerVacationController::class, 'store'])->name('store');
+        Route::delete('/{vacation}', [\App\Http\Controllers\CustomerVacationController::class, 'destroy'])->name('destroy');
+        Route::post('/cancel-range', [\App\Http\Controllers\CustomerVacationController::class, 'cancelRange'])->name('cancel-range');
+    });
+
     // Delivery & Route Operations
     Route::prefix('delivery')->name('delivery.')->group(function () {
         Route::get('/routes', [DeliveryController::class, 'routes'])->name('routes');

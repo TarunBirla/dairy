@@ -278,7 +278,7 @@ class CustomerController extends Controller
 
     public function show(Customer $customer)
     {
-        $customer->load(['route', 'subscriptions.product', 'dailyDeliveries.product', 'invoices', 'payments', 'ledgers', 'bottleTracking']);
+        $customer->load(['route', 'subscriptions.product', 'dailyDeliveries.product', 'invoices', 'payments', 'ledgers', 'bottleTracking', 'vacations']);
         $recentDeliveries = $customer->dailyDeliveries()->latest()->take(15)->get();
         $ledgers = CustomerLedger::where('customer_id', $customer->id)->latest()->take(25)->get();
 

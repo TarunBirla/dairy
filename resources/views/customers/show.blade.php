@@ -86,6 +86,9 @@
         <button @click="tab = 'invoices'" :class="tab === 'invoices' ? 'border-b-2 border-emerald-600 text-emerald-700' : 'text-slate-500 hover:text-slate-700'" class="pb-3 transition">
             Invoices & Bills ({{ $customer->invoices->count() }})
         </button>
+        <button @click="tab = 'vacations'" :class="tab === 'vacations' ? 'border-b-2 border-emerald-600 text-emerald-700' : 'text-slate-500 hover:text-slate-700'" class="pb-3 transition">
+            Vacations ({{ $customer->vacations->count() }})
+        </button>
     </div>
 
     <!-- TAB 1: Subscriptions -->
@@ -249,6 +252,84 @@
                     @endforelse
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- TAB 5: Vacations / Leave -->
+    <div x-show="tab === 'vacations'" x-cloak class="space-y-4">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 class="text-sm font-bold text-slate-800">Vacation / Leave Schedule</h3>
+                <p class="text-xs text-slate-500">Deliveries are paused automatically for scheduled vacation dates and delivery boys are informed.</p>
+            </div>
+            <a href="{{ route('vacations.index', ['customer_id' => $customer->id]) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                <span>Schedule Vacation</span>
+            </a>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-600">
+                    <thead class="bg-slate-50 text-[10px] uppercase font-bold text-slate-400">
+                        <tr>
+                            <th class="py-2.5 px-4">Dates</th>
+                            <th class="py-2.5 px-4">Days</th>
+                            <th class="py-2.5 px-4">Shift</th>
+                            <th class="py-2.5 px-4">Reason / Remark</th>
+                            <th class="py-2.5 px-4">Status</th>
+                            <th class="py-2.5 px-4 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @forelse($customer->vacations as $v)
+                            <tr class="hover:bg-slate-50/50">
+                                <td class="py-3 px-4 font-medium text-slate-900">
+                                    {{ $v->from_date->format('d M Y') }}
+                                    @if(!$v->from_date->isSameDay($v->to_date))
+                                        <span class="text-slate-400">→</span> {{ $v->to_date->format('d M Y') }}
+                                    @endif
+                                </td>
+                                <td class="py-3 px-4">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                        {{ $v->days_count }} {{ Str::plural('day', $v->days_count) }}
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase {{ $v->shift === 'morning' ? 'bg-amber-100 text-amber-800' : ($v->shift === 'evening' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700') }}">
+                                        {{ $v->shift === 'all' ? 'Full Day' : ucfirst($v->shift) }}
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4 text-slate-600">{{ $v->reason ?: '—' }}</td>
+                                <td class="py-3 px-4">
+                                    @if($v->coversDate(now()->toDateString()))
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 animate-pulse">Active Today</span>
+                                    @elseif($v->from_date->isFuture())
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700">Upcoming</span>
+                                    @else
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">Past</span>
+                                    @endif
+                                </td>
+                                <td class="py-3 px-4 text-right">
+                                    <form action="{{ route('vacations.destroy', $v) }}" method="POST" onsubmit="return confirm('Cancel this vacation leave and restore scheduled deliveries?')" class="inline">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="px-2.5 py-1 text-[11px] font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition">
+                                            Cancel Leave
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="py-8 text-center text-slate-400">
+                                    No vacation or leave scheduled for this customer.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 

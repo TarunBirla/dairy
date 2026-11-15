@@ -704,6 +704,11 @@
                         <i data-lucide="users-2" class="w-4 h-4 text-emerald-600"></i>
                         <span>Customer Groups</span>
                     </a>
+                    <!-- Customer Vacations (Leave) -->
+                    <a href="{{ route('vacations.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('vacations.*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                        <i data-lucide="palmtree" class="w-4 h-4 text-emerald-600"></i>
+                        <span>Vacations (leave)</span>
+                    </a>
                     <!-- Product Pre-order Booking -->
                     <a href="{{ route('bookings.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('bookings.*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                         <i data-lucide="calendar-check" class="w-4 h-4 text-slate-400"></i>

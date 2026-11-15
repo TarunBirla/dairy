@@ -58,15 +58,27 @@
                                 {{ $loop->iteration }}
                             </span>
                             <h4 class="text-sm font-bold text-slate-900">{{ $del->customer->name }}</h4>
-                            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase 
-                                {{ $del->status === 'delivered' ? 'bg-emerald-100 text-emerald-800' : ($del->status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600') }}">
-                                {{ $del->status }}
-                            </span>
+                            @if($del->customer->isOnVacation($today, $shift) || str_contains(strtolower($del->failure_reason ?? ''), 'vacation') || str_contains(strtolower($del->failure_reason ?? ''), 'leave'))
+                                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-rose-100 text-rose-800 border border-rose-200">
+                                    ON VACATION
+                                </span>
+                            @else
+                                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase 
+                                    {{ $del->status === 'delivered' ? 'bg-emerald-100 text-emerald-800' : ($del->status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600') }}">
+                                    {{ $del->status }}
+                                </span>
+                            @endif
                         </div>
                         <p class="text-xs text-slate-500 mt-1 flex items-center gap-1">
                             <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400"></i>
                             <span>{{ $del->customer->address }}</span>
                         </p>
+                        @if($del->customer->isOnVacation($today, $shift) || str_contains(strtolower($del->failure_reason ?? ''), 'vacation') || str_contains(strtolower($del->failure_reason ?? ''), 'leave'))
+                            <p class="text-[11px] text-rose-800 bg-rose-50 border border-rose-200/80 p-2 rounded-xl mt-2 flex items-center gap-1.5 font-bold">
+                                <i data-lucide="palmtree" class="w-3.5 h-3.5 text-rose-600 shrink-0"></i>
+                                <span>Leave Scheduled: {{ $del->failure_reason ?? 'Customer is not available today (Do not deliver)' }}</span>
+                            </p>
+                        @endif
                         @if($del->customer->delivery_instructions)
                             <p class="text-[11px] text-amber-700 bg-amber-50 p-1.5 rounded-lg mt-2 flex items-center gap-1 font-medium">
                                 <i data-lucide="info" class="w-3 h-3"></i>

@@ -75,6 +75,10 @@ class Subscription extends Model
             return false;
         }
 
+        if ($this->customer && $this->customer->isOnVacation($date, $shift)) {
+            return false;
+        }
+
         $dateCarbon = \Carbon\Carbon::parse($date)->startOfDay();
         $startCarbon = \Carbon\Carbon::parse($this->start_date)->startOfDay();
 

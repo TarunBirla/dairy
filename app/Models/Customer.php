@@ -109,4 +109,51 @@ class Customer extends Model
     {
         return $this->hasMany(CustomerBottleOpening::class);
     }
+
+    public function vacations()
+    {
+        return $this->hasMany(CustomerVacation::class);
+    }
+
+    /**
+     * Determine if customer is on vacation for a given date and optional shift.
+     */
+    public function isOnVacation($date, $shift = null): bool
+    {
+        $d = \Carbon\Carbon::parse($date)->toDateString();
+
+        return $this->vacations()
+            ->where('status', 'active')
+            ->whereDate('from_date', '<=', $d)
+            ->whereDate('to_date', '>=', $d)
+            ->when($shift && $shift !== 'both', function ($q) use ($shift) {
+                $q->where(function ($sub) use ($shift) {
+                    $sub->where('shift', 'full_day')
+                        ->orWhere('shift', 'both')
+                        ->orWhere('shift', $shift);
+                });
+            })
+            ->exists();
+    }
+
+    /**
+     * Get the active vacation covering a date.
+     */
+    public function getVacationOn($date, $shift = null)
+    {
+        $d = \Carbon\Carbon::parse($date)->toDateString();
+
+        return $this->vacations()
+            ->where('status', 'active')
+            ->whereDate('from_date', '<=', $d)
+            ->whereDate('to_date', '>=', $d)
+            ->when($shift && $shift !== 'both', function ($q) use ($shift) {
+                $q->where(function ($sub) use ($shift) {
+                    $sub->where('shift', 'full_day')
+                        ->orWhere('shift', 'both')
+                        ->orWhere('shift', $shift);
+                });
+            })
+            ->first();
+    }
 }
