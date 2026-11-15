@@ -121,26 +121,24 @@
                         </div>
                     </div>
 
-                    <!-- Searchable Customer Dropdown matching user image -->
+                    <!-- Searchable Walk-in Customer Dropdown matching user image -->
                     <div class="space-y-1.5">
                         <div class="relative" @click.outside="openCustomerDropdown = false">
-                            <input type="hidden" name="customer_id" :value="customerId">
-
                             <!-- Pill trigger button matching user design -->
                             <button type="button" 
                                     @click="openCustomerDropdown = !openCustomerDropdown; if (openCustomerDropdown) { $nextTick(() => { $refs.custSearchInput.focus(); }); }"
                                     class="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold bg-white border border-slate-200 rounded-full shadow-2xs hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer transition text-left"
-                                    :class="(customerName || customerId) ? 'text-slate-900 border-emerald-300' : 'text-slate-700'">
+                                    :class="customerName ? 'text-slate-900 border-emerald-300' : 'text-slate-700'">
                                 <div class="flex items-center gap-2 truncate pr-2">
                                     <span class="text-slate-400 shrink-0">👤</span>
                                     <span class="truncate font-semibold" x-text="selectedCustomerLabel"></span>
                                 </div>
                                 <div class="flex items-center gap-1.5 shrink-0 text-slate-400">
-                                    <template x-if="customerName || customerId">
+                                    <template x-if="customerName">
                                         <span role="button" 
                                               @click.stop="clearCustomerInputs()" 
                                               class="p-0.5 hover:text-rose-500 hover:bg-slate-100 rounded-full transition" 
-                                              title="Clear customer">
+                                              title="Clear walk-in customer">
                                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                             </svg>
@@ -176,7 +174,7 @@
                                                x-model="customerSearch"
                                                @keydown.escape="openCustomerDropdown = false"
                                                @keydown.enter.prevent="selectFirstMatch()"
-                                               placeholder="Search name, phone, code..."
+                                               placeholder="Search walk-in customer or phone..."
                                                class="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 font-medium placeholder-slate-400">
                                         <template x-if="customerSearch">
                                             <button type="button" @click="customerSearch = ''; $refs.custSearchInput.focus()" class="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400 hover:text-slate-600">
@@ -188,34 +186,28 @@
                                     </div>
                                 </div>
 
-                                <!-- Customer Options List -->
+                                <!-- Walk-in Customers Options List -->
                                 <div class="max-h-60 overflow-y-auto divide-y divide-slate-100 py-1">
                                     <!-- Option 1: Walk-in Default -->
                                     <div @click="selectCustomer(null)" 
                                          class="px-3.5 py-2 hover:bg-emerald-50 cursor-pointer flex items-center justify-between transition"
-                                         :class="(!customerId && !customerName) ? 'bg-emerald-50/80 font-bold text-emerald-900' : 'text-slate-700'">
+                                         :class="!customerName ? 'bg-emerald-50/80 font-bold text-emerald-900' : 'text-slate-700'">
                                         <div class="flex items-center gap-2">
-                                            <span class="w-2 h-2 rounded-full" :class="(!customerId && !customerName) ? 'bg-emerald-500' : 'bg-slate-300'"></span>
+                                            <span class="w-2 h-2 rounded-full" :class="!customerName ? 'bg-emerald-500' : 'bg-slate-300'"></span>
                                             <span>Walk-in Customer (नकद ग्राहक)</span>
                                         </div>
                                         <span class="text-[10px] text-slate-400 font-normal">Default</span>
                                     </div>
 
-                                    <!-- Filtered Customers -->
+                                    <!-- Filtered Walk-in Customers -->
                                     <template x-for="(c, idx) in filteredCustomers" :key="idx">
                                         <div @click="selectCustomer(c)" 
                                              class="px-3.5 py-2 hover:bg-slate-50 cursor-pointer flex items-center justify-between transition"
                                              :class="isCustomerActive(c) ? 'bg-emerald-50/70 font-semibold text-emerald-900' : 'text-slate-700'">
                                             <div class="truncate pr-2">
-                                                <div class="flex items-center gap-1.5">
-                                                    <span class="font-semibold text-slate-900 truncate" x-text="c.name"></span>
-                                                    <template x-if="c.type === 'registered'">
-                                                        <span class="text-[9px] bg-blue-50 text-blue-700 border border-blue-200 px-1 py-0.2 rounded font-bold uppercase tracking-wider">Reg</span>
-                                                    </template>
-                                                </div>
-                                                <div class="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
-                                                    <span x-show="c.phone" x-text="'📞 ' + c.phone"></span>
-                                                    <span x-show="c.code" class="text-slate-400" x-text="'#' + c.code"></span>
+                                                <div class="font-semibold text-slate-900 truncate" x-text="c.name"></div>
+                                                <div class="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5" x-show="c.phone">
+                                                    <span x-text="'📞 ' + c.phone"></span>
                                                 </div>
                                             </div>
                                             <template x-if="isCustomerActive(c)">
@@ -229,13 +221,13 @@
                                     <!-- Empty search result state -->
                                     <template x-if="customerSearch && filteredCustomers.length === 0">
                                         <div class="p-3 text-center">
-                                            <p class="text-slate-400 text-xs mb-2">No customer found matching "<span class="font-bold text-slate-600" x-text="customerSearch"></span>"</p>
+                                            <p class="text-slate-400 text-xs mb-2">No walk-in customer found matching "<span class="font-bold text-slate-600" x-text="customerSearch"></span>"</p>
                                             <button type="button" 
                                                     @click="useSearchAsNewCustomer()"
                                                     class="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-xs transition">
                                                 <span>+ Use</span>
                                                 <span class="font-semibold truncate max-w-[120px]" x-text="'&quot;' + customerSearch + '&quot;'"></span>
-                                                <span>as Name</span>
+                                                <span>as Walk-in Name</span>
                                             </button>
                                         </div>
                                     </template>
@@ -252,7 +244,7 @@
                             </div>
                         </div>
 
-                        <!-- (B) CUSTOMER (OPTIONAL) Collapsible Accordion -->
+                        <!-- (B) WALK-IN CUSTOMER (OPTIONAL) Collapsible Accordion -->
                         <div>
                             <button type="button" 
                                     @click="showCustomerInputs = !showCustomerInputs"
@@ -260,10 +252,10 @@
                                 <div class="flex items-center gap-1.5">
                                     <span class="text-sm">👤</span>
                                     <span class="uppercase tracking-wider text-[10px] font-black" :class="customerName ? 'text-emerald-700' : 'text-slate-600'">
-                                        CUSTOMER (OPTIONAL)
+                                        WALK-IN CUSTOMER (OPTIONAL)
                                     </span>
                                     <template x-if="customerName">
-                                        <span class="ml-1 text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded-full truncate max-w-[110px]" x-text="customerName"></span>
+                                        <span class="ml-1 text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded-full truncate max-w-[120px]" x-text="customerName"></span>
                                     </template>
                                 </div>
                                 <svg class="w-3.5 h-3.5 text-slate-400 transition" :class="{'rotate-180': showCustomerInputs}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -274,11 +266,11 @@
                             <!-- 3 Inputs: Name, Phone, Email -->
                             <div x-show="showCustomerInputs" x-cloak class="mt-2 p-3 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-2.5">
                                 <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Name (ग्राहक का नाम)</label>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Walk-in Name (वॉक-इन ग्राहक का नाम)</label>
                                     <input type="text" 
                                            name="customer_name" 
                                            x-model="customerName" 
-                                           placeholder="Enter customer name" 
+                                           placeholder="Enter walk-in customer name" 
                                            class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium">
                                 </div>
                                 <div class="grid grid-cols-2 gap-2">
@@ -300,7 +292,7 @@
                                     </div>
                                 </div>
                                 <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                                    <span>Optional • Default: Walk-in</span>
+                                    <span>Optional • Default: Walk-in (नकद ग्राहक)</span>
                                     <button type="button" @click="clearCustomerInputs()" class="text-rose-500 font-bold hover:underline">Clear</button>
                                 </div>
                             </div>
@@ -513,44 +505,18 @@
             tenderedCash: '',
             openCustomerDropdown: false,
             customerSearch: '',
-            customerId: '',
             showCustomerInputs: false,
             customerName: '',
             customerPhone: '',
             customerEmail: '',
 
-            customersList: [
-                @php
-                    $seen = [];
-                @endphp
-                @foreach($customers as $c)
-                    @php
-                        $key = strtolower(trim($c->name)) . '|' . trim($c->phone ?? '');
-                        $seen[$key] = true;
-                    @endphp
-                    {
-                        id: {{ $c->id }},
-                        name: '{{ addslashes($c->name) }}',
-                        phone: '{{ addslashes($c->phone ?? "") }}',
-                        email: '{{ addslashes($c->email ?? "") }}',
-                        code: '{{ addslashes($c->customer_code ?? "") }}',
-                        type: 'registered'
-                    },
-                @endforeach
+            walkInList: [
                 @foreach($walkInCustomers as $wc)
-                    @php
-                        $key = strtolower(trim($wc->customer_name)) . '|' . trim($wc->customer_phone ?? '');
-                        if (isset($seen[$key])) continue;
-                        $seen[$key] = true;
-                    @endphp
-                    {
-                        id: null,
-                        name: '{{ addslashes($wc->customer_name) }}',
-                        phone: '{{ addslashes($wc->customer_phone ?? "") }}',
-                        email: '{{ addslashes($wc->customer_email ?? "") }}',
-                        code: '',
-                        type: 'walk_in'
-                    },
+                {
+                    name: '{{ addslashes($wc->customer_name) }}',
+                    phone: '{{ addslashes($wc->customer_phone ?? "") }}',
+                    email: '{{ addslashes($wc->customer_email ?? "") }}',
+                },
                 @endforeach
             ],
 
@@ -563,26 +529,24 @@
 
             get filteredCustomers() {
                 if (!this.customerSearch || !this.customerSearch.trim()) {
-                    return this.customersList;
+                    return this.walkInList;
                 }
                 const q = this.customerSearch.toLowerCase().trim();
-                return this.customersList.filter(c => {
+                return this.walkInList.filter(c => {
                     const nameMatch = (c.name || '').toLowerCase().includes(q);
                     const phoneMatch = (c.phone || '').toLowerCase().includes(q);
-                    const codeMatch = (c.code || '').toLowerCase().includes(q);
-                    return nameMatch || phoneMatch || codeMatch;
+                    return nameMatch || phoneMatch;
                 });
             },
 
             get exactMatchFound() {
                 if (!this.customerSearch || !this.customerSearch.trim()) return false;
                 const q = this.customerSearch.toLowerCase().trim();
-                return this.customersList.some(c => (c.name || '').toLowerCase() === q);
+                return this.walkInList.some(c => (c.name || '').toLowerCase() === q);
             },
 
             isCustomerActive(c) {
-                if (this.customerId && c.id && this.customerId == c.id) return true;
-                if (!this.customerId && this.customerName && this.customerName.toLowerCase() === (c.name || '').toLowerCase()) {
+                if (this.customerName && this.customerName.toLowerCase() === (c.name || '').toLowerCase()) {
                     if (!c.phone || this.customerPhone === c.phone) return true;
                 }
                 return false;
@@ -593,16 +557,15 @@
                     this.clearCustomerInputs();
                     return;
                 }
-                this.customerId = c.id || '';
                 this.customerName = c.name || '';
                 this.customerPhone = c.phone || '';
                 this.customerEmail = c.email || '';
                 this.customerSearch = '';
                 this.openCustomerDropdown = false;
+                this.showCustomerInputs = true;
             },
 
             useSearchAsNewCustomer() {
-                this.customerId = '';
                 this.customerName = (this.customerSearch || '').trim();
                 this.customerPhone = '';
                 this.customerEmail = '';
@@ -620,7 +583,6 @@
             },
 
             clearCustomerInputs() {
-                this.customerId = '';
                 this.customerName = '';
                 this.customerPhone = '';
                 this.customerEmail = '';
