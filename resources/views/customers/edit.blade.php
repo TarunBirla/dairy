@@ -24,8 +24,20 @@
         }
     },
     specialRateModal: false,
-    newRateProductId: '',
-    newRatePrice: '',
+    rateType: 'variable',
+    rateModalProductId: '{{ $allProducts->first()?->id ?? '' }}',
+    rateModalCatalogRate: {{ (float)($allProducts->first()?->price ?? 0) }},
+    rateDelta: 0,
+    rateFixedPrice: {{ (float)($allProducts->first()?->price ?? 0) }},
+    productPrices: {
+        @foreach($allProducts as $p)
+            '{{ $p->id }}': {{ (float)$p->price }},
+        @endforeach
+    },
+    onSpecialRateProductChange() {
+        this.rateModalCatalogRate = this.productPrices[this.rateModalProductId] || 0;
+        this.rateFixedPrice = this.rateModalCatalogRate;
+    },
     bottleCounts: {
         @foreach($allProducts as $p)
             '{{ $p->id }}': {{ $customer->bottleOpenings->firstWhere('product_id', $p->id)?->opening_count ?? 0 }},
@@ -327,7 +339,7 @@
                 <!-- Active Subscriptions Cards matching Screenshot 5 -->
                 <div class="space-y-3">
                     @forelse($customer->subscriptions as $sub)
-                        <div class="border-2 border-emerald-500 rounded-2xl p-4 bg-white flex items-center justify-between relative shadow-xs">
+                        <div class="border-2 border-emerald-500 rounded-2xl p-4 bg-white flex items-center justify-between relative shadow-xs hover:border-emerald-600 transition">
                             <div class="flex items-center gap-4">
                                 <div class="border-r border-slate-200 pr-4">
                                     <span class="text-2xl font-black text-slate-900">{{ (float)$sub->quantity }}</span>
@@ -336,7 +348,7 @@
                                 <div>
                                     <h5 class="text-sm font-bold text-slate-900">{{ $sub->product->name }}</h5>
                                     <div class="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                                        <span class="capitalize flex items-center gap-1">
+                                        <span class="capitalize flex items-center gap-1 font-semibold text-slate-700">
                                             <i data-lucide="sun" class="w-3.5 h-3.5 text-amber-500"></i>
                                             {{ $sub->shift }}
                                         </span>
@@ -348,11 +360,22 @@
                                             </span>
                                         @endif
                                     </div>
-                                    <div class="text-[11px] text-slate-400 mt-1">
-                                        <span class="font-bold text-emerald-600 uppercase">{{ $sub->status }}</span>
+                                    <div class="text-[11px] text-slate-400 mt-1 flex items-center gap-2">
+                                        <span class="font-bold uppercase px-1.5 py-0.2 rounded text-[10px] {{ $sub->status === 'active' ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50' }}">
+                                            {{ $sub->status }}
+                                        </span>
                                         <span>{{ $sub->start_date ? $sub->start_date->format('d M Y') : '' }} &rarr; {{ $sub->end_date ? $sub->end_date->format('d M Y') : 'No end date' }}</span>
                                     </div>
                                 </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <form action="{{ route('subscriptions.destroy', $sub) }}" method="POST" onsubmit="return confirm('Remove scheduled delivery for this product?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" title="Remove subscription" class="w-8 h-8 rounded-xl border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 flex items-center justify-center transition">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     @empty
@@ -394,14 +417,40 @@
                 @if($customer->specialRates->count() > 0)
                     <div class="space-y-3">
                         @foreach($customer->specialRates as $sr)
-                            <div class="p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
-                                <div>
-                                    <h5 class="text-sm font-bold text-slate-900">{{ $sr->product->name }}</h5>
-                                    <p class="text-xs text-slate-500">Catalog Price: ₹ {{ number_format($sr->product->price, 2) }}</p>
+                            <div class="p-4 rounded-2xl border border-slate-200/90 bg-white flex items-center justify-between shadow-2xs hover:border-emerald-300 transition">
+                                <div class="flex items-center gap-3.5">
+                                    <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                                        <i data-lucide="tag" class="w-5 h-5"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="text-sm font-bold text-slate-900">{{ $sr->product->name }}</h5>
+                                        <div class="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                                            <span>Catalog: ₹{{ number_format($sr->product->price, 2) }}</span>
+                                            <span>&bull;</span>
+                                            @if($sr->rate_type === 'variable')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                                    Variable (± ₹{{ number_format($sr->delta_amount, 2) }})
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                    Fixed Rate
+                                                </span>
+                                            @endif
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="text-right">
-                                    <span class="text-lg font-black text-emerald-600">₹ {{ number_format($sr->special_price, 2) }}</span>
-                                    <span class="block text-[10px] text-slate-400 font-bold uppercase">Special Rate</span>
+                                <div class="flex items-center gap-4">
+                                    <div class="text-right">
+                                        <span class="text-xl font-black text-emerald-600">₹{{ number_format($sr->effective_rate, 2) }}</span>
+                                        <span class="block text-[10px] text-slate-400 font-bold uppercase">Selling Rate</span>
+                                    </div>
+                                    <form action="{{ route('customers.special-rates.destroy', [$customer, $sr]) }}" method="POST" onsubmit="return confirm('Remove special rate for this product? Customer will revert to catalog price.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" title="Delete Special Rate" class="w-8 h-8 rounded-xl border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 flex items-center justify-center transition">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         @endforeach
@@ -445,25 +494,29 @@
                     @method('PUT')
                     <input type="hidden" name="active_tab" value="bottles">
 
-                    <div class="border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
-                        @foreach($allProducts->take(5) as $p)
-                            <div class="p-4 flex items-center justify-between bg-white hover:bg-slate-50/50 transition">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                                        <i data-lucide="wine" class="w-4 h-4"></i>
+                    <div class="border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden bg-white">
+                        @forelse($bottleProducts as $p)
+                            <div class="p-4 flex items-center justify-between hover:bg-slate-50/50 transition">
+                                <div class="flex items-center gap-3.5">
+                                    <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                                        <i data-lucide="wine" class="w-5 h-5"></i>
                                     </div>
                                     <div>
                                         <h5 class="text-xs font-bold text-slate-900">{{ $p->name }}</h5>
-                                        <span class="text-[10px] text-slate-400">Locked after first dispatch</span>
+                                        <span class="text-[10px] text-slate-400">Set once &bull; Empty bottles to be collected</span>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <button type="button" @click="if (bottleCounts['{{ $p->id }}'] > 0) bottleCounts['{{ $p->id }}']--" class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 font-bold">&minus;</button>
-                                    <input type="number" :name="'bottles[{{ $p->id }}]'" x-model="bottleCounts['{{ $p->id }}']" class="w-14 text-center py-1 text-xs border border-slate-200 rounded-lg font-bold">
+                                    <input type="number" :name="'bottles[{{ $p->id }}]'" x-model="bottleCounts['{{ $p->id }}']" class="w-14 text-center py-1 text-xs border border-slate-200 rounded-lg font-bold text-slate-800">
                                     <button type="button" @click="bottleCounts['{{ $p->id }}']++" class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 font-bold">&plus;</button>
                                 </div>
                             </div>
-                        @endforeach
+                        @empty
+                            <div class="p-8 text-center text-slate-400 text-xs">
+                                No bottle products found in catalog. Bottle tracking applies to products with unit 'bottle' or glass bottle packaging.
+                            </div>
+                        @endforelse
                     </div>
 
                     <div class="pt-6 border-t border-slate-100 flex items-center justify-between">
@@ -715,29 +768,105 @@
         </div>
     </div>
 
-    <!-- Special Rate Modal -->
+    <!-- Add Special Rate Modal (Matching Simple Dairy Image Exactly) -->
     <div x-show="specialRateModal" x-cloak class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-        <div @click.away="specialRateModal = false" class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-100">
-            <h3 class="text-sm font-bold text-slate-800 pb-3 border-b border-slate-100">Set Customer Special Rate</h3>
+        <div @click.away="specialRateModal = false" class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+            <!-- Modal Header -->
+            <div class="flex items-start justify-between pb-3 border-b border-slate-100">
+                <div>
+                    <h3 class="text-base font-black text-slate-900">Add special rate</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Override the catalog price for this product, just for this customer.</p>
+                </div>
+                <button type="button" @click="specialRateModal = false" class="text-slate-400 hover:text-slate-600 transition p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
             <form action="{{ route('customers.update', $customer) }}" method="POST" class="mt-4 space-y-4">
                 @csrf
                 @method('PUT')
                 <input type="hidden" name="active_tab" value="special_rate">
+                <input type="hidden" name="rate_type" :value="rateType">
+
+                <!-- Product Select -->
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">Select Product *</label>
-                    <select name="product_id" required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl">
+                    <label class="block text-xs font-bold text-slate-800 mb-1">Product *</label>
+                    <select name="product_id" x-model="rateModalProductId" @change="onSpecialRateProductChange()" required class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-medium">
                         @foreach($allProducts as $pr)
-                            <option value="{{ $pr->id }}">{{ $pr->name }} (Catalog: ₹{{ $pr->price }})</option>
+                            <option value="{{ $pr->id }}">{{ $pr->name }}</option>
                         @endforeach
                     </select>
+                    <p class="text-[11px] text-slate-500 mt-1 font-semibold">
+                        Catalog rate: <span class="font-bold text-slate-800">₹ <span x-text="parseFloat(rateModalCatalogRate || 0).toFixed(2)"></span></span>
+                    </p>
                 </div>
+
+                <!-- Rate Type Toggle Pills matching Simple Dairy -->
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">Special Price (₹) *</label>
-                    <input type="number" step="0.5" name="special_price" required placeholder="e.g. 48.00" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl font-bold text-emerald-700">
+                    <label class="block text-xs font-bold text-slate-800 mb-1.5">Rate type</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" @click="rateType = 'variable'"
+                            class="py-2.5 px-4 rounded-xl text-xs font-bold border transition text-center cursor-pointer"
+                            :class="rateType === 'variable' ? 'border-emerald-500 bg-emerald-50/70 text-emerald-800 ring-2 ring-emerald-500/20 shadow-xs' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'">
+                            Variable Rate
+                        </button>
+                        <button type="button" @click="rateType = 'fixed'"
+                            class="py-2.5 px-4 rounded-xl text-xs font-bold border transition text-center cursor-pointer"
+                            :class="rateType === 'fixed' ? 'border-emerald-500 bg-emerald-50/70 text-emerald-800 ring-2 ring-emerald-500/20 shadow-xs' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'">
+                            Fixed Rate
+                        </button>
+                    </div>
                 </div>
-                <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                    <button type="button" @click="specialRateModal = false" class="px-3 py-1.5 text-xs text-slate-600">Cancel</button>
-                    <button type="submit" class="px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 rounded-lg">Save Rate</button>
+
+                <!-- Variable Rate Explanation & Delta Input -->
+                <div x-show="rateType === 'variable'" class="space-y-3">
+                    <p class="text-[11px] text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="font-bold text-slate-700">Note:</span> If there is an update to the original rate of the product, the rate for this product will be updated automatically for this customer.
+                    </p>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-800 mb-1">Change product rate by (&plusmn;)</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-xs font-bold text-slate-400">₹</span>
+                            <input type="number" step="0.5" name="delta_amount" x-model.number="rateDelta" placeholder="0" class="w-full pl-7 pr-3.5 py-2.5 text-xs border border-slate-200 rounded-xl font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fixed Rate Explanation & Absolute Price Input -->
+                <div x-show="rateType === 'fixed'" class="space-y-3">
+                    <p class="text-[11px] text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="font-bold text-slate-700">Note:</span> Fixed rate sets the exact selling price for this customer, unaffected by future catalog price changes.
+                    </p>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-800 mb-1">Special Selling Rate (₹) *</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-xs font-bold text-slate-400">₹</span>
+                            <input type="number" step="0.5" min="0" name="special_price" x-model.number="rateFixedPrice" placeholder="50.00" class="w-full pl-7 pr-3.5 py-2.5 text-xs border border-slate-200 rounded-xl font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dynamic NEW SELLING RATE Card matching Simple Dairy -->
+                <div class="p-3.5 rounded-2xl border-2 border-emerald-500 bg-emerald-50/40 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-black uppercase text-emerald-800 tracking-wider block">NEW SELLING RATE</span>
+                        <span class="text-[11px] text-slate-500 mt-0.5 block" x-text="rateType === 'variable' ? 'Catalog rate ± your delta.' : 'Fixed customer rate.'"></span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xl font-black text-emerald-700">
+                            ₹ <span x-text="rateType === 'variable' ? Math.max(0, (parseFloat(rateModalCatalogRate || 0) + parseFloat(rateDelta || 0))).toFixed(2) : parseFloat(rateFixedPrice || 0).toFixed(2)"></span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" @click="specialRateModal = false" class="px-5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-xl transition cursor-pointer">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer">
+                        Save
+                    </button>
                 </div>
             </form>
         </div>

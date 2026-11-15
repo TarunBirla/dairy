@@ -805,6 +805,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{customer}', [CustomerController::class, 'show'])->name('show');
         Route::get('/{customer}/edit', [CustomerController::class, 'edit'])->name('edit');
         Route::put('/{customer}', [CustomerController::class, 'update'])->name('update');
+        Route::delete('/{customer}/special-rates/{specialRate}', [CustomerController::class, 'deleteSpecialRate'])->name('special-rates.destroy');
     });
 
     // Subscriptions
@@ -813,6 +814,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/create', [SubscriptionController::class, 'create'])->name('create');
         Route::post('/', [SubscriptionController::class, 'store'])->name('store');
         Route::post('/{subscription}/toggle-pause', [SubscriptionController::class, 'togglePause'])->name('toggle-pause');
+        Route::delete('/{subscription}', [SubscriptionController::class, 'destroy'])->name('destroy');
     });
 
     // Delivery & Route Operations

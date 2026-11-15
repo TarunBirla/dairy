@@ -76,6 +76,16 @@ class CustomerController extends Controller
                     }
                 });
             }
+            if (\Illuminate\Support\Facades\Schema::hasTable('customer_special_rates')) {
+                \Illuminate\Support\Facades\Schema::table('customer_special_rates', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    if (!\Illuminate\Support\Facades\Schema::hasColumn('customer_special_rates', 'rate_type')) {
+                        $table->string('rate_type', 20)->default('fixed')->after('special_price');
+                    }
+                    if (!\Illuminate\Support\Facades\Schema::hasColumn('customer_special_rates', 'delta_amount')) {
+                        $table->decimal('delta_amount', 10, 2)->default(0.00)->after('rate_type');
+                    }
+                });
+            }
         } catch (\Throwable $e) {
             // Ignore if columns exist or database driver handles it
         }
@@ -89,6 +99,7 @@ class CustomerController extends Controller
         $nextCode = 'CUST-' . (Customer::max('id') + 201);
         $allGroups = \App\Models\CustomerGroup::all();
         $allProducts = \App\Models\Product::where('status', 'active')->get();
+        $bottleProducts = $allProducts->filter(fn($p) => $p->isBottleProduct());
         $deliveryBoys = \App\Models\User::where('role', \App\Models\User::ROLE_DELIVERY_BOY)->get();
 
         return view('customers.create', compact(
@@ -97,6 +108,7 @@ class CustomerController extends Controller
             'nextCode',
             'allGroups',
             'allProducts',
+            'bottleProducts',
             'deliveryBoys'
         ));
     }
@@ -168,13 +180,23 @@ class CustomerController extends Controller
         }
 
         // Special rate
-        if ($request->filled('special_product_id') && $request->filled('special_price')) {
-            \App\Models\CustomerSpecialRate::create([
-                'customer_id' => $customer->id,
-                'product_id' => $request->special_product_id,
-                'special_price' => $request->special_price,
-                'is_active' => true,
-            ]);
+        if ($request->filled('special_product_id')) {
+            $spProduct = \App\Models\Product::find($request->special_product_id);
+            if ($spProduct) {
+                $rateType = $request->input('special_rate_type', 'variable');
+                $delta = (float)$request->input('special_delta_amount', 0);
+                $fixedPrice = (float)$request->input('special_price', $spProduct->price);
+                $specialPrice = ($rateType === 'variable') ? max(0, $spProduct->price + $delta) : $fixedPrice;
+
+                \App\Models\CustomerSpecialRate::create([
+                    'customer_id' => $customer->id,
+                    'product_id' => $spProduct->id,
+                    'rate_type' => $rateType,
+                    'delta_amount' => $delta,
+                    'special_price' => $specialPrice,
+                    'is_active' => true,
+                ]);
+            }
         }
 
         // Opening bottle counts
@@ -191,8 +213,39 @@ class CustomerController extends Controller
             }
         }
 
-        // Schedule Product Delivery (Initial Subscription if filled)
-        if ($request->filled('sub_product_id') && $request->filled('sub_quantity') && (float)$request->sub_quantity > 0) {
+        // Schedule Product Delivery (Multiple Products Subscriptions)
+        if ($request->has('schedules') && is_array($request->schedules)) {
+            foreach ($request->schedules as $sched) {
+                if (!empty($sched['product_id']) && !empty($sched['quantity']) && (float)$sched['quantity'] > 0) {
+                    $prod = \App\Models\Product::find($sched['product_id']);
+                    if ($prod) {
+                        $subCode = 'SUB-' . strtoupper(uniqid());
+                        $stopOnDate = !empty($sched['stop_on_date']);
+                        $endDate = ($stopOnDate && !empty($sched['end_date'])) ? $sched['end_date'] : null;
+                        $frequency = $sched['frequency'] ?? 'daily';
+                        $customDays = in_array($frequency, ['weekdays', 'custom_days']) ? ($sched['custom_days'] ?? ['mon','tue','wed','thu','fri']) : null;
+                        $shift = $sched['shift'] ?? 'morning';
+                        $unitPrice = !empty($sched['unit_price']) ? (float)$sched['unit_price'] : ($prod->subscription_price ?? $prod->price);
+
+                        \App\Models\Subscription::create([
+                            'subscription_code' => $subCode,
+                            'customer_id' => $customer->id,
+                            'product_id' => $prod->id,
+                            'route_id' => $customer->route_id,
+                            'quantity' => $sched['quantity'],
+                            'frequency' => $frequency,
+                            'custom_days' => $customDays,
+                            'shift' => $shift,
+                            'unit_price' => $unitPrice,
+                            'start_date' => $sched['start_date'] ?? now()->toDateString(),
+                            'end_date' => $endDate,
+                            'status' => 'active',
+                        ]);
+                    }
+                }
+            }
+        } elseif ($request->filled('sub_product_id') && $request->filled('sub_quantity') && (float)$request->sub_quantity > 0) {
+            // Single schedule fallback
             $prod = \App\Models\Product::find($request->sub_product_id);
             if ($prod) {
                 $subCode = 'SUB-' . strtoupper(uniqid());
@@ -240,6 +293,9 @@ class CustomerController extends Controller
         $branches = Branch::where('status', 'active')->get();
         $allGroups = \App\Models\CustomerGroup::all();
         $allProducts = \App\Models\Product::where('status', 'active')->get();
+        $bottleProducts = $allProducts->filter(function($p) use ($customer) {
+            return $p->isBottleProduct() || $customer->bottleOpenings->pluck('product_id')->contains($p->id);
+        });
         $deliveryBoys = \App\Models\User::where('role', \App\Models\User::ROLE_DELIVERY_BOY)->get();
 
         return view('customers.edit', compact(
@@ -248,6 +304,7 @@ class CustomerController extends Controller
             'branches',
             'allGroups',
             'allProducts',
+            'bottleProducts',
             'deliveryBoys'
         ));
     }
@@ -319,10 +376,21 @@ class CustomerController extends Controller
                 $customer->update(['route_id' => $request->route_id]);
             }
         } elseif ($tab === 'special_rate') {
-            if ($request->filled('product_id') && $request->filled('special_price')) {
+            if ($request->filled('product_id')) {
+                $prod = \App\Models\Product::findOrFail($request->product_id);
+                $rateType = $request->input('rate_type', 'variable');
+                $delta = (float)$request->input('delta_amount', 0);
+                $fixedPrice = (float)$request->input('special_price', $prod->price);
+                $specialPrice = ($rateType === 'variable') ? max(0, $prod->price + $delta) : $fixedPrice;
+
                 \App\Models\CustomerSpecialRate::updateOrCreate(
-                    ['customer_id' => $customer->id, 'product_id' => $request->product_id],
-                    ['special_price' => $request->special_price, 'is_active' => true]
+                    ['customer_id' => $customer->id, 'product_id' => $prod->id],
+                    [
+                        'rate_type' => $rateType,
+                        'delta_amount' => $delta,
+                        'special_price' => $specialPrice,
+                        'is_active' => true,
+                    ]
                 );
             }
         } elseif ($tab === 'bottles') {
@@ -343,5 +411,16 @@ class CustomerController extends Controller
 
         return redirect()->route('customers.edit', ['customer' => $customer, 'tab' => $tab])
             ->with('success', 'Changes saved successfully.');
+    }
+
+    public function deleteSpecialRate(Customer $customer, \App\Models\CustomerSpecialRate $specialRate)
+    {
+        if ($specialRate->customer_id === $customer->id) {
+            $specialRate->delete();
+            AuditLog::log("Deleted Special Rate for Product #{$specialRate->product_id}", 'Customer', $customer->id);
+        }
+
+        return redirect()->route('customers.edit', ['customer' => $customer, 'tab' => 'special_rate'])
+            ->with('success', 'Special rate removed successfully.');
     }
 }

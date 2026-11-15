@@ -85,4 +85,24 @@ class Product extends Model
     {
         return $this->current_stock <= $this->min_stock_alert;
     }
+
+    /**
+     * Determine if this product uses bottle packaging / returnable bottles.
+     */
+    public function isBottleProduct(): bool
+    {
+        $unit = strtolower($this->unit ?? '');
+        $name = mb_strtolower($this->name ?? '');
+        $pack = mb_strtolower($this->pack_size ?? '');
+
+        return $unit === 'bottle'
+            || str_contains($unit, 'bottle')
+            || str_contains($name, 'bottle')
+            || str_contains($name, 'बोतल')
+            || str_contains($name, 'chaas')
+            || str_contains($name, 'छाछ')
+            || str_contains($name, 'buttermilk')
+            || str_contains($pack, 'bottle')
+            || str_contains($pack, 'बोतल');
+    }
 }

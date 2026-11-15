@@ -11,17 +11,60 @@
     stopDeliveryOnMinBalance: {{ old('stop_delivery_on_min_balance', 0) ? 'true' : 'false' }},
     billingPeriod: '{{ old('billing_period', 'monthly') }}',
     accountType: '{{ old('account_type', 'postpaid') }}',
-    subStopOnDate: {{ old('sub_stop_on_date', 0) ? 'true' : 'false' }},
-    subFrequency: '{{ old('sub_frequency', 'daily') }}',
-    subWeekDays: {{ json_encode(old('sub_custom_days', ['mon', 'tue', 'wed', 'thu', 'fri'])) }},
-    toggleWeekDay(day) {
-        if (this.subWeekDays.includes(day)) {
-            if (this.subWeekDays.length > 1) {
-                this.subWeekDays = this.subWeekDays.filter(d => d !== day);
+    schedules: [
+        {
+            product_id: '{{ old('sub_product_id', '') }}',
+            quantity: {{ old('sub_quantity', 1) }},
+            shift: '{{ old('sub_shift', 'morning') }}',
+            start_date: '{{ old('sub_start_date', date('Y-m-d')) }}',
+            end_date: '{{ old('sub_end_date', '') }}',
+            stop_on_date: {{ old('sub_stop_on_date', 0) ? 'true' : 'false' }},
+            frequency: '{{ old('sub_frequency', 'daily') }}',
+            custom_days: {{ json_encode(old('sub_custom_days', ['mon', 'tue', 'wed', 'thu', 'fri'])) }}
+        }
+    ],
+    addSchedule() {
+        this.schedules.push({
+            product_id: '',
+            quantity: 1,
+            shift: 'morning',
+            start_date: '{{ date('Y-m-d') }}',
+            end_date: '',
+            stop_on_date: false,
+            frequency: 'daily',
+            custom_days: ['mon', 'tue', 'wed', 'thu', 'fri']
+        });
+    },
+    removeSchedule(index) {
+        if (this.schedules.length > 1) {
+            this.schedules.splice(index, 1);
+        } else {
+            this.schedules[0].product_id = '';
+        }
+    },
+    toggleScheduleDay(index, day) {
+        let days = this.schedules[index].custom_days;
+        if (days.includes(day)) {
+            if (days.length > 1) {
+                this.schedules[index].custom_days = days.filter(d => d !== day);
             }
         } else {
-            this.subWeekDays.push(day);
+            this.schedules[index].custom_days.push(day);
         }
+    },
+    specialRateType: 'variable',
+    specialProductId: '{{ old('special_product_id', $allProducts->first()?->id ?? '') }}',
+    specialDelta: {{ (float)old('special_delta_amount', 0) }},
+    specialFixedPrice: {{ (float)old('special_price', $allProducts->first()?->price ?? 0) }},
+    specialCatalogRate: {{ (float)($allProducts->first()?->price ?? 0) }},
+    productPrices: {
+        @foreach($allProducts as $p)
+            '{{ $p->id }}': {{ (float)$p->price }},
+        @endforeach
+    },
+    onSpecialProductChange() {
+        this.specialCatalogRate = this.productPrices[this.specialProductId] || 0;
+        this.specialFixedPrice = this.specialCatalogRate;
     },
     bottleCounts: {
         @foreach($allProducts as $p)
@@ -324,131 +367,156 @@
                     </div>
                 </div>
 
-                <!-- TAB 3: SCHEDULE PRODUCT DELIVERY (Matching Simple Dairy Images 3 & 4) -->
+                <!-- TAB 3: SCHEDULE PRODUCT DELIVERY (Multiple Products Supported) -->
                 <div x-show="activeTab === 'schedule'" x-cloak class="space-y-6">
-                    <div class="border-b border-slate-100 pb-4 mb-4">
-                        <h3 class="text-base font-bold text-slate-900">Schedule Product Delivery</h3>
-                        <p class="text-xs text-slate-500">Subscription of the products</p>
+                    <div class="border-b border-slate-100 pb-4 mb-4 flex items-center justify-between">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900">Schedule Product Delivery</h3>
+                            <p class="text-xs text-slate-500">Subscription of the products (Schedule one or multiple products)</p>
+                        </div>
+                        <button type="button" @click="addSchedule()" class="inline-flex items-center gap-1 px-3.5 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold rounded-xl transition cursor-pointer">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            <span>Add another product</span>
+                        </button>
                     </div>
 
-                    <!-- Simple Dairy Styled Schedule Box -->
-                    <div class="border border-slate-200/90 rounded-3xl p-6 bg-slate-50/40 space-y-5">
-                        <div>
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">DELIVERIES</span>
-                            <h4 class="text-base font-black text-slate-900">Schedule a product</h4>
-                            <p class="text-xs text-slate-500 mt-0.5">Pick a product, the shift, quantity and when deliveries should start and repeat.</p>
-                        </div>
-
-                        <!-- Product, Quantity, Shift Row -->
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Select Product *</label>
-                                <select name="sub_product_id" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-medium">
-                                    <option value="">-- No initial schedule (Add later) --</option>
-                                    @foreach($allProducts as $p)
-                                        <option value="{{ $p->id }}" {{ old('sub_product_id') == $p->id ? 'selected' : '' }}>
-                                            {{ $p->name }} (₹{{ number_format($p->subscription_price ?? $p->price, 2) }}/{{ $p->unit ?? 'L' }})
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Daily Quantity (Ltr / Qty) *</label>
-                                <input type="number" step="0.25" min="0" name="sub_quantity" value="{{ old('sub_quantity', 1) }}" placeholder="1.0" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-bold text-slate-800">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Shift *</label>
-                                <select name="sub_shift" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-medium">
-                                    <option value="morning">Morning (सुबह)</option>
-                                    <option value="evening">Evening (शाम)</option>
-                                    <option value="both">Both (दोनों समय)</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Dates Row matching Simple Dairy (Start Date, End Date, Toggle) -->
-                        <div class="p-4 bg-white rounded-2xl border border-slate-200/80 space-y-4">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Start date *</label>
-                                    <input type="date" name="sub_start_date" value="{{ old('sub_start_date', date('Y-m-d')) }}" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-medium">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-slate-700 mb-1" :class="!subStopOnDate ? 'text-slate-400' : 'text-slate-700'">End date</label>
-                                    <input type="date" name="sub_end_date" :disabled="!subStopOnDate" value="{{ old('sub_end_date') }}" placeholder="DD/MM/YYYY" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none font-medium" :class="!subStopOnDate ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-800'">
-                                </div>
-                            </div>
-
-                            <!-- Stop delivery on a specific date toggle switch matching Simple Dairy -->
-                            <div class="flex items-center justify-between pt-1">
-                                <div>
-                                    <h5 class="text-xs font-bold text-slate-800">Stop delivery on a specific date</h5>
-                                    <p class="text-[11px] text-slate-400 mt-0.5">Enable this to pick an end date for the schedule.</p>
-                                </div>
-                                <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                                    <input type="checkbox" name="sub_stop_on_date" value="1" x-model="subStopOnDate" class="sr-only peer">
-                                    <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Repeat Selector matching Simple Dairy Images 3 & 4 -->
-                        <div class="space-y-3">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Repeat *</label>
-                                <select name="sub_frequency" x-model="subFrequency" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-medium">
-                                    <option value="daily">Daily</option>
-                                    <option value="alternate_day">Alternate Days</option>
-                                    <option value="every_3rd_day">Every 3rd Days</option>
-                                    <option value="weekdays">Week Days</option>
-                                </select>
-                            </div>
-
-                            <!-- Choose Week Days Pills Selector matching Simple Dairy Image 3 -->
-                            <div x-show="subFrequency === 'weekdays'" x-cloak class="p-4 bg-white rounded-2xl border border-slate-200/80 space-y-2.5">
-                                <label class="block text-xs font-bold text-slate-700">Choose week days *</label>
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <template x-for="day in [
-                                        { key: 'sun', label: 'Sun' },
-                                        { key: 'mon', label: 'Mon' },
-                                        { key: 'tue', label: 'Tue' },
-                                        { key: 'wed', label: 'Wed' },
-                                        { key: 'thu', label: 'Thu' },
-                                        { key: 'fri', label: 'Fri' },
-                                        { key: 'sat', label: 'Sat' }
-                                    ]" :key="day.key">
-                                        <button type="button" 
-                                                @click="toggleWeekDay(day.key)"
-                                                class="px-4 py-2 rounded-xl text-xs font-bold border transition cursor-pointer"
-                                                :class="subWeekDays.includes(day.key) ? 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-2xs ring-1 ring-emerald-500/20' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'">
-                                            <span x-text="day.label"></span>
+                    <!-- Dynamic Multiple Schedules List -->
+                    <div class="space-y-5">
+                        <template x-for="(sched, idx) in schedules" :key="idx">
+                            <div class="border border-slate-200/90 rounded-3xl p-6 bg-slate-50/40 space-y-5 relative">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5" x-text="'SCHEDULE #' + (idx + 1)"></span>
+                                        <h4 class="text-sm font-black text-slate-900">Schedule a product</h4>
+                                    </div>
+                                    <template x-if="schedules.length > 1">
+                                        <button type="button" @click="removeSchedule(idx)" class="text-rose-600 hover:text-rose-700 text-xs font-bold flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-rose-50 transition cursor-pointer">
+                                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                            <span>Remove</span>
                                         </button>
                                     </template>
                                 </div>
-                                <!-- Hidden inputs to submit custom_days array -->
-                                <template x-for="d in subWeekDays" :key="d">
-                                    <input type="hidden" name="sub_custom_days[]" :value="d">
-                                </template>
+
+                                <!-- Product, Quantity, Shift Row -->
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Select Product *</label>
+                                        <select :name="'schedules[' + idx + '][product_id]'" x-model="sched.product_id" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-medium">
+                                            <option value="">-- Choose Product --</option>
+                                            @foreach($allProducts as $p)
+                                                <option value="{{ $p->id }}">
+                                                    {{ $p->name }} (₹{{ number_format($p->subscription_price ?? $p->price, 2) }}/{{ $p->unit ?? 'L' }})
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Daily Quantity (Ltr / Qty) *</label>
+                                        <input type="number" step="0.25" min="0" :name="'schedules[' + idx + '][quantity]'" x-model="sched.quantity" placeholder="1.0" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-bold text-slate-800">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Shift *</label>
+                                        <select :name="'schedules[' + idx + '][shift]'" x-model="sched.shift" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-medium">
+                                            <option value="morning">Morning (सुबह)</option>
+                                            <option value="evening">Evening (शाम)</option>
+                                            <option value="both">Both (दोनों समय)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Dates Row matching Simple Dairy (Start Date, End Date, Toggle) -->
+                                <div class="p-4 bg-white rounded-2xl border border-slate-200/80 space-y-4">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-700 mb-1">Start date *</label>
+                                            <input type="date" :name="'schedules[' + idx + '][start_date]'" x-model="sched.start_date" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-medium">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-700 mb-1" :class="!sched.stop_on_date ? 'text-slate-400' : 'text-slate-700'">End date</label>
+                                            <input type="date" :name="'schedules[' + idx + '][end_date]'" :disabled="!sched.stop_on_date" x-model="sched.end_date" placeholder="DD/MM/YYYY" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none font-medium" :class="!sched.stop_on_date ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-800'">
+                                        </div>
+                                    </div>
+
+                                    <!-- Stop delivery on a specific date toggle switch matching Simple Dairy -->
+                                    <div class="flex items-center justify-between pt-1">
+                                        <div>
+                                            <h5 class="text-xs font-bold text-slate-800">Stop delivery on a specific date</h5>
+                                            <p class="text-[11px] text-slate-400 mt-0.5">Enable this to pick an end date for the schedule.</p>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                                            <input type="checkbox" :name="'schedules[' + idx + '][stop_on_date]'" value="1" x-model="sched.stop_on_date" class="sr-only peer">
+                                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Repeat Selector matching Simple Dairy Images 3 & 4 -->
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Repeat *</label>
+                                        <select :name="'schedules[' + idx + '][frequency]'" x-model="sched.frequency" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-medium">
+                                            <option value="daily">Daily</option>
+                                            <option value="alternate_day">Alternate Days</option>
+                                            <option value="every_3rd_day">Every 3rd Days</option>
+                                            <option value="weekdays">Week Days</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Choose Week Days Pills Selector -->
+                                    <div x-show="sched.frequency === 'weekdays'" class="p-4 bg-white rounded-2xl border border-slate-200/80 space-y-2.5">
+                                        <label class="block text-xs font-bold text-slate-700">Choose week days *</label>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <template x-for="day in [
+                                                { key: 'sun', label: 'Sun' },
+                                                { key: 'mon', label: 'Mon' },
+                                                { key: 'tue', label: 'Tue' },
+                                                { key: 'wed', label: 'Wed' },
+                                                { key: 'thu', label: 'Thu' },
+                                                { key: 'fri', label: 'Fri' },
+                                                { key: 'sat', label: 'Sat' }
+                                            ]" :key="day.key">
+                                                <button type="button" 
+                                                        @click="toggleScheduleDay(idx, day.key)"
+                                                        class="px-4 py-2 rounded-xl text-xs font-bold border transition cursor-pointer"
+                                                        :class="sched.custom_days.includes(day.key) ? 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-2xs ring-1 ring-emerald-500/20' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'">
+                                                    <span x-text="day.label"></span>
+                                                </button>
+                                            </template>
+                                        </div>
+                                        <!-- Hidden inputs for custom_days -->
+                                        <template x-for="d in sched.custom_days" :key="d">
+                                            <input type="hidden" :name="'schedules[' + idx + '][custom_days][]'" :value="d">
+                                        </template>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        </template>
+                    </div>
+
+                    <!-- Add Another Schedule Button -->
+                    <div class="text-center pt-1">
+                        <button type="button" @click="addSchedule()" class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-2xl transition cursor-pointer">
+                            <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-600"></i>
+                            <span>+ Add another product schedule</span>
+                        </button>
                     </div>
 
                     <div class="pt-6 border-t border-slate-100 flex items-center justify-between">
-                        <button type="button" @click="activeTab = 'billing'" class="px-5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-2xl transition flex items-center gap-1.5">
+                        <button type="button" @click="activeTab = 'billing'" class="px-5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-2xl transition flex items-center gap-1.5 cursor-pointer">
                             <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
                             <span>Previous</span>
                         </button>
                         <div class="flex gap-2">
-                            <button type="button" @click="activeTab = 'special_rate'" class="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-2xl transition flex items-center gap-1.5">
+                            <button type="button" @click="activeTab = 'special_rate'" class="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-2xl transition flex items-center gap-1.5 cursor-pointer">
                                 <span>Next: Special Rate</span>
                                 <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
                             </button>
-                            <button type="submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-2xl shadow-xs transition">Save & Create Customer</button>
+                            <button type="submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-2xl shadow-xs transition cursor-pointer">Save & Create Customer</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- TAB 4: NEW RATE OF THE PRODUCTS (SPECIAL RATE) -->
+                <!-- TAB 4: NEW RATE OF THE PRODUCTS (SPECIAL RATE) (Matching Simple Dairy Images 1 & 2) -->
                 <div x-show="activeTab === 'special_rate'" x-cloak class="space-y-5">
                     <div class="border-b border-slate-100 pb-4 mb-4">
                         <h3 class="text-sm font-bold text-slate-900">New Rate of the Products (Special Rate)</h3>
@@ -461,42 +529,102 @@
                         <p class="text-xs text-slate-500 mt-0.5">Override the catalog price for this customer. Useful for bulk buyers or special clients.</p>
                     </div>
 
-                    <div class="p-5 rounded-2xl border border-slate-200/80 bg-slate-50/50 space-y-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="p-6 rounded-3xl border border-slate-200/80 bg-slate-50/50 space-y-4">
+                        <input type="hidden" name="special_rate_type" :value="specialRateType">
+
+                        <!-- Product Select -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-800 mb-1">Select Product</label>
+                            <select name="special_product_id" x-model="specialProductId" @change="onSpecialProductChange()" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-medium">
+                                <option value="">-- No special rate (Use catalog price) --</option>
+                                @foreach($allProducts as $pr)
+                                    <option value="{{ $pr->id }}">
+                                        {{ $pr->name }} (Catalog: ₹{{ number_format($pr->price, 2) }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            <p class="text-[11px] text-slate-500 mt-1 font-semibold" x-show="specialProductId">
+                                Catalog rate: <span class="font-bold text-slate-800">₹ <span x-text="parseFloat(specialCatalogRate || 0).toFixed(2)"></span></span>
+                            </p>
+                        </div>
+
+                        <!-- Rate Type Toggle Pills matching Simple Dairy Image 1 -->
+                        <div x-show="specialProductId" class="space-y-4">
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Select Product</label>
-                                <select name="special_product_id" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white">
-                                    <option value="">-- No special rate (Use catalog price) --</option>
-                                    @foreach($allProducts as $pr)
-                                        <option value="{{ $pr->id }}" {{ old('special_product_id') == $pr->id ? 'selected' : '' }}>
-                                            {{ $pr->name }} (Catalog: ₹{{ number_format($pr->price, 2) }})
-                                        </option>
-                                    @endforeach
-                                </select>
+                                <label class="block text-xs font-bold text-slate-800 mb-1.5">Rate type</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button type="button" @click="specialRateType = 'variable'"
+                                        class="py-2.5 px-4 rounded-xl text-xs font-bold border transition text-center cursor-pointer"
+                                        :class="specialRateType === 'variable' ? 'border-emerald-500 bg-emerald-50/70 text-emerald-800 ring-2 ring-emerald-500/20 shadow-xs' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'">
+                                        Variable Rate
+                                    </button>
+                                    <button type="button" @click="specialRateType = 'fixed'"
+                                        class="py-2.5 px-4 rounded-xl text-xs font-bold border transition text-center cursor-pointer"
+                                        :class="specialRateType === 'fixed' ? 'border-emerald-500 bg-emerald-50/70 text-emerald-800 ring-2 ring-emerald-500/20 shadow-xs' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'">
+                                        Fixed Rate
+                                    </button>
+                                </div>
                             </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Special Price (₹)</label>
-                                <input type="number" step="0.5" name="special_price" value="{{ old('special_price') }}" placeholder="e.g. 52.00" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white">
+
+                            <!-- Variable Rate Notice & Delta Input -->
+                            <div x-show="specialRateType === 'variable'" class="space-y-3">
+                                <p class="text-[11px] text-slate-500 leading-relaxed bg-white p-3 rounded-xl border border-slate-200/80">
+                                    <span class="font-bold text-slate-700">Note:</span> If there is an update to the original rate of the product, the rate for this product will be updated automatically for this customer.
+                                </p>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-800 mb-1">Change product rate by (&plusmn;)</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-xs font-bold text-slate-400">₹</span>
+                                        <input type="number" step="0.5" name="special_delta_amount" x-model.number="specialDelta" placeholder="0" class="w-full pl-7 pr-3.5 py-2.5 text-xs border border-slate-200 rounded-xl font-bold text-slate-900 bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Fixed Rate Notice & Special Selling Price Input -->
+                            <div x-show="specialRateType === 'fixed'" class="space-y-3">
+                                <p class="text-[11px] text-slate-500 leading-relaxed bg-white p-3 rounded-xl border border-slate-200/80">
+                                    <span class="font-bold text-slate-700">Note:</span> Fixed rate sets the exact selling price for this customer, unaffected by future catalog price changes.
+                                </p>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-800 mb-1">Special Selling Rate (₹) *</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-xs font-bold text-slate-400">₹</span>
+                                        <input type="number" step="0.5" min="0" name="special_price" x-model.number="specialFixedPrice" placeholder="50.00" class="w-full pl-7 pr-3.5 py-2.5 text-xs border border-slate-200 rounded-xl font-bold text-slate-900 bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Dynamic Calculated Box -->
+                            <div class="p-3.5 rounded-2xl border-2 border-emerald-500 bg-emerald-50/40 flex items-center justify-between">
+                                <div>
+                                    <span class="text-[10px] font-black uppercase text-emerald-800 tracking-wider block">NEW SELLING RATE</span>
+                                    <span class="text-[11px] text-slate-500 mt-0.5 block" x-text="specialRateType === 'variable' ? 'Catalog rate ± your delta.' : 'Fixed customer rate.'"></span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-xl font-black text-emerald-700">
+                                        ₹ <span x-text="specialRateType === 'variable' ? Math.max(0, (parseFloat(specialCatalogRate || 0) + parseFloat(specialDelta || 0))).toFixed(2) : parseFloat(specialFixedPrice || 0).toFixed(2)"></span>
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <div class="pt-6 border-t border-slate-100 flex items-center justify-between">
-                        <button type="button" @click="activeTab = 'schedule'" class="px-5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-2xl transition flex items-center gap-1.5">
+                        <button type="button" @click="activeTab = 'schedule'" class="px-5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-2xl transition flex items-center gap-1.5 cursor-pointer">
                             <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
                             <span>Previous</span>
                         </button>
                         <div class="flex gap-2">
-                            <button type="button" @click="activeTab = 'bottles'" class="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-2xl transition flex items-center gap-1.5">
+                            <button type="button" @click="activeTab = 'bottles'" class="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-2xl transition flex items-center gap-1.5 cursor-pointer">
                                 <span>Next: Bottles</span>
                                 <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
                             </button>
-                            <button type="submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-2xl shadow-xs transition">Save & Create Customer</button>
+                            <button type="submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-2xl shadow-xs transition cursor-pointer">Save & Create Customer</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- TAB 5: OPENING BALANCE BOTTLE -->
+                <!-- TAB 5: OPENING BALANCE BOTTLE (Matching Simple Dairy Image 3) -->
                 <div x-show="activeTab === 'bottles'" x-cloak class="space-y-5">
                     <div class="border-b border-slate-100 pb-4 mb-4">
                         <h3 class="text-sm font-bold text-slate-900">Opening Balance Bottle</h3>
@@ -506,25 +634,48 @@
                     <div>
                         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">OPENING BALANCE</span>
                         <h4 class="text-sm font-bold text-slate-800">Empty bottles to collect</h4>
-                        <p class="text-xs text-slate-500 mt-0.5">Set the initial empty bottles to be collected back from this customer.</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Set the initial empty bottles to be collected back from this customer. You can set this only once per product.</p>
                     </div>
 
-                    <div class="border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden">
-                        @foreach($allProducts->take(6) as $p)
-                            <div class="p-4 flex items-center justify-between bg-white hover:bg-slate-50/50 transition">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                                        <i data-lucide="wine" class="w-4 h-4"></i>
+                    <div class="border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden bg-white">
+                        @forelse($bottleProducts as $p)
+                            <div class="p-4 flex items-center justify-between hover:bg-slate-50/50 transition">
+                                <div class="flex items-center gap-3.5">
+                                    <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                                        <i data-lucide="wine" class="w-5 h-5"></i>
                                     </div>
                                     <div>
                                         <h5 class="text-xs font-bold text-slate-900">{{ $p->name }}</h5>
-                                        <span class="text-[10px] text-slate-400">Locked after first dispatch</span>
+                                        <span class="text-[10px] text-slate-400">Set once &bull; Empty bottles to be collected</span>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <button type="button" @click="if (bottleCounts['{{ $p->id }}'] > 0) bottleCounts['{{ $p->id }}']--" class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 font-bold">&minus;</button>
-                                    <input type="number" :name="'bottles[{{ $p->id }}]'" x-model="bottleCounts['{{ $p->id }}']" class="w-14 text-center py-1 text-xs border border-slate-200 rounded-lg font-bold">
+                                    <input type="number" :name="'bottles[{{ $p->id }}]'" x-model="bottleCounts['{{ $p->id }}']" class="w-14 text-center py-1 text-xs border border-slate-200 rounded-lg font-bold text-slate-800">
                                     <button type="button" @click="bottleCounts['{{ $p->id }}']++" class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 font-bold">&plus;</button>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="p-8 text-center text-slate-400 text-xs">
+                                No bottle products found in catalog. Bottle tracking applies to products with unit 'bottle' or glass bottle packaging.
+                            </div>
+                        @endforelse
+                    </div>
+
+                    <div class="pt-6 border-t border-slate-100 flex items-center justify-between">
+                        <button type="button" @click="activeTab = 'special_rate'" class="px-5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-2xl transition flex items-center gap-1.5 cursor-pointer">
+                            <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                            <span>Previous</span>
+                        </button>
+                        <div class="flex gap-2">
+                            <button type="button" @click="activeTab = 'groups'" class="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-2xl transition flex items-center gap-1.5 cursor-pointer">
+                                <span>Next: Groups</span>
+                                <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <button type="submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-2xl shadow-xs transition cursor-pointer">Save & Create Customer</button>
+                        </div>
+                    </div>
+                </div>
                                 </div>
                             </div>
                         @endforeach

@@ -111,4 +111,13 @@ class SubscriptionController extends Controller
         AuditLog::log('Toggled Subscription Status', 'Subscription', $subscription->id, ['status' => $subscription->status]);
         return back()->with('success', $msg);
     }
+
+    public function destroy(Subscription $subscription)
+    {
+        $code = $subscription->subscription_code;
+        $subscription->delete();
+        AuditLog::log("Deleted Subscription: {$code}", 'Subscription', $subscription->id);
+
+        return back()->with('success', "Subscription {$code} removed successfully.");
+    }
 }
