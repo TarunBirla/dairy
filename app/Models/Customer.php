@@ -21,7 +21,11 @@ class Customer extends Model
         'address',
         'locality',
         'category',
+        'billing_period',
+        'account_type',
         'credit_limit',
+        'stop_delivery_on_min_balance',
+        'min_balance',
         'current_balance',
         'delivery_sequence',
         'delivery_instructions',
@@ -37,6 +41,8 @@ class Customer extends Model
     protected $casts = [
         'credit_limit' => 'decimal:2',
         'current_balance' => 'decimal:2',
+        'min_balance' => 'decimal:2',
+        'stop_delivery_on_min_balance' => 'boolean',
     ];
 
     public function user()

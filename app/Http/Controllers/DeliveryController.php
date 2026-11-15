@@ -116,7 +116,7 @@ class DeliveryController extends Controller
         $generatedCount = 0;
 
         foreach ($subscriptions as $sub) {
-            if ($sub->isPausedOn($date)) {
+            if (!$sub->shouldDeliverOn($date, $shift)) {
                 continue;
             }
 

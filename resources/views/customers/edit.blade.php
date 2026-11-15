@@ -7,6 +7,22 @@
 @section('content')
 <div x-data="{ 
     activeTab: '{{ request('tab', 'profile') }}',
+    stopDeliveryOnMinBalance: {{ $customer->stop_delivery_on_min_balance ? 'true' : 'false' }},
+    billingPeriod: '{{ old('billing_period', $customer->billing_period ?? 'monthly') }}',
+    accountType: '{{ old('account_type', $customer->account_type ?? 'postpaid') }}',
+    scheduleModalOpen: false,
+    subStopOnDate: false,
+    subFrequency: 'daily',
+    subWeekDays: ['mon', 'tue', 'wed', 'thu', 'fri'],
+    toggleWeekDay(day) {
+        if (this.subWeekDays.includes(day)) {
+            if (this.subWeekDays.length > 1) {
+                this.subWeekDays = this.subWeekDays.filter(d => d !== day);
+            }
+        } else {
+            this.subWeekDays.push(day);
+        }
+    },
     specialRateModal: false,
     newRateProductId: '',
     newRatePrice: '',
@@ -206,52 +222,93 @@
                 </form>
             </div>
 
-            <!-- TAB 2: BILLING DETAILS -->
+            <!-- TAB 2: BILLING DETAILS (Matching Simple Dairy Image 1) -->
             <div x-show="activeTab === 'billing'" x-cloak>
                 <div class="border-b border-slate-100 pb-4 mb-6">
-                    <h3 class="text-sm font-bold text-slate-900">Customer Billing Details</h3>
-                    <p class="text-xs text-slate-500">Configure ledger balances, credit limit, and payment terms.</p>
+                    <h3 class="text-base font-bold text-slate-900">Customer Billing Details</h3>
+                    <p class="text-xs text-slate-500">Billing Period, Due Balance, Min Balance</p>
                 </div>
 
-                <form action="{{ route('customers.update', $customer) }}" method="POST" class="space-y-5">
+                <form action="{{ route('customers.update', $customer) }}" method="POST" class="space-y-6">
                     @csrf
                     @method('PUT')
                     <input type="hidden" name="active_tab" value="billing">
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase">CURRENT OUTSTANDING BALANCE</span>
-                            <p class="text-2xl font-black {{ $customer->current_balance > 0 ? 'text-rose-600' : 'text-emerald-600' }} mt-1">
-                                ₹ {{ number_format($customer->current_balance, 2) }}
-                            </p>
+                    <div class="space-y-5">
+                        <div>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">BILLING CYCLE</span>
+                            <h4 class="text-sm font-bold text-slate-800">When and how to invoice</h4>
+                            <p class="text-xs text-slate-500 mt-0.5">Pick the billing period and whether this customer pays before or after consumption.</p>
                         </div>
-                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase">CREDIT LIMIT ALLOWED</span>
-                            <p class="text-2xl font-black text-slate-900 mt-1">
-                                ₹ {{ number_format($customer->credit_limit, 2) }}
-                            </p>
-                        </div>
-                    </div>
 
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Credit Limit (₹)</label>
-                        <input type="number" step="50" name="credit_limit" value="{{ old('credit_limit', $customer->credit_limit) }}" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Billing period *</label>
+                                <select name="billing_period" x-model="billingPeriod" required class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-medium">
+                                    <option value="monthly">Monthly(01-ME)</option>
+                                    <option value="twice_a_month">Twice in a month(01-15, 16-ME)</option>
+                                    <option value="daily">Daily (Every day)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Account type *</label>
+                                <select name="account_type" x-model="accountType" required class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-medium">
+                                    <option value="postpaid">Postpaid</option>
+                                    <option value="prepaid">Prepaid</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                            <!-- Left: Current Due Balance -->
+                            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">DUE / OUTSTANDING BALANCE</label>
+                                <div class="relative mt-1">
+                                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500 font-bold text-sm">₹</span>
+                                    <input type="text" readonly value="{{ number_format($customer->current_balance, 2) }}" class="w-full pl-8 pr-3 py-2 text-base font-black border border-slate-200 rounded-xl bg-slate-100/70 text-slate-800 focus:outline-none">
+                                </div>
+                                <p class="text-[11px] text-slate-400 mt-1.5">Once the first invoice is generated, this can't be changed.</p>
+                            </div>
+
+                            <!-- Right: Stop delivery toggle & minimum balance -->
+                            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 flex flex-col justify-between">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <h5 class="text-xs font-bold text-slate-800 leading-snug">Stop delivery when minimum balance is exhausted</h5>
+                                        <p class="text-[11px] text-slate-400 mt-1">When the customer's balance crosses the limit below, deliveries will pause automatically.</p>
+                                    </div>
+                                    <!-- Toggle Switch -->
+                                    <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5">
+                                        <input type="checkbox" name="stop_delivery_on_min_balance" value="1" x-model="stopDeliveryOnMinBalance" class="sr-only peer">
+                                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                                    </label>
+                                </div>
+                                <div class="mt-3 pt-3 border-t border-slate-200/60" x-show="stopDeliveryOnMinBalance" x-cloak>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">MINIMUM BALANCE LIMIT / CREDIT LIMIT (₹)</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 font-bold text-xs">₹</span>
+                                        <input type="number" step="50" name="credit_limit" value="{{ old('credit_limit', $customer->credit_limit) }}" placeholder="1500" class="w-full pl-8 pr-3 py-1.5 text-xs font-bold border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white">
+                                    </div>
+                                    <p class="text-[10px] text-slate-400 mt-1">Deliveries will pause once customer dues cross this limit.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="pt-6 border-t border-slate-100 flex items-center justify-between">
                         <a href="{{ route('customers.index') }}" class="px-5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-2xl transition">Back</a>
                         <div class="flex gap-2">
                             <a href="{{ route('customers.index') }}" class="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-2xl transition">Customers list</a>
-                            <button type="submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-2xl shadow-xs transition">Save Billing</button>
+                            <button type="submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-2xl shadow-xs transition">Update</button>
                         </div>
                     </div>
                 </form>
             </div>
 
-            <!-- TAB 3: SCHEDULE PRODUCT DELIVERY (Matching Screenshot 5) -->
+            <!-- TAB 3: SCHEDULE PRODUCT DELIVERY (Matching Simple Dairy Images 3 & 4) -->
             <div x-show="activeTab === 'schedule'" x-cloak>
                 <div class="border-b border-slate-100 pb-4 mb-5">
-                    <h3 class="text-sm font-bold text-slate-900">Schedule Product Delivery</h3>
+                    <h3 class="text-base font-bold text-slate-900">Schedule Product Delivery</h3>
                     <p class="text-xs text-slate-500">Subscription of the products</p>
                 </div>
 
@@ -261,10 +318,10 @@
                     <p class="text-xs text-slate-500 mt-0.5">Set which products are delivered to this customer and on which days. Customers don't see unscheduled products in their order list.</p>
                 </div>
 
-                <div class="mb-5">
-                    <a href="{{ route('subscriptions.create', ['customer_id' => $customer->id]) }}" class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition">
+                <div class="mb-5 flex items-center justify-between">
+                    <button type="button" @click="scheduleModalOpen = true" class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer">
                         <span>+ Schedule product</span>
-                    </a>
+                    </button>
                 </div>
 
                 <!-- Active Subscriptions Cards matching Screenshot 5 -->
@@ -285,17 +342,22 @@
                                         </span>
                                         <span>&bull;</span>
                                         <span class="capitalize">{{ str_replace('_', ' ', $sub->frequency) }}</span>
+                                        @if(in_array($sub->frequency, ['weekdays', 'custom_days']) && !empty($sub->custom_days))
+                                            <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">
+                                                {{ implode(', ', (array)$sub->custom_days) }}
+                                            </span>
+                                        @endif
                                     </div>
                                     <div class="text-[11px] text-slate-400 mt-1">
                                         <span class="font-bold text-emerald-600 uppercase">{{ $sub->status }}</span>
-                                        <span>{{ $sub->start_date->format('d M Y') }} &rarr; {{ $sub->end_date ? $sub->end_date->format('d M Y') : 'No end date' }}</span>
+                                        <span>{{ $sub->start_date ? $sub->start_date->format('d M Y') : '' }} &rarr; {{ $sub->end_date ? $sub->end_date->format('d M Y') : 'No end date' }}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     @empty
                         <div class="p-8 text-center border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 text-xs">
-                            No scheduled products active for this customer yet. Click above to schedule daily milk.
+                            No scheduled products active for this customer yet. Click "+ Schedule product" to schedule daily milk.
                         </div>
                     @endforelse
                 </div>
@@ -304,7 +366,7 @@
                     <a href="{{ route('customers.index') }}" class="px-5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-2xl transition">Back</a>
                     <div class="flex gap-2">
                         <a href="{{ route('customers.index') }}" class="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-2xl transition">Customers list</a>
-                        <a href="{{ route('subscriptions.create', ['customer_id' => $customer->id]) }}" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-2xl shadow-xs transition">Schedule special rate</a>
+                        <button type="button" @click="scheduleModalOpen = true" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-2xl shadow-xs transition">Schedule product</button>
                     </div>
                 </div>
             </div>
@@ -518,6 +580,139 @@
 
         </div>
 
+    </div>
+
+    <!-- Schedule a product Modal (Matching Simple Dairy Images 3 & 4) -->
+    <div x-show="scheduleModalOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+            <div x-show="scheduleModalOpen" @click="scheduleModalOpen = false" x-transition.opacity class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"></div>
+
+            <div x-show="scheduleModalOpen" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
+                 class="inline-block w-full max-w-lg p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-3xl relative z-10 border border-slate-100">
+                
+                <div class="flex items-start justify-between pb-3 border-b border-slate-100">
+                    <div>
+                        <h3 class="text-lg font-black text-slate-900">Schedule a product</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Pick a product, the shift, quantity and when deliveries should start and repeat.</p>
+                    </div>
+                    <button type="button" @click="scheduleModalOpen = false" class="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <form action="{{ route('subscriptions.store') }}" method="POST" class="mt-4 space-y-4">
+                    @csrf
+                    <input type="hidden" name="customer_id" value="{{ $customer->id }}">
+                    <input type="hidden" name="subscription_code" value="SUB-{{ strtoupper(uniqid()) }}">
+                    <input type="hidden" name="from_customer_edit" value="1">
+
+                    <!-- Product, Quantity, Shift Row -->
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Select Product *</label>
+                            <select name="product_id" required class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-medium">
+                                <option value="">-- Choose Product --</option>
+                                @foreach($allProducts as $p)
+                                    <option value="{{ $p->id }}">
+                                        {{ $p->name }} (₹{{ number_format($p->subscription_price ?? $p->price, 2) }}/{{ $p->unit ?? 'L' }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Quantity (Ltr / Qty) *</label>
+                                <input type="number" step="0.25" min="0.25" name="quantity" value="1.0" required class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-bold text-slate-800">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Shift *</label>
+                                <select name="shift" required class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-medium">
+                                    <option value="morning">Morning (सुबह)</option>
+                                    <option value="evening">Evening (शाम)</option>
+                                    <option value="both">Both (दोनों समय)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Unit Price Charged (₹) *</label>
+                            <input type="number" step="0.5" name="unit_price" value="50" required placeholder="50.00" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-bold text-slate-800">
+                        </div>
+                    </div>
+
+                    <!-- Start Date, End Date, Toggle Box -->
+                    <div class="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Start date *</label>
+                                <input type="date" name="start_date" required value="{{ date('Y-m-d') }}" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1" :class="!subStopOnDate ? 'text-slate-400' : 'text-slate-700'">End date</label>
+                                <input type="date" name="end_date" :disabled="!subStopOnDate" placeholder="DD/MM/YYYY" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none font-medium" :class="!subStopOnDate ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-800'">
+                            </div>
+                        </div>
+
+                        <!-- Toggle Switch: Stop delivery on a specific date -->
+                        <div class="flex items-center justify-between pt-1">
+                            <div>
+                                <h5 class="text-xs font-bold text-slate-800">Stop delivery on a specific date</h5>
+                                <p class="text-[11px] text-slate-400">Enable this to pick an end date for the schedule.</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                                <input type="checkbox" name="stop_on_date" value="1" x-model="subStopOnDate" class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Repeat Selector & Weekdays -->
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Repeat *</label>
+                            <select name="frequency" x-model="subFrequency" required class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none bg-white font-medium">
+                                <option value="daily">Daily</option>
+                                <option value="alternate_day">Alternate Days</option>
+                                <option value="every_3rd_day">Every 3rd Days</option>
+                                <option value="weekdays">Week Days</option>
+                            </select>
+                        </div>
+
+                        <!-- Choose Week Days Pills -->
+                        <div x-show="subFrequency === 'weekdays'" x-cloak class="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-2">
+                            <label class="block text-xs font-bold text-slate-700">Choose week days *</label>
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <template x-for="day in [
+                                    { key: 'sun', label: 'Sun' },
+                                    { key: 'mon', label: 'Mon' },
+                                    { key: 'tue', label: 'Tue' },
+                                    { key: 'wed', label: 'Wed' },
+                                    { key: 'thu', label: 'Thu' },
+                                    { key: 'fri', label: 'Fri' },
+                                    { key: 'sat', label: 'Sat' }
+                                ]" :key="day.key">
+                                    <button type="button" 
+                                            @click="toggleWeekDay(day.key)"
+                                            class="px-3.5 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer"
+                                            :class="subWeekDays.includes(day.key) ? 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-2xs ring-1 ring-emerald-500/20' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'">
+                                        <span x-text="day.label"></span>
+                                    </button>
+                                </template>
+                            </div>
+                            <template x-for="d in subWeekDays" :key="d">
+                                <input type="hidden" name="custom_days[]" :value="d">
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                        <button type="button" @click="scheduleModalOpen = false" class="px-5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-xl transition cursor-pointer">Cancel</button>
+                        <button type="submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <!-- Special Rate Modal -->

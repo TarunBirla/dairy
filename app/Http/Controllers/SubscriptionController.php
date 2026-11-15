@@ -50,12 +50,24 @@ class SubscriptionController extends Controller
             'product_id' => 'required|exists:products,id',
             'route_id' => 'nullable|exists:delivery_routes,id',
             'quantity' => 'required|numeric|min:0.25',
-            'frequency' => 'required|in:daily,alternate_day,custom_days',
+            'frequency' => 'required|in:daily,alternate_day,every_3rd_day,weekdays,custom_days',
             'shift' => 'required|in:morning,evening,both',
             'unit_price' => 'required|numeric|min:1',
             'start_date' => 'required|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
+            'custom_days' => 'nullable|array',
         ]);
+
+        $stopOnDate = $request->boolean('stop_on_date');
+        if (!$stopOnDate) {
+            $validated['end_date'] = null;
+        }
+
+        if (in_array($validated['frequency'], ['weekdays', 'custom_days'])) {
+            $validated['custom_days'] = $request->input('custom_days', ['mon', 'tue', 'wed', 'thu', 'fri']);
+        } else {
+            $validated['custom_days'] = null;
+        }
 
         $customer = Customer::findOrFail($validated['customer_id']);
         if (empty($validated['route_id'])) {
@@ -64,6 +76,11 @@ class SubscriptionController extends Controller
 
         $sub = Subscription::create($validated);
         AuditLog::log('Created Subscription', 'Subscription', $sub->id);
+
+        if ($request->has('from_customer_edit')) {
+            return redirect()->route('customers.edit', ['customer' => $customer, 'tab' => 'schedule'])
+                ->with('success', "Subscription {$sub->subscription_code} scheduled successfully!");
+        }
 
         return redirect()->route('subscriptions.index')->with('success', "Subscription {$sub->subscription_code} activated for {$customer->name}!");
     }

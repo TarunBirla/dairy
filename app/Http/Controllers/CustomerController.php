@@ -50,8 +50,40 @@ class CustomerController extends Controller
         return view('customers.index', compact('customers', 'totalCustomers', 'activeCustomers', 'totalDues', 'routes', 'branches', 'nextCode'));
     }
 
+    private function ensureSchemaMigrated()
+    {
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('customers')) {
+                \Illuminate\Support\Facades\Schema::table('customers', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    if (!\Illuminate\Support\Facades\Schema::hasColumn('customers', 'billing_period')) {
+                        $table->string('billing_period', 50)->default('monthly')->after('category');
+                    }
+                    if (!\Illuminate\Support\Facades\Schema::hasColumn('customers', 'account_type')) {
+                        $table->string('account_type', 50)->default('postpaid')->after('billing_period');
+                    }
+                    if (!\Illuminate\Support\Facades\Schema::hasColumn('customers', 'stop_delivery_on_min_balance')) {
+                        $table->boolean('stop_delivery_on_min_balance')->default(false)->after('credit_limit');
+                    }
+                    if (!\Illuminate\Support\Facades\Schema::hasColumn('customers', 'min_balance')) {
+                        $table->decimal('min_balance', 10, 2)->default(0.00)->after('stop_delivery_on_min_balance');
+                    }
+                });
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('subscriptions')) {
+                \Illuminate\Support\Facades\Schema::table('subscriptions', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    if (!\Illuminate\Support\Facades\Schema::hasColumn('subscriptions', 'custom_days')) {
+                        $table->json('custom_days')->nullable()->after('frequency');
+                    }
+                });
+            }
+        } catch (\Throwable $e) {
+            // Ignore if columns exist or database driver handles it
+        }
+    }
+
     public function create()
     {
+        $this->ensureSchemaMigrated();
         $routes = DeliveryRoute::with('deliveryBoy')->where('status', 'active')->get();
         $branches = Branch::where('status', 'active')->get();
         $nextCode = 'CUST-' . (Customer::max('id') + 201);
@@ -71,6 +103,7 @@ class CustomerController extends Controller
 
     public function store(Request $request)
     {
+        $this->ensureSchemaMigrated();
         $validated = $request->validate([
             'customer_code' => 'required|string|unique:customers,customer_code',
             'name' => 'required|string|max:255',
@@ -80,14 +113,22 @@ class CustomerController extends Controller
             'locality' => 'nullable|string',
             'route_id' => 'nullable|exists:delivery_routes,id',
             'category' => 'required|in:household,retail,hotel,shop,institution',
+            'billing_period' => 'nullable|string',
+            'account_type' => 'nullable|string',
             'credit_limit' => 'nullable|numeric|min:0',
             'opening_balance' => 'nullable|numeric',
+            'min_balance' => 'nullable|numeric',
+            'stop_delivery_on_min_balance' => 'nullable|boolean',
             'delivery_instructions' => 'nullable|string',
             'status' => 'nullable|in:active,paused,inactive,blocked',
         ]);
 
         $validated['status'] = $validated['status'] ?? 'active';
+        $validated['billing_period'] = $request->input('billing_period', 'monthly');
+        $validated['account_type'] = $request->input('account_type', 'postpaid');
         $validated['credit_limit'] = $validated['credit_limit'] ?? 0;
+        $validated['min_balance'] = $request->input('min_balance', 0) ?? 0;
+        $validated['stop_delivery_on_min_balance'] = $request->boolean('stop_delivery_on_min_balance');
         $validated['current_balance'] = $request->input('opening_balance', 0) ?? 0;
 
         $customer = Customer::create($validated);
@@ -155,16 +196,23 @@ class CustomerController extends Controller
             $prod = \App\Models\Product::find($request->sub_product_id);
             if ($prod) {
                 $subCode = 'SUB-' . strtoupper(uniqid());
+                $stopOnDate = $request->boolean('sub_stop_on_date');
+                $endDate = ($stopOnDate && $request->filled('sub_end_date')) ? $request->input('sub_end_date') : null;
+                $frequency = $request->input('sub_frequency', 'daily');
+                $customDays = in_array($frequency, ['weekdays', 'custom_days']) ? $request->input('sub_custom_days', ['mon','tue','wed','thu','fri']) : null;
+
                 \App\Models\Subscription::create([
                     'subscription_code' => $subCode,
                     'customer_id' => $customer->id,
                     'product_id' => $prod->id,
                     'route_id' => $customer->route_id,
                     'quantity' => $request->sub_quantity,
-                    'frequency' => $request->input('sub_frequency', 'daily'),
+                    'frequency' => $frequency,
+                    'custom_days' => $customDays,
                     'shift' => $request->input('sub_shift', 'morning'),
-                    'unit_price' => $prod->price,
+                    'unit_price' => $prod->subscription_price ?? $prod->price,
                     'start_date' => $request->input('sub_start_date', now()->toDateString()),
+                    'end_date' => $endDate,
                     'status' => 'active',
                 ]);
             }
@@ -186,6 +234,7 @@ class CustomerController extends Controller
 
     public function edit(Customer $customer)
     {
+        $this->ensureSchemaMigrated();
         $customer->load(['route', 'groups', 'specialRates.product', 'bottleOpenings.product', 'subscriptions.product']);
         $routes = DeliveryRoute::where('status', 'active')->get();
         $branches = Branch::where('status', 'active')->get();
@@ -205,6 +254,7 @@ class CustomerController extends Controller
 
     public function update(Request $request, Customer $customer)
     {
+        $this->ensureSchemaMigrated();
         $tab = $request->get('active_tab', 'profile');
 
         if ($tab === 'profile') {
@@ -224,10 +274,43 @@ class CustomerController extends Controller
             $validated = $request->validate([
                 'credit_limit' => 'nullable|numeric|min:0',
                 'billing_period' => 'nullable|string',
+                'account_type' => 'nullable|string',
+                'min_balance' => 'nullable|numeric',
+                'stop_delivery_on_min_balance' => 'nullable|boolean',
             ]);
             $customer->update([
                 'credit_limit' => $validated['credit_limit'] ?? 0,
+                'billing_period' => $request->input('billing_period', 'monthly'),
+                'account_type' => $request->input('account_type', 'postpaid'),
+                'min_balance' => $request->input('min_balance', 0) ?? 0,
+                'stop_delivery_on_min_balance' => $request->boolean('stop_delivery_on_min_balance'),
             ]);
+        } elseif ($tab === 'schedule') {
+            if ($request->filled('sub_product_id') && $request->filled('sub_quantity') && (float)$request->sub_quantity > 0) {
+                $prod = \App\Models\Product::find($request->sub_product_id);
+                if ($prod) {
+                    $subCode = 'SUB-' . strtoupper(uniqid());
+                    $stopOnDate = $request->boolean('sub_stop_on_date');
+                    $endDate = ($stopOnDate && $request->filled('sub_end_date')) ? $request->input('sub_end_date') : null;
+                    $frequency = $request->input('sub_frequency', 'daily');
+                    $customDays = in_array($frequency, ['weekdays', 'custom_days']) ? $request->input('sub_custom_days', ['mon','tue','wed','thu','fri']) : null;
+
+                    \App\Models\Subscription::create([
+                        'subscription_code' => $subCode,
+                        'customer_id' => $customer->id,
+                        'product_id' => $prod->id,
+                        'route_id' => $customer->route_id,
+                        'quantity' => $request->sub_quantity,
+                        'frequency' => $frequency,
+                        'custom_days' => $customDays,
+                        'shift' => $request->input('sub_shift', 'morning'),
+                        'unit_price' => $prod->subscription_price ?? $prod->price,
+                        'start_date' => $request->input('sub_start_date', now()->toDateString()),
+                        'end_date' => $endDate,
+                        'status' => 'active',
+                    ]);
+                }
+            }
         } elseif ($tab === 'groups') {
             $groupIds = $request->input('group_ids', []);
             $customer->groups()->sync($groupIds);

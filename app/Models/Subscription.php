@@ -64,4 +64,61 @@ class Subscription extends Model
 
         return false;
     }
+
+    public function shouldDeliverOn(\DateTimeInterface $date, ?string $shift = null): bool
+    {
+        if ($this->status !== 'active') {
+            return false;
+        }
+
+        if ($this->isPausedOn($date)) {
+            return false;
+        }
+
+        $dateCarbon = \Carbon\Carbon::parse($date)->startOfDay();
+        $startCarbon = \Carbon\Carbon::parse($this->start_date)->startOfDay();
+
+        if ($dateCarbon->lt($startCarbon)) {
+            return false;
+        }
+
+        if ($this->end_date) {
+            $endCarbon = \Carbon\Carbon::parse($this->end_date)->startOfDay();
+            if ($dateCarbon->gt($endCarbon)) {
+                return false;
+            }
+        }
+
+        if ($shift && $this->shift !== 'both' && $this->shift !== $shift) {
+            return false;
+        }
+
+        $freq = $this->frequency;
+        if ($freq === 'daily') {
+            return true;
+        }
+
+        if ($freq === 'alternate_day' || $freq === 'alternate_days') {
+            $diffDays = $startCarbon->diffInDays($dateCarbon);
+            return ($diffDays % 2) === 0;
+        }
+
+        if ($freq === 'every_3rd_day' || $freq === 'every_3rd_days') {
+            $diffDays = $startCarbon->diffInDays($dateCarbon);
+            return ($diffDays % 3) === 0;
+        }
+
+        if ($freq === 'weekdays' || $freq === 'custom_days') {
+            $customDays = $this->custom_days;
+            if (is_array($customDays) && count($customDays) > 0) {
+                $dayShort = strtolower($dateCarbon->format('D')); // 'mon', 'tue', etc.
+                $dayFull = strtolower($dateCarbon->format('l')); // 'monday', etc.
+                $dayNum = (int)$dateCarbon->format('N'); // 1 (Mon) - 7 (Sun)
+                return in_array($dayShort, $customDays) || in_array($dayFull, $customDays) || in_array($dayNum, $customDays);
+            }
+            return !$dateCarbon->isWeekend();
+        }
+
+        return true;
+    }
 }
