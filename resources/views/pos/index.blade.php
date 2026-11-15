@@ -121,20 +121,134 @@
                         </div>
                     </div>
 
-                    <!-- Customer Dropdown matching user image -->
+                    <!-- Searchable Customer Dropdown matching user image -->
                     <div class="space-y-1.5">
-                        <div class="relative">
-                            <select x-model="selectedCustomerKey" @change="onCustomerSelect($event.target.value)"
-                                    class="w-full px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-full shadow-2xs hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer transition appearance-none pr-8">
-                                <option value="">Walk-in Customer (नकद ग्राहक)</option>
-                                @foreach($walkInCustomers as $idx => $wc)
-                                    <option value="{{ $idx }}">{{ $wc->customer_name }}{{ $wc->customer_phone ? ' (' . $wc->customer_phone . ')' : '' }}</option>
-                                @endforeach
-                            </select>
-                            <div class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                </svg>
+                        <div class="relative" @click.outside="openCustomerDropdown = false">
+                            <input type="hidden" name="customer_id" :value="customerId">
+
+                            <!-- Pill trigger button matching user design -->
+                            <button type="button" 
+                                    @click="openCustomerDropdown = !openCustomerDropdown; if (openCustomerDropdown) { $nextTick(() => { $refs.custSearchInput.focus(); }); }"
+                                    class="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold bg-white border border-slate-200 rounded-full shadow-2xs hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer transition text-left"
+                                    :class="(customerName || customerId) ? 'text-slate-900 border-emerald-300' : 'text-slate-700'">
+                                <div class="flex items-center gap-2 truncate pr-2">
+                                    <span class="text-slate-400 shrink-0">👤</span>
+                                    <span class="truncate font-semibold" x-text="selectedCustomerLabel"></span>
+                                </div>
+                                <div class="flex items-center gap-1.5 shrink-0 text-slate-400">
+                                    <template x-if="customerName || customerId">
+                                        <span role="button" 
+                                              @click.stop="clearCustomerInputs()" 
+                                              class="p-0.5 hover:text-rose-500 hover:bg-slate-100 rounded-full transition" 
+                                              title="Clear customer">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </span>
+                                    </template>
+                                    <svg class="w-4 h-4 transition-transform duration-200" :class="{'rotate-180': openCustomerDropdown}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </button>
+
+                            <!-- Dropdown Popover with Search Filter -->
+                            <div x-show="openCustomerDropdown" 
+                                 x-cloak
+                                 x-transition:enter="transition ease-out duration-100"
+                                 x-transition:enter-start="opacity-0 scale-95 -translate-y-1"
+                                 x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                                 x-transition:leave="transition ease-in duration-75"
+                                 x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                                 x-transition:leave-end="opacity-0 scale-95 -translate-y-1"
+                                 class="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden text-xs">
+                                
+                                <!-- Search Input Box -->
+                                <div class="p-2 border-b border-slate-100 bg-slate-50/80">
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-slate-400">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                        </span>
+                                        <input type="text"
+                                               x-ref="custSearchInput"
+                                               x-model="customerSearch"
+                                               @keydown.escape="openCustomerDropdown = false"
+                                               @keydown.enter.prevent="selectFirstMatch()"
+                                               placeholder="Search name, phone, code..."
+                                               class="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 font-medium placeholder-slate-400">
+                                        <template x-if="customerSearch">
+                                            <button type="button" @click="customerSearch = ''; $refs.custSearchInput.focus()" class="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400 hover:text-slate-600">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- Customer Options List -->
+                                <div class="max-h-60 overflow-y-auto divide-y divide-slate-100 py-1">
+                                    <!-- Option 1: Walk-in Default -->
+                                    <div @click="selectCustomer(null)" 
+                                         class="px-3.5 py-2 hover:bg-emerald-50 cursor-pointer flex items-center justify-between transition"
+                                         :class="(!customerId && !customerName) ? 'bg-emerald-50/80 font-bold text-emerald-900' : 'text-slate-700'">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-2 h-2 rounded-full" :class="(!customerId && !customerName) ? 'bg-emerald-500' : 'bg-slate-300'"></span>
+                                            <span>Walk-in Customer (नकद ग्राहक)</span>
+                                        </div>
+                                        <span class="text-[10px] text-slate-400 font-normal">Default</span>
+                                    </div>
+
+                                    <!-- Filtered Customers -->
+                                    <template x-for="(c, idx) in filteredCustomers" :key="idx">
+                                        <div @click="selectCustomer(c)" 
+                                             class="px-3.5 py-2 hover:bg-slate-50 cursor-pointer flex items-center justify-between transition"
+                                             :class="isCustomerActive(c) ? 'bg-emerald-50/70 font-semibold text-emerald-900' : 'text-slate-700'">
+                                            <div class="truncate pr-2">
+                                                <div class="flex items-center gap-1.5">
+                                                    <span class="font-semibold text-slate-900 truncate" x-text="c.name"></span>
+                                                    <template x-if="c.type === 'registered'">
+                                                        <span class="text-[9px] bg-blue-50 text-blue-700 border border-blue-200 px-1 py-0.2 rounded font-bold uppercase tracking-wider">Reg</span>
+                                                    </template>
+                                                </div>
+                                                <div class="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                                                    <span x-show="c.phone" x-text="'📞 ' + c.phone"></span>
+                                                    <span x-show="c.code" class="text-slate-400" x-text="'#' + c.code"></span>
+                                                </div>
+                                            </div>
+                                            <template x-if="isCustomerActive(c)">
+                                                <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <!-- Empty search result state -->
+                                    <template x-if="customerSearch && filteredCustomers.length === 0">
+                                        <div class="p-3 text-center">
+                                            <p class="text-slate-400 text-xs mb-2">No customer found matching "<span class="font-bold text-slate-600" x-text="customerSearch"></span>"</p>
+                                            <button type="button" 
+                                                    @click="useSearchAsNewCustomer()"
+                                                    class="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-xs transition">
+                                                <span>+ Use</span>
+                                                <span class="font-semibold truncate max-w-[120px]" x-text="'&quot;' + customerSearch + '&quot;'"></span>
+                                                <span>as Name</span>
+                                            </button>
+                                        </div>
+                                    </template>
+
+                                    <!-- Option to use current search query as custom customer even if partial matches exist -->
+                                    <template x-if="customerSearch && filteredCustomers.length > 0 && !exactMatchFound">
+                                        <div @click="useSearchAsNewCustomer()" 
+                                             class="px-3.5 py-2 hover:bg-emerald-50 cursor-pointer flex items-center gap-2 text-emerald-700 font-semibold border-t border-dashed border-slate-200 bg-slate-50/50 transition">
+                                            <span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">+</span>
+                                            <span class="truncate">Use "<span x-text="customerSearch"></span>" as new walk-in</span>
+                                        </div>
+                                    </template>
+                                </div>
                             </div>
                         </div>
 
@@ -397,43 +511,121 @@
             activeCategory: 'all',
             payMode: 'cash',
             tenderedCash: '',
-            walkInList: [
-                @foreach($walkInCustomers as $wc)
-                {
-                    name: '{{ addslashes($wc->customer_name) }}',
-                    phone: '{{ addslashes($wc->customer_phone ?? "") }}',
-                    email: '{{ addslashes($wc->customer_email ?? "") }}'
-                },
-                @endforeach
-            ],
-            selectedCustomerKey: '',
+            openCustomerDropdown: false,
+            customerSearch: '',
+            customerId: '',
             showCustomerInputs: false,
             customerName: '',
             customerPhone: '',
             customerEmail: '',
 
-            onCustomerSelect(val) {
-                if (val === '' || val === null || val === undefined) {
-                    this.customerName = '';
-                    this.customerPhone = '';
-                    this.customerEmail = '';
+            customersList: [
+                @php
+                    $seen = [];
+                @endphp
+                @foreach($customers as $c)
+                    @php
+                        $key = strtolower(trim($c->name)) . '|' . trim($c->phone ?? '');
+                        $seen[$key] = true;
+                    @endphp
+                    {
+                        id: {{ $c->id }},
+                        name: '{{ addslashes($c->name) }}',
+                        phone: '{{ addslashes($c->phone ?? "") }}',
+                        email: '{{ addslashes($c->email ?? "") }}',
+                        code: '{{ addslashes($c->customer_code ?? "") }}',
+                        type: 'registered'
+                    },
+                @endforeach
+                @foreach($walkInCustomers as $wc)
+                    @php
+                        $key = strtolower(trim($wc->customer_name)) . '|' . trim($wc->customer_phone ?? '');
+                        if (isset($seen[$key])) continue;
+                        $seen[$key] = true;
+                    @endphp
+                    {
+                        id: null,
+                        name: '{{ addslashes($wc->customer_name) }}',
+                        phone: '{{ addslashes($wc->customer_phone ?? "") }}',
+                        email: '{{ addslashes($wc->customer_email ?? "") }}',
+                        code: '',
+                        type: 'walk_in'
+                    },
+                @endforeach
+            ],
+
+            get selectedCustomerLabel() {
+                if (this.customerName) {
+                    return this.customerName + (this.customerPhone ? ' (' + this.customerPhone + ')' : '');
+                }
+                return 'Walk-in Customer (नकद ग्राहक)';
+            },
+
+            get filteredCustomers() {
+                if (!this.customerSearch || !this.customerSearch.trim()) {
+                    return this.customersList;
+                }
+                const q = this.customerSearch.toLowerCase().trim();
+                return this.customersList.filter(c => {
+                    const nameMatch = (c.name || '').toLowerCase().includes(q);
+                    const phoneMatch = (c.phone || '').toLowerCase().includes(q);
+                    const codeMatch = (c.code || '').toLowerCase().includes(q);
+                    return nameMatch || phoneMatch || codeMatch;
+                });
+            },
+
+            get exactMatchFound() {
+                if (!this.customerSearch || !this.customerSearch.trim()) return false;
+                const q = this.customerSearch.toLowerCase().trim();
+                return this.customersList.some(c => (c.name || '').toLowerCase() === q);
+            },
+
+            isCustomerActive(c) {
+                if (this.customerId && c.id && this.customerId == c.id) return true;
+                if (!this.customerId && this.customerName && this.customerName.toLowerCase() === (c.name || '').toLowerCase()) {
+                    if (!c.phone || this.customerPhone === c.phone) return true;
+                }
+                return false;
+            },
+
+            selectCustomer(c) {
+                if (!c) {
+                    this.clearCustomerInputs();
                     return;
                 }
-                const idx = parseInt(val, 10);
-                if (!isNaN(idx) && this.walkInList[idx]) {
-                    const c = this.walkInList[idx];
-                    this.customerName = c.name;
-                    this.customerPhone = c.phone || '';
-                    this.customerEmail = c.email || '';
-                    this.showCustomerInputs = true;
+                this.customerId = c.id || '';
+                this.customerName = c.name || '';
+                this.customerPhone = c.phone || '';
+                this.customerEmail = c.email || '';
+                this.customerSearch = '';
+                this.openCustomerDropdown = false;
+            },
+
+            useSearchAsNewCustomer() {
+                this.customerId = '';
+                this.customerName = (this.customerSearch || '').trim();
+                this.customerPhone = '';
+                this.customerEmail = '';
+                this.showCustomerInputs = true;
+                this.customerSearch = '';
+                this.openCustomerDropdown = false;
+            },
+
+            selectFirstMatch() {
+                if (this.filteredCustomers.length > 0) {
+                    this.selectCustomer(this.filteredCustomers[0]);
+                } else if (this.customerSearch.trim()) {
+                    this.useSearchAsNewCustomer();
                 }
             },
 
             clearCustomerInputs() {
-                this.selectedCustomerKey = '';
+                this.customerId = '';
                 this.customerName = '';
                 this.customerPhone = '';
                 this.customerEmail = '';
+                this.customerSearch = '';
+                this.openCustomerDropdown = false;
             },
 
             cart: [
