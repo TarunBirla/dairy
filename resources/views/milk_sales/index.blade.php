@@ -145,16 +145,16 @@
                     </select>
                 </div>
 
-                <!-- Milk Quantity (Liters) -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Milk Qty. (Ltr.) <span class="text-rose-500">*</span></label>
-                    <input type="number" step="0.01" min="0.01" name="quantity_liters" id="quantityInput" placeholder="0.00" required oninput="calculateTotal()" class="w-full px-3.5 py-2.5 text-xs font-mono border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none font-bold text-slate-900">
-                </div>
-
                 <!-- Milk Quantity (kg.) -->
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1.5">Milk Qty. (kg.)</label>
                     <input type="number" step="0.01" min="0" name="quantity_kg" id="quantityKgInput" placeholder="0.00" class="w-full px-3.5 py-2.5 text-xs font-mono border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none font-medium text-slate-900">
+                </div>
+
+                <!-- Milk Quantity (Liters) -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Milk Qty. (Ltr.) <span class="text-rose-500">*</span></label>
+                    <input type="number" step="0.01" min="0.01" name="quantity_liters" id="quantityInput" placeholder="0.00" required oninput="calculateTotal()" class="w-full px-3.5 py-2.5 text-xs font-mono border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none font-bold text-slate-900">
                 </div>
 
                 <!-- FAT (%) -->
@@ -616,12 +616,12 @@
 
             <div class="grid grid-cols-4 gap-3">
                 <div>
-                    <label class="block font-bold text-slate-700 mb-1">Quantity (L)</label>
-                    <input type="number" step="0.01" name="quantity_liters" id="editQty" required oninput="recalcEditTotal()" class="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none font-bold">
-                </div>
-                <div>
                     <label class="block font-bold text-slate-700 mb-1">Quantity (Kg)</label>
                     <input type="number" step="0.01" min="0" name="quantity_kg" id="editQtyKg" placeholder="0.00" class="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none font-bold">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Quantity (L)</label>
+                    <input type="number" step="0.01" name="quantity_liters" id="editQty" required oninput="recalcEditTotal()" class="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none font-bold">
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Rate (₹)</label>
