@@ -676,25 +676,6 @@
                         </div>
                     </div>
                 </div>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-
-                    <div class="pt-6 border-t border-slate-100 flex items-center justify-between">
-                        <button type="button" @click="activeTab = 'special_rate'" class="px-5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-2xl transition flex items-center gap-1.5">
-                            <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
-                            <span>Previous</span>
-                        </button>
-                        <div class="flex gap-2">
-                            <button type="button" @click="activeTab = 'groups'" class="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-2xl transition flex items-center gap-1.5">
-                                <span>Next: Groups</span>
-                                <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-                            </button>
-                            <button type="submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-2xl shadow-xs transition">Save & Create Customer</button>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- TAB 6: GROUPS -->
                 <div x-show="activeTab === 'groups'" x-cloak class="space-y-5">
