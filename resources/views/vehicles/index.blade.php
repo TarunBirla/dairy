@@ -476,6 +476,8 @@
 
 @push('scripts')
 <script>
+    window.__ROUTES_LIST__ = {!! json_encode($routes->map(fn($r) => ['id' => $r->id, 'name' => $r->name, 'code' => $r->code])) !!};
+
     function openAddModal() {
         document.getElementById('addVehicleModal').classList.remove('hidden');
     }

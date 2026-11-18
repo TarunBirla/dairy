@@ -112,19 +112,8 @@
                     routeSearch: '',
                     routeDropdownOpen: false,
                     selectedRouteId: '{{ old('route_id', $farmer->route_id ?? '') }}',
-                    vehiclesList: {{ json_encode($vehicles->map(fn($v) => [
-                        'id' => $v->id,
-                        'vehicle_number' => $v->vehicle_number,
-                        'vehicle_type' => $v->vehicle_type,
-                        'route_id' => $v->route_id,
-                        'assigned_route' => $v->assigned_route ?: ($v->route ? $v->route->name : ''),
-                        'driver_name' => $v->driver_name ?? '',
-                    ])) }},
-                    routesList: {{ json_encode($routes->map(fn($r) => [
-                        'id' => $r->id,
-                        'name' => $r->name,
-                        'code' => $r->code,
-                    ])) }},
+                    vehiclesList: window.__VEHICLES_LIST__ || [],
+                    routesList: window.__ROUTES_LIST__ || [],
                     get filteredVehicles() {
                         if (!this.vehicleSearch) return this.vehiclesList;
                         const s = this.vehicleSearch.toLowerCase();
@@ -676,6 +665,16 @@
 </div>
 
 <script>
+    window.__VEHICLES_LIST__ = {!! json_encode($vehicles->map(fn($v) => [
+        'id' => $v->id,
+        'vehicle_number' => $v->vehicle_number,
+        'vehicle_type' => $v->vehicle_type,
+        'route_id' => $v->route_id,
+        'assigned_route' => $v->assigned_route ?: ($v->route ? $v->route->name : ''),
+        'driver_name' => $v->driver_name ?? '',
+    ])) !!};
+    window.__ROUTES_LIST__ = {!! json_encode($routes->map(fn($r) => ['id' => $r->id, 'name' => $r->name, 'code' => $r->code])) !!};
+
     window.openExtraInfoModal = function() {
         const type = document.getElementById('form_deduction_type').value || 'Fixed';
         const amount = document.getElementById('form_installment').value || '0.00';
