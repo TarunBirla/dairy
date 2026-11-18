@@ -270,7 +270,7 @@
                     search: '',
                     selectedName: '',
                     selectedId: '',
-                    routes: {{ json_encode($routes->map(fn($r) => ['id' => $r->id, 'name' => $r->name, 'code' => $r->code])) }},
+                    routes: window.__ROUTES_LIST__ || [],
                     get filteredRoutes() {
                         if (!this.search) return this.routes;
                         const s = this.search.toLowerCase();
@@ -403,7 +403,7 @@
                     search: '',
                     selectedName: '',
                     selectedId: '',
-                    routes: {{ json_encode($routes->map(fn($r) => ['id' => $r->id, 'name' => $r->name, 'code' => $r->code])) }},
+                    routes: window.__ROUTES_LIST__ || [],
                     get filteredRoutes() {
                         if (!this.search) return this.routes;
                         const s = this.search.toLowerCase();

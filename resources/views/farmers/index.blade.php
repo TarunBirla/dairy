@@ -6,11 +6,11 @@
 
 @section('header_action')
     <div class="flex items-center gap-2">
-        <button type="button" @click="openBulkModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold rounded-xl shadow-xs transition">
+        <button type="button" onclick="window.dispatchEvent(new CustomEvent('open-bulk-modal'))" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold rounded-xl shadow-xs transition">
             <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600"></i>
             <span>Add Bulk Farmer</span>
         </button>
-        <button type="button" @click="openCreateModal()" class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition">
+        <button type="button" onclick="window.dispatchEvent(new CustomEvent('open-farmer-modal'))" class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition">
             <i data-lucide="plus" class="w-4 h-4"></i>
             <span>+ Add Farmer</span>
         </button>
@@ -18,7 +18,7 @@
 @endsection
 
 @section('content')
-<div class="space-y-6" x-data="farmerManager()" @open-farmer-modal.window="openCreateModal()">
+<div class="space-y-6" x-data="farmerManager()" @open-farmer-modal.window="openCreateModal()" @open-bulk-modal.window="openBulkModal()">
 
     <!-- Stat Summary Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1242,19 +1242,19 @@ function farmerManager() {
         isEditMode: false,
         formAction: '{{ route("farmers.store") }}',
 
-        vehiclesList: {{ json_encode($vehicles->map(fn($v) => [
+        vehiclesList: {!! json_encode($vehicles->map(fn($v) => [
             'id' => $v->id,
             'vehicle_number' => $v->vehicle_number,
             'vehicle_type' => $v->vehicle_type,
             'route_id' => $v->route_id,
             'assigned_route' => $v->assigned_route ?: ($v->route ? $v->route->name : ''),
             'driver_name' => $v->driver_name ?? '',
-        ])) }},
-        routesList: {{ json_encode($routes->map(fn($r) => [
+        ])) !!},
+        routesList: {!! json_encode($routes->map(fn($r) => [
             'id' => $r->id,
             'name' => $r->name,
             'code' => $r->code,
-        ])) }},
+        ])) !!},
 
         vehicleSearch: '',
         vehicleDropdownOpen: false,
