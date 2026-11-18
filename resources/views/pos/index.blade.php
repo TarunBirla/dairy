@@ -117,13 +117,21 @@
                             Clear
                         </button>
                     </div>
-                    <div class="text-3xl font-black text-white mt-2">
-                        ₹<span x-text="subtotal().toFixed(0)"></span>
+                    <div class="flex items-baseline justify-between mt-2">
+                        <div class="text-3xl font-black text-white">
+                            ₹<span x-text="grandTotal().toFixed(0)"></span>
+                        </div>
+                        <template x-if="totalDiscount() > 0">
+                            <span class="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded-lg">
+                                Disc: -₹<span x-text="totalDiscount().toFixed(0)"></span>
+                            </span>
+                        </template>
                     </div>
                 </div>
 
                 <form action="{{ route('pos.store') }}" method="POST" id="posForm" class="space-y-4">
                     @csrf
+                    <input type="hidden" name="discount_amount" :value="totalDiscount().toFixed(2)">
 
                     <!-- Row: Payment Mode & Sale Date -->
                     <div class="grid grid-cols-2 gap-3">
@@ -330,38 +338,149 @@
                         </div>
                     </div>
 
-                    <!-- Cart Items List matching Screenshot Item Cards -->
-                    <div class="space-y-2.5 max-h-64 overflow-y-auto pr-1 border-y border-slate-100 py-3">
+                    <!-- Cart Items List matching User Reference (Images 1 & 2) -->
+                    <div class="space-y-3 max-h-[420px] overflow-y-auto pr-1 border-y border-slate-100 py-3">
                         <template x-for="(item, idx) in cart" :key="item.id">
-                            <div class="p-3 bg-white border border-slate-200 rounded-2xl flex items-center justify-between text-xs shadow-2xs">
-                                <div class="flex items-center gap-2.5 flex-1 truncate pr-2">
-                                    <template x-if="item.image">
-                                        <img :src="item.image" :alt="item.name" class="w-9 h-9 rounded-xl object-cover border border-slate-200/80 shrink-0">
-                                    </template>
-                                    <template x-if="!item.image">
-                                        <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center shrink-0">
-                                            <i data-lucide="package" class="w-4 h-4"></i>
+                            <div class="p-3.5 bg-white border border-slate-200/90 rounded-2xl text-xs shadow-2xs space-y-2.5 relative">
+                                <!-- Top Row: Product Name, Unit Price & 3-Dots Button -->
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="flex items-center gap-2.5 flex-1 min-w-0 pr-1">
+                                        <template x-if="item.image">
+                                            <img :src="item.image" :alt="item.name" class="w-8 h-8 rounded-lg object-cover border border-slate-200/80 shrink-0">
+                                        </template>
+                                        <div class="min-w-0">
+                                            <h4 class="font-extrabold text-slate-900 truncate text-sm leading-tight" x-text="item.name"></h4>
+                                            <div class="text-[11px] text-slate-500 font-semibold tracking-wide flex items-center gap-1.5 mt-0.5">
+                                                <span x-text="'₹' + item.price + '/' + (item.unit || 'KG').toUpperCase()"></span>
+                                                <template x-if="item.price != item.original_price">
+                                                    <span class="line-through text-slate-400 text-[10px]" x-text="'₹' + item.original_price"></span>
+                                                </template>
+                                                <template x-if="item.discount > 0">
+                                                    <span class="text-emerald-700 font-bold text-[10px] bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-100" x-text="'-₹' + item.discount"></span>
+                                                </template>
+                                            </div>
                                         </div>
-                                    </template>
-                                    <div class="truncate">
-                                        <p class="font-bold text-slate-900 truncate" x-text="item.name"></p>
-                                        <span class="text-[11px] text-slate-500 font-medium" x-text="'₹' + item.price + '/' + (item.unit || 'unit')"></span>
                                     </div>
-                                    <input type="hidden" :name="'items[' + idx + '][product_id]'" :value="item.id">
-                                    <input type="hidden" :name="'items[' + idx + '][unit_price]'" :value="item.price">
-                                    <input type="hidden" :name="'items[' + idx + '][quantity]'" :value="item.qty">
-                                </div>
-                                <div class="flex items-center gap-3">
-                                    <!-- Stepper [-] qty [+] -->
-                                    <div class="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
-                                        <button type="button" @click="decreaseQty(idx)" class="w-7 h-7 flex items-center justify-center hover:bg-slate-200 font-bold text-slate-600 transition">-</button>
-                                        <span class="w-6 text-center font-bold text-xs text-slate-900" x-text="item.qty"></span>
-                                        <button type="button" @click="increaseQty(idx)" class="w-7 h-7 flex items-center justify-center hover:bg-slate-200 font-bold text-slate-600 transition">+</button>
+
+                                    <!-- 3 Dots Button & Popover Menu (Matching Image 2) -->
+                                    <div class="relative shrink-0">
+                                        <button 
+                                            type="button" 
+                                            @click.stop="toggleItemMenu(idx)" 
+                                            class="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 flex items-center justify-center font-bold text-base tracking-widest transition"
+                                            title="Item discount & price override"
+                                        >
+                                            <span class="leading-none pb-1 font-black text-sm">•••</span>
+                                        </button>
+
+                                        <!-- Dropdown Popup Menu (Image 2) -->
+                                        <div 
+                                            x-show="item.menuOpen" 
+                                            @click.outside="item.menuOpen = false" 
+                                            x-transition:enter="transition ease-out duration-100"
+                                            x-transition:enter-start="opacity-0 scale-95"
+                                            x-transition:enter-end="opacity-100 scale-100"
+                                            x-transition:leave="transition ease-in duration-75"
+                                            x-transition:leave-start="opacity-100 scale-100"
+                                            x-transition:leave-end="opacity-0 scale-95"
+                                            class="absolute right-0 top-8 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl p-3.5 space-y-3 z-50 text-left"
+                                            style="display: none;"
+                                        >
+                                            <!-- DISCOUNT (₹) -->
+                                            <div>
+                                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                                    DISCOUNT (₹)
+                                                </label>
+                                                <input 
+                                                    type="number" 
+                                                    step="any" 
+                                                    min="0" 
+                                                    x-model.number="item.discount" 
+                                                    placeholder="0" 
+                                                    class="w-full px-3 py-1.5 text-right font-bold text-slate-900 text-xs rounded-xl border border-emerald-500 bg-white focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                                                >
+                                            </div>
+
+                                            <!-- PRICE OVERRIDE (₹) -->
+                                            <div>
+                                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                                    PRICE OVERRIDE (₹)
+                                                </label>
+                                                <input 
+                                                    type="number" 
+                                                    step="any" 
+                                                    min="0" 
+                                                    x-model.number="item.price" 
+                                                    @input="onPriceOverrideChange(item)"
+                                                    :placeholder="item.original_price" 
+                                                    class="w-full px-3 py-1.5 text-right font-bold text-slate-900 text-xs rounded-xl border border-slate-200 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                                                >
+                                            </div>
+
+                                            <!-- Total-price mode toggle -->
+                                            <div class="flex items-center justify-between pt-1">
+                                                <span class="text-xs font-semibold text-slate-600">Total-price mode</span>
+                                                <label class="relative inline-flex items-center cursor-pointer">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        x-model="item.total_price_mode" 
+                                                        @change="onTotalPriceModeToggle(item)"
+                                                        class="sr-only peer"
+                                                    >
+                                                    <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                                                </label>
+                                            </div>
+
+                                            <!-- Divider -->
+                                            <div class="border-t border-slate-100 pt-1">
+                                                <!-- Remove from cart -->
+                                                <button 
+                                                    type="button" 
+                                                    @click="removeItem(idx)" 
+                                                    class="w-full flex items-center gap-2 text-rose-600 hover:text-rose-700 font-semibold text-xs py-1 transition"
+                                                >
+                                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                                    <span>Remove from cart</span>
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <!-- Item Total -->
-                                    <span class="font-black text-slate-900 text-sm min-w-[50px] text-right" x-text="'₹' + (item.qty * item.price).toFixed(0)"></span>
-                                    <button type="button" @click="removeItem(idx)" class="text-slate-300 hover:text-rose-500 text-sm ml-1">&times;</button>
                                 </div>
+
+                                <!-- Bottom Row: Stepper (Direct Typeable Qty Input!) & Item Total -->
+                                <div class="flex items-center justify-between gap-3 pt-1 border-t border-slate-100/70">
+                                    <!-- Stepper with editable input box (Image 1) -->
+                                    <div class="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                                        <button 
+                                            type="button" 
+                                            @click="decreaseQty(idx)" 
+                                            class="w-8 h-8 flex items-center justify-center hover:bg-slate-50 font-bold text-slate-400 hover:text-slate-800 transition select-none text-base"
+                                        >-</button>
+                                        <input 
+                                            type="number" 
+                                            step="any" 
+                                            min="0.01" 
+                                            x-model.number="item.qty" 
+                                            @input="onQtyChange(item)"
+                                            class="w-14 h-8 text-center font-bold text-xs text-slate-900 border-x border-slate-200 bg-white focus:bg-emerald-50/50 focus:border-emerald-500 outline-none"
+                                        >
+                                        <button 
+                                            type="button" 
+                                            @click="increaseQty(idx)" 
+                                            class="w-8 h-8 flex items-center justify-center hover:bg-slate-50 font-bold text-slate-400 hover:text-slate-800 transition select-none text-base"
+                                        >+</button>
+                                    </div>
+
+                                    <!-- Item Total Amount (₹680 / ₹285) -->
+                                    <div class="text-right">
+                                        <span class="font-black text-slate-900 text-base" x-text="'₹' + itemTotal(item).toFixed(0)"></span>
+                                    </div>
+                                </div>
+
+                                <!-- Hidden Inputs for Backend Form Submission -->
+                                <input type="hidden" :name="'items[' + idx + '][product_id]'" :value="item.id">
+                                <input type="hidden" :name="'items[' + idx + '][unit_price]'" :value="item.price">
+                                <input type="hidden" :name="'items[' + idx + '][quantity]'" :value="item.qty">
                             </div>
                         </template>
 
@@ -414,7 +533,7 @@
                         class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-black text-sm rounded-2xl shadow-xs transition flex items-center justify-center gap-2 transform active:scale-95"
                     >
                         <i data-lucide="check-circle" class="w-4 h-4"></i>
-                        <span x-text="'Complete sale • ₹' + subtotal().toFixed(0)"></span>
+                        <span x-text="'Complete sale • ₹' + grandTotal().toFixed(0)"></span>
                     </button>
                 </form>
             </div>
@@ -637,10 +756,14 @@
                 { 
                     id: {{ $firstProduct->id }}, 
                     name: '{{ addslashes($firstProduct->name) }}', 
-                    price: {{ $firstProduct->price }}, 
+                    original_price: {{ (float)($firstProduct->price ?? 0) }},
+                    price: {{ (float)($firstProduct->price ?? 0) }}, 
                     unit: '{{ $firstProduct->unit ?? "kg" }}', 
                     image: '{{ !empty($firstProduct->image) ? asset($firstProduct->image) : "" }}', 
-                    qty: 1 
+                    qty: 1,
+                    discount: 0,
+                    total_price_mode: false,
+                    menuOpen: false
                 }
                 @endif
             ],
@@ -653,24 +776,77 @@
             addToCart(id, name, price, unit, image = '') {
                 const existing = this.cart.find(item => item.id === id);
                 if (existing) {
-                    existing.qty += 1;
+                    existing.qty = Math.round((parseFloat(existing.qty || 1) + 1) * 100) / 100;
                 } else {
-                    this.cart.push({ id, name, price, unit, image, qty: 1 });
+                    this.cart.push({
+                        id,
+                        name,
+                        original_price: parseFloat(price) || 0,
+                        price: parseFloat(price) || 0,
+                        unit,
+                        image,
+                        qty: 1,
+                        discount: 0,
+                        total_price_mode: false,
+                        menuOpen: false
+                    });
                 }
                 if (window.lucide) {
                     setTimeout(() => lucide.createIcons(), 50);
                 }
             },
 
+            toggleItemMenu(idx) {
+                const targetState = !this.cart[idx].menuOpen;
+                this.cart.forEach((it, i) => {
+                    it.menuOpen = false;
+                });
+                this.cart[idx].menuOpen = targetState;
+                if (window.lucide) {
+                    setTimeout(() => lucide.createIcons(), 50);
+                }
+            },
+
             increaseQty(idx) {
-                this.cart[idx].qty += 1;
+                const cur = parseFloat(this.cart[idx].qty) || 0;
+                this.cart[idx].qty = Math.round((cur + 1) * 100) / 100;
+                this.onQtyChange(this.cart[idx]);
             },
 
             decreaseQty(idx) {
-                if (this.cart[idx].qty > 1) {
-                    this.cart[idx].qty -= 1;
+                const cur = parseFloat(this.cart[idx].qty) || 0;
+                if (cur > 1) {
+                    this.cart[idx].qty = Math.round((cur - 1) * 100) / 100;
+                    this.onQtyChange(this.cart[idx]);
                 } else {
                     this.removeItem(idx);
+                }
+            },
+
+            onQtyChange(item) {
+                if (item.qty === '' || isNaN(item.qty)) return;
+                if (item.total_price_mode && item.original_price > 0) {
+                    // In total price mode, updating quantity adjusts or maintains total
+                }
+            },
+
+            onPriceOverrideChange(item) {
+                if (item.total_price_mode && item.original_price > 0) {
+                    const totalAmt = parseFloat(item.price) || 0;
+                    if (totalAmt > 0) {
+                        item.qty = parseFloat((totalAmt / item.original_price).toFixed(3));
+                    }
+                }
+            },
+
+            onTotalPriceModeToggle(item) {
+                if (item.total_price_mode) {
+                    // Switch to total price mode
+                    const currentTotal = (parseFloat(item.qty) || 1) * (parseFloat(item.price) || item.original_price);
+                    item.price = Math.round(currentTotal);
+                } else {
+                    // Revert to original unit price
+                    item.price = item.original_price;
                 }
             },
 
@@ -678,13 +854,35 @@
                 this.cart.splice(idx, 1);
             },
 
+            itemTotal(item) {
+                const qty = parseFloat(item.qty) || 0;
+                const price = parseFloat(item.price) || 0;
+                const discount = parseFloat(item.discount) || 0;
+                return Math.max(0, (qty * price) - discount);
+            },
+
             subtotal() {
-                return this.cart.reduce((sum, item) => sum + (item.qty * item.price), 0);
+                return this.cart.reduce((sum, item) => {
+                    const qty = parseFloat(item.qty) || 0;
+                    const price = parseFloat(item.price) || 0;
+                    return sum + (qty * price);
+                }, 0);
+            },
+
+            totalDiscount() {
+                return this.cart.reduce((sum, item) => {
+                    const disc = parseFloat(item.discount) || 0;
+                    return sum + disc;
+                }, 0);
+            },
+
+            grandTotal() {
+                return Math.max(0, this.subtotal() - this.totalDiscount());
             },
 
             getChangeVal() {
                 if (this.tenderedCash === '' || isNaN(this.tenderedCash)) return 0;
-                return Math.round(parseFloat(this.tenderedCash) - this.subtotal());
+                return Math.round(parseFloat(this.tenderedCash) - this.grandTotal());
             },
 
             getChangeFormatted() {
