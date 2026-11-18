@@ -36,6 +36,7 @@ class MilkCollection extends Model
         'deduction_amount',
         'net_amount',
         'payment_status',
+        'farmer_invoice_id',
         'notes',
         'deduction_reason',
     ];
@@ -75,6 +76,24 @@ class MilkCollection extends Model
     public function farmer()
     {
         return $this->belongsTo(Farmer::class);
+    }
+
+    public function farmerInvoice()
+    {
+        return $this->belongsTo(FarmerInvoice::class, 'farmer_invoice_id');
+    }
+
+    public function scopeUninvoiced($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('farmer_invoice_id')
+              ->orWhere('payment_status', 'pending');
+        });
+    }
+
+    public function scopeInvoiced($query)
+    {
+        return $query->whereNotNull('farmer_invoice_id');
     }
 
     public function collectionCenter()

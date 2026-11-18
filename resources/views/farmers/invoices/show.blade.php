@@ -42,14 +42,110 @@
         </div>
     @endif
 
+    @if(session('error'))
+        <div class="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl flex items-center justify-between shadow-xs">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                    <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                </div>
+                <span class="text-xs font-semibold">{{ session('error') }}</span>
+            </div>
+            <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-slate-600">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+    @endif
+
+    <!-- 1. Farmer Deduction Wallet Summary Banner (Requirement 1 & 2) -->
+    @php
+        $openingWallet = (float) ($invoice->opening_wallet_balance ?? ($walletSummary['total_balance'] ?? 0));
+        $walletDeducted = (float) ($invoice->wallet_deducted_amount ?? $invoice->total_deduction ?? 0);
+        $closingWallet = (float) ($invoice->closing_wallet_balance ?? max(0, $openingWallet - $walletDeducted));
+        $walletCategories = $walletSummary['category_balances'] ?? [];
+    @endphp
+    <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-5 text-white shadow-md border border-slate-800">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-400/20 text-amber-300 border border-amber-400/30 flex items-center justify-center shrink-0">
+                    <i data-lucide="wallet" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="text-sm font-bold uppercase tracking-wider text-white">Farmer Deduction Wallet</h3>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">Live Ledger</span>
+                    </div>
+                    <p class="text-xs text-slate-300 mt-0.5">Category-wise outstanding balance, deductions applied to this invoice, and carried-forward balance.</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="{{ route('wallets.show', $farmer->id) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold rounded-xl transition">
+                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                    <span>Open Full Wallet</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- 3 KPI Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4">
+            <div class="bg-white/5 border border-white/10 rounded-xl p-3.5">
+                <span class="text-[11px] font-medium text-slate-300 uppercase tracking-wider block">Opening Wallet Balance</span>
+                <span class="text-xl font-black font-mono text-amber-300 mt-1 block">₹{{ number_format($openingWallet, 2) }}</span>
+                <span class="text-[10px] text-slate-400 mt-0.5 block">Total dues before this invoice</span>
+            </div>
+            <div class="bg-white/5 border border-white/10 rounded-xl p-3.5">
+                <span class="text-[11px] font-medium text-slate-300 uppercase tracking-wider block">Deducted In This Invoice</span>
+                <span class="text-xl font-black font-mono text-rose-300 mt-1 block">- ₹{{ number_format($walletDeducted, 2) }}</span>
+                <span class="text-[10px] text-slate-400 mt-0.5 block">Applied across categories</span>
+            </div>
+            <div class="bg-white/5 border border-white/10 rounded-xl p-3.5">
+                <span class="text-[11px] font-medium text-slate-300 uppercase tracking-wider block">Closing Wallet Balance</span>
+                <span class="text-xl font-black font-mono text-emerald-300 mt-1 block">₹{{ number_format($closingWallet, 2) }}</span>
+                <span class="text-[10px] text-slate-400 mt-0.5 block">Carried forward to next bill</span>
+            </div>
+        </div>
+
+        @if(count($walletCategories) > 0)
+            <div class="pt-4 border-t border-white/10 mt-4">
+                <span class="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-2">Category-Wise Outstanding Balances:</span>
+                <div class="flex flex-wrap gap-2">
+                    @foreach($walletCategories as $wCat => $wBal)
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-white/10 border border-white/15 text-slate-200">
+                            <span class="w-1.5 h-1.5 rounded-full {{ $wBal > 0 ? 'bg-amber-400' : 'bg-slate-400' }}"></span>
+                            <span>{{ $wCat }}:</span>
+                            <span class="font-mono font-bold {{ $wBal > 0 ? 'text-amber-300' : 'text-slate-400' }}">₹{{ number_format($wBal, 2) }}</span>
+                        </span>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+    </div>
+
     <!-- 2-Column Layout matching Reference media_1791388765764.png -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         <!-- Left 2 Columns: Collections & Deductions Breakdown -->
         <div class="lg:col-span-2 space-y-6">
 
-            <!-- Card 1: Milk Collections with Shift Tabs -->
-            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden" x-data="{ shiftFilter: 'all' }">
+            <!-- Card 1: Milk Collections with Shift Tabs & Add Missing Milk Entry -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden"
+                 x-data="{ 
+                     shiftFilter: 'all',
+                     showAddModal: false,
+                     entryDate: '{{ $invoice->period_start->format('Y-m-d') }}',
+                     entryShift: 'morning',
+                     entryType: 'cow',
+                     entryQty: '',
+                     entryFat: '4.0',
+                     entryClr: '28',
+                     entrySnf: '8.20',
+                     recalcSnf() {
+                         let clrVal = parseFloat(this.entryClr) || 0;
+                         let fatVal = parseFloat(this.entryFat) || 0;
+                         if (clrVal > 0 && fatVal > 0) {
+                             this.entrySnf = ((clrVal / 4) + (0.2 * fatVal) + 0.36).toFixed(2);
+                         }
+                     }
+                 }">
                 <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
                     <div class="flex items-center gap-2.5">
                         <div class="w-8 h-8 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center">
@@ -61,16 +157,24 @@
                         </div>
                     </div>
 
-                    <!-- Shift Filter Tabs -->
-                    <div class="flex items-center bg-slate-200/70 p-0.5 rounded-xl text-xs font-medium">
-                        <button type="button" @click="shiftFilter = 'all'" :class="shiftFilter === 'all' ? 'bg-white text-slate-900 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'" class="px-3 py-1 rounded-lg transition">
-                            All
-                        </button>
-                        <button type="button" @click="shiftFilter = 'morning'" :class="shiftFilter === 'morning' ? 'bg-white text-slate-900 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'" class="px-3 py-1 rounded-lg transition">
-                            Morning
-                        </button>
-                        <button type="button" @click="shiftFilter = 'evening'" :class="shiftFilter === 'evening' ? 'bg-white text-slate-900 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'" class="px-3 py-1 rounded-lg transition">
-                            Evening
+                    <div class="flex items-center gap-2.5">
+                        <!-- Shift Filter Tabs -->
+                        <div class="flex items-center bg-slate-200/70 p-0.5 rounded-xl text-xs font-medium">
+                            <button type="button" @click="shiftFilter = 'all'" :class="shiftFilter === 'all' ? 'bg-white text-slate-900 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'" class="px-3 py-1 rounded-lg transition">
+                                All
+                            </button>
+                            <button type="button" @click="shiftFilter = 'morning'" :class="shiftFilter === 'morning' ? 'bg-white text-slate-900 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'" class="px-3 py-1 rounded-lg transition">
+                                Morning
+                            </button>
+                            <button type="button" @click="shiftFilter = 'evening'" :class="shiftFilter === 'evening' ? 'bg-white text-slate-900 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'" class="px-3 py-1 rounded-lg transition">
+                                Evening
+                            </button>
+                        </div>
+
+                        <!-- Add Missing Milk Entry Button (Requirement 4) -->
+                        <button type="button" @click="showAddModal = true" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-xl shadow-xs transition">
+                            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                            <span>Add Missing Entry</span>
                         </button>
                     </div>
                 </div>
@@ -120,6 +224,104 @@
                             </tr>
                         </tfoot>
                     </table>
+                </div>
+
+                <!-- Modal: Add Missing Milk Entry (Requirement 4) -->
+                <div x-show="showAddModal" 
+                     x-cloak
+                     class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+                     @keydown.escape.window="showAddModal = false">
+                    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 relative"
+                         @click.away="showAddModal = false">
+                        <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-9 h-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center">
+                                    <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-bold text-slate-900">Add Missing Milk Entry</h4>
+                                    <p class="text-[11px] text-slate-500">Add entry directly to Invoice #{{ $invoice->invoice_number }}</p>
+                                </div>
+                            </div>
+                            <button type="button" @click="showAddModal = false" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <form method="POST" action="{{ route('farmer-invoices.add-milk-entry', $invoice->id) }}" class="mt-4 space-y-4">
+                            @csrf
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">Collection Date <span class="text-rose-500">*</span></label>
+                                    <input type="date" name="collection_date" x-model="entryDate" required
+                                           min="{{ $invoice->period_start->format('Y-m-d') }}"
+                                           max="{{ $invoice->period_end->format('Y-m-d') }}"
+                                           class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 font-mono">
+                                    <span class="text-[10px] text-slate-400">Within billing period</span>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">Shift <span class="text-rose-500">*</span></label>
+                                    <select name="shift" x-model="entryShift" required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500">
+                                        <option value="morning">Morning</option>
+                                        <option value="evening">Evening</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">Milk Type <span class="text-rose-500">*</span></label>
+                                    <select name="milk_type" x-model="entryType" required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 font-semibold">
+                                        <option value="cow">Cow</option>
+                                        <option value="buffalo">Buffalo</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">Quantity (Liters) <span class="text-rose-500">*</span></label>
+                                    <input type="number" step="0.01" min="0.01" name="quantity_liters" x-model="entryQty" placeholder="e.g. 15.50" required
+                                           class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 font-mono font-bold">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-600 mb-1">FAT (%) <span class="text-rose-500">*</span></label>
+                                    <input type="number" step="0.1" min="1.0" max="15.0" name="fat" x-model="entryFat" @input="recalcSnf()" required
+                                           class="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500 font-mono font-bold">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-600 mb-1">CLR</label>
+                                    <input type="number" step="0.1" min="10" max="50" name="clr" x-model="entryClr" @input="recalcSnf()"
+                                           class="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500 font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-600 mb-1">SNF (%)</label>
+                                    <input type="number" step="0.01" min="4.0" max="15.0" name="snf" x-model="entrySnf"
+                                           class="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500 font-mono font-bold bg-white">
+                                </div>
+                            </div>
+
+                            <div class="p-3 bg-sky-50 border border-sky-200 rounded-xl text-sky-800 text-xs">
+                                <div class="flex items-start gap-2">
+                                    <i data-lucide="info" class="w-4 h-4 shrink-0 mt-0.5"></i>
+                                    <div>
+                                        <p class="font-bold">Automatic Rate Chart Calculation</p>
+                                        <p class="text-[11px] text-sky-700 mt-0.5">Rate & amount are calculated automatically from the historical Rate Chart for this date. The entry will be linked to this invoice and marked invoiced.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                                <button type="button" @click="showAddModal = false" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition">
+                                    Cancel
+                                </button>
+                                <button type="submit" class="px-5 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-xs transition flex items-center gap-1.5">
+                                    <i data-lucide="check" class="w-4 h-4"></i>
+                                    <span>Save & Add to Invoice</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
 

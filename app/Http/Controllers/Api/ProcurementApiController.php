@@ -2881,6 +2881,15 @@ class ProcurementApiController extends Controller
             'payment_reference' => $validated['payment_reference'] ?? $item->payment_reference,
         ]);
 
+        // Synchronize wallet deductions
+        try {
+            \App\Services\FarmerWalletService::applyInvoiceDeductions(
+                $item,
+                $request->input('category_deductions', []),
+                auth()->id() ?? 1
+            );
+        } catch (\Throwable $e) {}
+
         AuditLog::log('Verified & Saved Farmer Invoice (API)', 'FarmerInvoice', $item->id, [
             'invoice_number' => $item->invoice_number,
             'net_payment' => $netPayment,
@@ -2930,7 +2939,12 @@ class ProcurementApiController extends Controller
             'invoice_ids.*' => 'exists:farmer_invoices,id',
         ]);
 
-        $count = FarmerInvoice::whereIn('id', $validated['invoice_ids'])->delete();
+        $invoices = FarmerInvoice::whereIn('id', $validated['invoice_ids'])->get();
+        $count = 0;
+        foreach ($invoices as $inv) {
+            \App\Services\FarmerInvoiceService::deleteInvoice($inv);
+            $count++;
+        }
 
         AuditLog::log('Bulk Deleted Farmer Invoices (API)', 'FarmerInvoice', null, [
             'count' => $count,
@@ -2959,7 +2973,7 @@ class ProcurementApiController extends Controller
 
         $num = $item->invoice_number;
         $id = $item->id;
-        $item->delete();
+        \App\Services\FarmerInvoiceService::deleteInvoice($item);
 
         AuditLog::log('Deleted Farmer Invoice (API)', 'FarmerInvoice', $id, ['invoice_number' => $num]);
 

@@ -477,6 +477,7 @@ class FarmerInvoiceController extends Controller
                 ->orderBy('id', 'desc')
                 ->first();
 
+            $targetInvoice = null;
             if ($existing) {
                 $existing->update(array_merge($metrics, [
                     'period_end' => $endDate,
@@ -488,9 +489,10 @@ class FarmerInvoiceController extends Controller
                     ->whereDate('period_start', $startDate)
                     ->where('id', '!=', $existing->id)
                     ->delete();
+                $targetInvoice = $existing;
             } else {
                 $invNum = 'BILL-' . str_pad((FarmerInvoice::max('id') + 101), 4, '0', STR_PAD_LEFT);
-                FarmerInvoice::create(array_merge($metrics, [
+                $targetInvoice = FarmerInvoice::create(array_merge($metrics, [
                     'farmer_id' => $farmer->id,
                     'period_start' => $startDate,
                     'period_end' => $endDate,
@@ -500,6 +502,25 @@ class FarmerInvoiceController extends Controller
                     'created_by' => Auth::id(),
                 ]));
             }
+
+            // Link matching un-invoiced milk collections to this invoice (prevents duplicate invoicing)
+            if (Schema::hasColumn('milk_collections', 'farmer_invoice_id')) {
+                MilkCollection::where('farmer_id', $farmer->id)
+                    ->whereBetween('collection_date', [$startDate, $endDate])
+                    ->where(function ($q) use ($targetInvoice) {
+                        $q->whereNull('farmer_invoice_id')
+                          ->orWhere('farmer_invoice_id', $targetInvoice->id);
+                    })
+                    ->update([
+                        'farmer_invoice_id' => $targetInvoice->id,
+                        'payment_status' => 'invoiced',
+                    ]);
+            }
+
+            // Synchronize with Farmer Deduction Wallet (Opening balance, deducted, remaining closing balance)
+            try {
+                \App\Services\FarmerWalletService::applyInvoiceDeductions($targetInvoice, [], Auth::id());
+            } catch (\Throwable $ex) {}
 
             $generatedCount++;
         }
@@ -529,12 +550,18 @@ class FarmerInvoiceController extends Controller
         $deductions = $invoice->deductions_list;
         $cattleFeeds = $invoice->cattle_feeds_list;
 
+        $walletSummary = [];
+        try {
+            $walletSummary = \App\Services\FarmerWalletService::getWalletSummary($farmer);
+        } catch (\Throwable $e) {}
+
         return view('farmers.invoices.show', compact(
             'invoice',
             'farmer',
             'collections',
             'deductions',
-            'cattleFeeds'
+            'cattleFeeds',
+            'walletSummary'
         ));
     }
 
@@ -586,11 +613,17 @@ class FarmerInvoiceController extends Controller
             ];
         });
 
+        $walletSummary = [];
+        try {
+            $walletSummary = \App\Services\FarmerWalletService::getWalletSummary($farmer);
+        } catch (\Throwable $e) {}
+
         return response()->json([
             'id' => $invoice->id,
             'invoice_number' => $invoice->invoice_number,
             'status' => $invoice->status,
             'is_edited' => (bool) $invoice->is_edited,
+            'wallet' => $walletSummary,
             'period_start' => $invoice->period_start->format('Y-m-d'),
             'period_end' => $invoice->period_end->format('Y-m-d'),
             'period_start_display' => $invoice->period_start->format('d/m/Y'),
@@ -747,6 +780,15 @@ class FarmerInvoiceController extends Controller
             'is_edited' => true,
         ]);
 
+        // Synchronize wallet deductions (record debits, handle partial deductions & carry-forward)
+        try {
+            \App\Services\FarmerWalletService::applyInvoiceDeductions(
+                $invoice,
+                $request->input('category_deductions', []),
+                Auth::id()
+            );
+        } catch (\Throwable $e) {}
+
         AuditLog::log('Verified & Saved Farmer Invoice', 'FarmerInvoice', $invoice->id, [
             'invoice_number' => $invoice->invoice_number,
             'net_payment' => $netPayment,
@@ -894,20 +936,62 @@ class FarmerInvoiceController extends Controller
     }
 
     /**
-     * Delete an invoice
+     * Add missing milk entry to an existing invoice.
+     * Automatically calculates rate via Rate Chart, updates totals, and links collection.
+     */
+    public function addMilkEntry(Request $request, FarmerInvoice $invoice)
+    {
+        $validated = $request->validate([
+            'collection_date' => 'required|date',
+            'shift' => 'required|in:morning,evening',
+            'milk_type' => 'required|in:cow,buffalo',
+            'quantity_liters' => 'required|numeric|min:0.01',
+            'fat' => 'required|numeric|min:0|max:15',
+            'snf' => 'nullable|numeric|min:0|max:15',
+            'clr' => 'nullable|numeric|min:0|max:50',
+        ]);
+
+        try {
+            $entry = \App\Services\FarmerInvoiceService::addMissingMilkEntry($invoice, $validated, Auth::id());
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Missing milk collection entry added and invoice updated successfully!',
+                    'entry' => $entry,
+                    'invoice' => $invoice->fresh('farmer'),
+                ]);
+            }
+
+            return back()->with('success', 'Missing milk collection entry added and invoice updated successfully!');
+        } catch (\InvalidArgumentException $e) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            }
+            return back()->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Failed to add milk entry: ' . $e->getMessage()], 500);
+            }
+            return back()->with('error', 'Failed to add milk entry: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Delete an invoice - Restores milk collections to pending and reverses wallet transactions
      */
     public function destroy(FarmerInvoice $invoice)
     {
         $invNum = $invoice->invoice_number;
-        $invoice->delete();
+        \App\Services\FarmerInvoiceService::deleteInvoice($invoice);
 
         AuditLog::log('Deleted Farmer Invoice', 'FarmerInvoice', $invoice->id, ['number' => $invNum]);
 
-        return redirect()->route('farmer-invoices.index')->with('success', "Invoice #{$invNum} deleted successfully.");
+        return redirect()->route('farmer-invoices.index')->with('success', "Invoice #{$invNum} deleted successfully. Associated milk collections restored to pending.");
     }
 
     /**
-     * Bulk Delete Invoices
+     * Bulk Delete Invoices - Restores milk collections to pending and reverses wallet transactions
      */
     public function bulkDelete(Request $request)
     {
@@ -916,10 +1000,15 @@ class FarmerInvoiceController extends Controller
             'invoice_ids.*' => 'exists:farmer_invoices,id',
         ]);
 
-        $count = FarmerInvoice::whereIn('id', $validated['invoice_ids'])->delete();
+        $invoices = FarmerInvoice::whereIn('id', $validated['invoice_ids'])->get();
+        $count = 0;
+        foreach ($invoices as $inv) {
+            \App\Services\FarmerInvoiceService::deleteInvoice($inv);
+            $count++;
+        }
 
         AuditLog::log("Bulk Deleted {$count} Farmer Invoices", 'FarmerInvoice', null);
 
-        return redirect()->route('farmer-invoices.index')->with('success', "Successfully deleted {$count} selected invoices.");
+        return redirect()->route('farmer-invoices.index')->with('success', "Successfully deleted {$count} selected invoices and restored their collections.");
     }
 }

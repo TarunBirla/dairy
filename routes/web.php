@@ -682,10 +682,20 @@ Route::middleware('auth')->group(function () {
         Route::get('/export-excel', [FarmerInvoiceController::class, 'exportExcel'])->name('export-excel');
         Route::post('/bulk-delete', [FarmerInvoiceController::class, 'bulkDelete'])->name('bulk-delete');
         Route::get('/{invoice}', [FarmerInvoiceController::class, 'show'])->name('show');
+        Route::post('/{invoice}/add-milk-entry', [FarmerInvoiceController::class, 'addMilkEntry'])->name('add-milk-entry');
         Route::delete('/{invoice}', [FarmerInvoiceController::class, 'destroy'])->name('destroy');
     });
     Route::get('/invoice', function() {
         return redirect()->route('farmer-invoices.index');
+    });
+
+    // Farmer Deduction Wallets
+    Route::prefix('wallets')->name('wallets.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\FarmerWalletController::class, 'index'])->name('index');
+        Route::get('/{farmer}', [\App\Http\Controllers\FarmerWalletController::class, 'show'])->name('show');
+        Route::post('/{farmer}/deductions', [\App\Http\Controllers\FarmerWalletController::class, 'addDeduction'])->name('add-deduction');
+        Route::post('/{farmer}/adjust', [\App\Http\Controllers\FarmerWalletController::class, 'adjust'])->name('adjust');
+        Route::post('/{farmer}/recalculate', [\App\Http\Controllers\FarmerWalletController::class, 'recalculate'])->name('recalculate');
     });
 
     // Milk Sales & Commercial Buyers (Matching media_1791389566806.png)

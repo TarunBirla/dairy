@@ -17,6 +17,10 @@ class FarmerInvoice extends Model
         'total_quantity',
         'milk_amount',
         'stationary_deduction',
+        'opening_wallet_balance',
+        'wallet_deducted_amount',
+        'closing_wallet_balance',
+        'wallet_deductions_breakdown',
         'feed_deduction',
         'advance_deduction',
         'other_deduction',
@@ -59,6 +63,10 @@ class FarmerInvoice extends Model
         'net_payment' => 'decimal:2',
         'is_edited' => 'boolean',
         'deductions_breakdown' => 'array',
+        'opening_wallet_balance' => 'decimal:2',
+        'wallet_deducted_amount' => 'decimal:2',
+        'closing_wallet_balance' => 'decimal:2',
+        'wallet_deductions_breakdown' => 'array',
     ];
 
     public function farmer()
@@ -71,11 +79,27 @@ class FarmerInvoice extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function walletTransactions()
+    {
+        return $this->hasMany(FarmerWalletTransaction::class, 'farmer_invoice_id');
+    }
+
     /**
-     * Get milk collection records within invoice billing period
+     * Get milk collection records linked directly or within invoice billing period
      */
     public function getMilkCollectionsAttribute()
     {
+        if (\Illuminate\Support\Facades\Schema::hasColumn('milk_collections', 'farmer_invoice_id')) {
+            $linked = MilkCollection::where('farmer_invoice_id', $this->id)
+                ->orderBy('collection_date', 'asc')
+                ->orderBy('shift', 'asc')
+                ->get();
+
+            if ($linked->count() > 0) {
+                return $linked;
+            }
+        }
+
         return MilkCollection::where('farmer_id', $this->farmer_id)
             ->whereBetween('collection_date', [$this->period_start, $this->period_end])
             ->orderBy('collection_date', 'asc')

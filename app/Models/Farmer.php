@@ -217,5 +217,26 @@ class Farmer extends Model
     {
         return $this->hasMany(FarmerEmergencyFund::class);
     }
+
+    public function wallet()
+    {
+        return $this->hasOne(FarmerWallet::class);
+    }
+
+    public function walletTransactions()
+    {
+        return $this->hasMany(FarmerWalletTransaction::class);
+    }
+
+    /**
+     * Get or create the deduction wallet for this farmer.
+     */
+    public function getOrCreateWallet(): FarmerWallet
+    {
+        return FarmerWallet::firstOrCreate(
+            ['farmer_id' => $this->id],
+            ['balance' => 0.00]
+        );
+    }
 }
 
