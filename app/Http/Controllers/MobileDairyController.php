@@ -212,6 +212,17 @@ class MobileDairyController extends Controller
             $pendingDeductions = (float) $deductions->where('transaction_type', 'given')->where('status', 'pending')->sum('amount');
         }
 
+        // Deduction Categories (Master Data)
+        $deductionCategories = collect();
+        if (Schema::hasTable('deduction_categories')) {
+            try {
+                \App\Models\DeductionCategory::ensureTableExistsAndSeeded();
+                $deductionCategories = \App\Models\DeductionCategory::where('status', 'active')
+                    ->orderBy('name')
+                    ->get();
+            } catch (\Throwable $e) {}
+        }
+
         // TAB 4: PRODUCT SALES DATA
         $products = collect();
         $farmerProductSales = collect();
@@ -282,6 +293,7 @@ class MobileDairyController extends Controller
             'totalLoanAmount' => $totalLoanAmount,
             'totalLoanRepaid' => $totalLoanRepaid,
             'deductions' => $deductions,
+            'deductionCategories' => $deductionCategories,
             'totalDeductions' => $totalDeductions,
             'appliedDeductions' => $appliedDeductions,
             'pendingDeductions' => $pendingDeductions,
@@ -773,6 +785,18 @@ class MobileDairyController extends Controller
      */
     public function storeDeduction(Request $request, Farmer $farmer)
     {
+        $entryDate = $request->input('entry_date') ?: $request->input('deduction_date', now()->format('Y-m-d'));
+        $comments = $request->input('comments') ?: $request->input('description');
+        $referenceNo = $request->input('reference_no') ?: $request->input('reference_number', 'DED-' . time());
+        $status = $request->input('status', 'applied');
+
+        $request->merge([
+            'entry_date' => $entryDate,
+            'comments' => $comments,
+            'reference_no' => $referenceNo,
+            'status' => $status,
+        ]);
+
         $validated = $request->validate([
             'deduction_type' => 'required|string',
             'entry_date' => 'required|date',
@@ -783,7 +807,6 @@ class MobileDairyController extends Controller
         ]);
 
         $amount = (float) $validated['amount'];
-        $status = $validated['status'] ?? 'applied';
 
         DB::beginTransaction();
         try {
@@ -798,6 +821,24 @@ class MobileDairyController extends Controller
                 'status' => $status,
                 'created_by' => Auth::id(),
             ]);
+
+            // Synchronize with Farmer Deduction Wallet & Dues Ledger
+            try {
+                $categoryLabel = ucfirst(str_replace('_', ' ', $validated['deduction_type']));
+                if (class_exists(\App\Models\DeductionCategory::class)) {
+                    $catObj = \App\Models\DeductionCategory::where('code', $validated['deduction_type'])->first();
+                    if ($catObj) {
+                        $categoryLabel = $catObj->name;
+                    }
+                }
+                \App\Services\FarmerWalletService::addDeduction(
+                    $farmer,
+                    $categoryLabel,
+                    $amount,
+                    $validated['comments'] ?? null,
+                    Auth::id()
+                );
+            } catch (\Throwable $e) {}
 
             // Adjust farmer balance if applied
             if ($status === 'applied') {
@@ -816,6 +857,15 @@ class MobileDairyController extends Controller
                 ]);
             }
 
+            // Live recalculate canonical balance
+            try {
+                if (method_exists($farmer, 'recalculateBalance')) {
+                    $farmer->recalculateBalance();
+                } else {
+                    $this->recalculateFarmerBalanceDirect($farmer);
+                }
+            } catch (\Throwable $e) {}
+
             AuditLog::log('Created Farmer Deduction', 'FarmerDeduction', $deduction->id, [
                 'farmer' => $farmer->name,
                 'amount' => $amount,
@@ -825,7 +875,7 @@ class MobileDairyController extends Controller
             DB::commit();
 
             return redirect()->route('farmers.mobile-dairy', ['farmer' => $farmer->id, 'tab' => 'deduction'])
-                             ->with('success', "Deduction of ₹{$amount} recorded successfully!");
+                             ->with('success', "Deduction of ₹{$amount} recorded and synced successfully!");
         } catch (\Throwable $e) {
             DB::rollBack();
             return back()->with('error', "Failed to record deduction: " . $e->getMessage());

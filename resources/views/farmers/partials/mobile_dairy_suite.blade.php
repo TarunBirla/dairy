@@ -20,6 +20,12 @@
     $totalDeductions = (float) ($s['totalDeductions'] ?? 0);
     $appliedDeductions = (float) ($s['appliedDeductions'] ?? 0);
     $pendingDeductions = (float) ($s['pendingDeductions'] ?? 0);
+    $deductionCategories = $s['deductionCategories'] ?? collect();
+    if ($deductionCategories->isEmpty() && class_exists(\App\Models\DeductionCategory::class)) {
+        try {
+            $deductionCategories = \App\Models\DeductionCategory::where('status', 'active')->orderBy('name')->get();
+        } catch (\Throwable $e) {}
+    }
     $products = $s['products'] ?? collect();
     $farmerProductSales = $s['farmerProductSales'] ?? collect();
     $totalProductPurchases = (float) ($s['totalProductPurchases'] ?? 0);
@@ -627,14 +633,14 @@
                     <tbody class="divide-y divide-slate-100">
                         @forelse($deductions as $ded)
                             <tr class="hover:bg-slate-50/60 transition">
-                                <td class="py-3 px-4 font-mono">{{ $ded->deduction_date ? \Carbon\Carbon::parse($ded->deduction_date)->format('d M Y') : '—' }}</td>
+                                <td class="py-3 px-4 font-mono">{{ ($ded->entry_date ?? $ded->deduction_date) ? \Carbon\Carbon::parse($ded->entry_date ?? $ded->deduction_date)->format('d M Y') : ($ded->created_at ? $ded->created_at->format('d M Y') : '—') }}</td>
                                 <td class="py-3 px-4">
                                     <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 capitalize">
-                                        {{ str_replace('_', ' ', $ded->deduction_type) }}
+                                        {{ $ded->type_label ?? str_replace('_', ' ', $ded->deduction_type) }}
                                     </span>
                                 </td>
-                                <td class="py-3 px-4 font-semibold text-slate-800">{{ $ded->description ?: '—' }}</td>
-                                <td class="py-3 px-4 font-mono text-slate-500">{{ $ded->reference_number ?: '—' }}</td>
+                                <td class="py-3 px-4 font-semibold text-slate-800">{{ $ded->comments ?: ($ded->description ?: '—') }}</td>
+                                <td class="py-3 px-4 font-mono text-slate-500">{{ $ded->reference_no ?: ($ded->reference_number ?: '—') }}</td>
                                 <td class="py-3 px-4 text-right font-black text-rose-600">₹ {{ number_format($ded->amount, 2) }}</td>
                                 <td class="py-3 px-4 text-center">
                                     <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase {{ $ded->status === 'applied' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
@@ -1234,32 +1240,45 @@
             <form action="{{ route('mobile-dairy.deductions.store', $farmer->id) }}" method="POST" class="space-y-4">
                 @csrf
                 <div class="space-y-1">
-                    <label class="text-[11px] font-bold text-slate-700">Deduction Type *</label>
-                    <select name="deduction_type" required class="w-full text-xs font-bold px-3 py-2 rounded-xl border border-slate-300">
-                        <option value="cattle_feed">Cattle Feed Deduction</option>
-                        <option value="medicine">Medicine / Veterinary Doctor</option>
-                        <option value="equipment">Equipment or Dairy Supplies</option>
-                        <option value="advance_recovery">Advance Recovery</option>
-                        <option value="other">Other Approved Charges</option>
+                    <div class="flex items-center justify-between">
+                        <label class="text-[11px] font-bold text-slate-700">Deduction Type / Category *</label>
+                        <a href="{{ route('deduction-categories.index') }}" target="_blank" class="text-[10px] text-emerald-600 hover:text-emerald-700 hover:underline font-bold flex items-center gap-1">
+                            <span>+ Manage Categories</span>
+                        </a>
+                    </div>
+                    <select name="deduction_type" required class="w-full text-xs font-bold px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none">
+                        <option value="">-- Select Deduction Category --</option>
+                        @forelse($deductionCategories as $cat)
+                            <option value="{{ $cat->code }}">
+                                {{ $cat->name }}{{ $cat->name_hi ? ' (' . $cat->name_hi . ')' : '' }}
+                            </option>
+                        @empty
+                            <option value="cattle_feed">Cattle Feed (पशु आहार)</option>
+                            <option value="medicine">Medicine / Doctor (दवाई)</option>
+                            <option value="equipment">Equipment or Dairy Supplies (उपकरण)</option>
+                            <option value="ghee_butter">Ghee / Butter (घी / मक्खन)</option>
+                            <option value="advance_recovery">Advance Recovery (अग्रिम वसूली)</option>
+                            <option value="other">Other Approved Charges (अन्य)</option>
+                        @endforelse
                     </select>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div class="space-y-1">
                         <label class="text-[11px] font-bold text-slate-700">Amount (₹) *</label>
-                        <input type="number" step="0.01" name="amount" required placeholder="0.00" class="w-full text-xs font-black px-3 py-2 rounded-xl border border-slate-300">
+                        <input type="number" step="0.01" min="0.5" name="amount" required placeholder="0.00" class="w-full text-xs font-black px-3 py-2 rounded-xl border border-slate-300">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[11px] font-bold text-slate-700">Date *</label>
-                        <input type="date" name="deduction_date" value="{{ now()->format('Y-m-d') }}" required class="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-slate-300">
+                        <input type="date" name="entry_date" value="{{ now()->format('Y-m-d') }}" required class="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-slate-300">
                     </div>
                 </div>
                 <div class="space-y-1">
-                    <label class="text-[11px] font-bold text-slate-700">Description / Reason *</label>
-                    <input type="text" name="description" required placeholder="Item description, bill reference, reason..." class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300">
+                    <label class="text-[11px] font-bold text-slate-700">Description / Reason</label>
+                    <input type="text" name="comments" placeholder="Item description, bill reference, reason..." class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300">
                 </div>
                 <div class="space-y-1">
                     <label class="text-[11px] font-bold text-slate-700">Reference Number</label>
-                    <input type="text" name="reference_number" placeholder="Optional bill/receipt ref" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300">
+                    <input type="text" name="reference_no" placeholder="Optional bill/receipt ref" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300">
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" @click="showDeductionModal = false" class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50">Cancel</button>
