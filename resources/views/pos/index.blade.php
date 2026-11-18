@@ -339,7 +339,7 @@
                     </div>
 
                     <!-- Cart Items List matching User Reference (Images 1 & 2) -->
-                    <div class="space-y-3 max-h-[420px] overflow-y-auto pr-1 border-y border-slate-100 py-3">
+                    <div class="space-y-3 min-h-[260px] max-h-[520px] overflow-y-auto overflow-x-visible pr-1 border-y border-slate-100 py-3 pb-36">
                         <template x-for="(item, idx) in cart" :key="item.id">
                             <div class="p-3.5 bg-white border border-slate-200/90 rounded-2xl text-xs shadow-2xs space-y-2.5 relative">
                                 <!-- Top Row: Product Name, Unit Price & 3-Dots Button -->
@@ -350,45 +350,45 @@
                                         </template>
                                         <div class="min-w-0">
                                             <h4 class="font-extrabold text-slate-900 truncate text-sm leading-tight" x-text="item.name"></h4>
-                                            <div class="text-[11px] text-slate-500 font-semibold tracking-wide flex items-center gap-1.5 mt-0.5">
+                                            <div class="text-xs text-slate-500 font-semibold tracking-wide flex items-center gap-2 mt-0.5">
                                                 <span x-text="'₹' + item.price + '/' + (item.unit || 'KG').toUpperCase()"></span>
                                                 <template x-if="item.price != item.original_price">
                                                     <span class="line-through text-slate-400 text-[10px]" x-text="'₹' + item.original_price"></span>
                                                 </template>
                                                 <template x-if="item.discount > 0">
-                                                    <span class="text-emerald-700 font-bold text-[10px] bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-100" x-text="'-₹' + item.discount"></span>
+                                                    <span class="text-emerald-700 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100/90" x-text="'- ₹' + item.discount"></span>
                                                 </template>
                                             </div>
                                         </div>
                                     </div>
 
                                     <!-- 3 Dots Button & Popover Menu (Matching Image 2) -->
-                                    <div class="relative shrink-0">
+                                    <div class="relative shrink-0" x-data="{ menuOpen: false }" @click.outside="menuOpen = false">
                                         <button 
                                             type="button" 
-                                            @click.stop="toggleItemMenu(idx)" 
-                                            class="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 flex items-center justify-center font-bold text-base tracking-widest transition"
+                                            @click="menuOpen = !menuOpen" 
+                                            class="w-8 h-8 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 flex items-center justify-center font-bold text-lg tracking-widest transition"
                                             title="Item discount & price override"
                                         >
-                                            <span class="leading-none pb-1 font-black text-sm">•••</span>
+                                            <span class="leading-none pb-1.5 font-black text-sm">•••</span>
                                         </button>
 
                                         <!-- Dropdown Popup Menu (Image 2) -->
                                         <div 
-                                            x-show="item.menuOpen" 
-                                            @click.outside="item.menuOpen = false" 
-                                            x-transition:enter="transition ease-out duration-100"
-                                            x-transition:enter-start="opacity-0 scale-95"
-                                            x-transition:enter-end="opacity-100 scale-100"
-                                            x-transition:leave="transition ease-in duration-75"
-                                            x-transition:leave-start="opacity-100 scale-100"
-                                            x-transition:leave-end="opacity-0 scale-95"
-                                            class="absolute right-0 top-8 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl p-3.5 space-y-3 z-50 text-left"
+                                            x-show="menuOpen" 
+                                            x-cloak
+                                            x-transition:enter="transition ease-out duration-150"
+                                            x-transition:enter-start="opacity-0 translate-y-1 scale-95"
+                                            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                                            x-transition:leave="transition ease-in duration-100"
+                                            x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+                                            x-transition:leave-end="opacity-0 translate-y-1 scale-95"
+                                            class="absolute right-0 top-9 w-64 sm:w-72 bg-white border border-slate-200/90 rounded-2xl shadow-2xl p-4 space-y-3.5 z-50 text-left"
                                             style="display: none;"
                                         >
-                                            <!-- DISCOUNT (₹) -->
+                                            <!-- 1. DISCOUNT (₹) -->
                                             <div>
-                                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                                <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                                                     DISCOUNT (₹)
                                                 </label>
                                                 <input 
@@ -397,13 +397,13 @@
                                                     min="0" 
                                                     x-model.number="item.discount" 
                                                     placeholder="0" 
-                                                    class="w-full px-3 py-1.5 text-right font-bold text-slate-900 text-xs rounded-xl border border-emerald-500 bg-white focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                                                    class="w-full px-3.5 py-2 text-right font-bold text-slate-900 text-sm rounded-xl border border-slate-200 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none"
                                                 >
                                             </div>
 
-                                            <!-- PRICE OVERRIDE (₹) -->
+                                            <!-- 2. PRICE OVERRIDE (₹) -->
                                             <div>
-                                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                                <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                                                     PRICE OVERRIDE (₹)
                                                 </label>
                                                 <input 
@@ -413,12 +413,12 @@
                                                     x-model.number="item.price" 
                                                     @input="onPriceOverrideChange(item)"
                                                     :placeholder="item.original_price" 
-                                                    class="w-full px-3 py-1.5 text-right font-bold text-slate-900 text-xs rounded-xl border border-slate-200 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                                                    class="w-full px-3.5 py-2 text-right font-bold text-slate-900 text-sm rounded-xl border border-slate-200 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none"
                                                 >
                                             </div>
 
-                                            <!-- Total-price mode toggle -->
-                                            <div class="flex items-center justify-between pt-1">
+                                            <!-- 3. Total-price mode toggle -->
+                                            <div class="border-t border-slate-100 pt-2.5 flex items-center justify-between">
                                                 <span class="text-xs font-semibold text-slate-600">Total-price mode</span>
                                                 <label class="relative inline-flex items-center cursor-pointer">
                                                     <input 
@@ -427,19 +427,18 @@
                                                         @change="onTotalPriceModeToggle(item)"
                                                         class="sr-only peer"
                                                     >
-                                                    <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                                                    <div class="w-10 h-5.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-slate-400"></div>
                                                 </label>
                                             </div>
 
-                                            <!-- Divider -->
-                                            <div class="border-t border-slate-100 pt-1">
-                                                <!-- Remove from cart -->
+                                            <!-- 4. Divider & Remove from cart -->
+                                            <div class="border-t border-slate-100 pt-2">
                                                 <button 
                                                     type="button" 
-                                                    @click="removeItem(idx)" 
-                                                    class="w-full flex items-center gap-2 text-rose-600 hover:text-rose-700 font-semibold text-xs py-1 transition"
+                                                    @click="removeItem(idx); menuOpen = false" 
+                                                    class="w-full flex items-center gap-2 text-rose-700 hover:text-rose-800 font-semibold text-xs py-1 transition"
                                                 >
-                                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                                    <i data-lucide="trash-2" class="w-4 h-4 text-rose-600"></i>
                                                     <span>Remove from cart</span>
                                                 </button>
                                             </div>
