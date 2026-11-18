@@ -12,6 +12,7 @@ use App\Models\FarmerLedger;
 use App\Models\Notification;
 use App\Models\AuditLog;
 use App\Models\SystemSetting;
+use App\Models\FarmerInvoice;
 use Carbon\Carbon;
 
 class MilkCollectionController extends Controller
@@ -846,6 +847,16 @@ class MilkCollectionController extends Controller
         $farmer = Farmer::findOrFail($validated['farmer_id']);
         $centerId = !empty($validated['collection_center_id']) ? (int) $validated['collection_center_id'] : $farmer->collection_center_id;
 
+        // Block collection entry if a generated/finalized invoice already covers this collection date
+        $lockingInvoice = FarmerInvoice::getLockingInvoice($farmer->id, $validated['collection_date']);
+        if ($lockingInvoice) {
+            $msg = "दिनांक {$validated['collection_date']} का इनवॉइस (#{$lockingInvoice->invoice_number}) पहले ही जनरेट (Finalize) हो चुका है। इस बिलिंग अवधि में नया दूध कलेक्शन नहीं जोड़ा जा सकता। यदि बदलाव करना है तो पहले इनवॉइस को डिलीट (वापस पेंडिंग) करें।";
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 422);
+            }
+            return back()->withInput()->with('error', $msg);
+        }
+
         $fat = (float) ($validated['fat'] ?? 0);
         $snf = (float) ($validated['snf'] ?? 0);
         $clr = isset($validated['clr']) && $validated['clr'] !== '' ? (float) $validated['clr'] : 0.0;
@@ -997,6 +1008,20 @@ class MilkCollectionController extends Controller
         $newFarmer = Farmer::findOrFail($validated['farmer_id']);
         $centerId = !empty($validated['collection_center_id']) ? (int) $validated['collection_center_id'] : $newFarmer->collection_center_id;
 
+        // Block modifying collection entry if covered by a generated invoice
+        $oldDate = $collection->collection_date ? $collection->collection_date->format('Y-m-d') : null;
+        $newDate = $validated['collection_date'];
+        $locking = ($oldDate ? FarmerInvoice::getLockingInvoice($collection->farmer_id, $oldDate) : null)
+            ?: FarmerInvoice::getLockingInvoice($newFarmer->id, $newDate);
+
+        if ($locking) {
+            $msg = "यह दूध कलेक्शन जनरेटेड इनवॉइस (#{$locking->invoice_number}) में शामिल है। इस अवधि का कलेक्शन संशोधित नहीं किया जा सकता। बदलाव के लिए पहले इनवॉइस को डिलीट (वापस पेंडिंग) करें।";
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 422);
+            }
+            return back()->withInput()->with('error', $msg);
+        }
+
         $fat = (float) ($validated['fat'] ?? 0);
         $snf = (float) ($validated['snf'] ?? 0);
         $clr = isset($validated['clr']) && $validated['clr'] !== '' ? (float) $validated['clr'] : 0.0;
@@ -1111,6 +1136,16 @@ class MilkCollectionController extends Controller
         $net = (float) $collection->net_amount;
         $colDate = $collection->collection_date ? $collection->collection_date->format('Y-m-d') : date('Y-m-d');
         $colShift = $collection->shift ?: 'morning';
+
+        // Block deleting collection entry if covered by a generated invoice
+        $locking = FarmerInvoice::getLockingInvoice($collection->farmer_id, $colDate);
+        if ($locking) {
+            $msg = "यह दूध कलेक्शन जनरेटेड इनवॉइस (#{$locking->invoice_number}) का हिस्सा है और सीधे डिलीट नहीं किया जा सकता। बदलाव के लिए पहले इनवॉइस को डिलीट (वापस पेंडिंग) करें।";
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 422);
+            }
+            return back()->with('error', $msg);
+        }
 
         if ($farmer) {
             $farmer->decrement('current_balance', $net);

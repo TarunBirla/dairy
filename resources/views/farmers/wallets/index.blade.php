@@ -72,14 +72,14 @@
 
     <!-- 3 KPI Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex items-center gap-4">
-            <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center shrink-0">
+        <div class="bg-rose-50/60 rounded-2xl p-5 border border-rose-200 shadow-xs flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 border border-rose-200 flex items-center justify-center shrink-0">
                 <i data-lucide="wallet" class="w-6 h-6"></i>
             </div>
             <div>
-                <span class="text-xs font-medium text-slate-500 uppercase tracking-wider block">Total Outstanding Dues</span>
-                <span class="text-2xl font-black font-mono text-amber-600 block mt-0.5">₹{{ number_format($totalOutstanding, 2) }}</span>
-                <span class="text-[11px] text-slate-400">Recoverable across all farmers</span>
+                <span class="text-xs font-bold text-rose-800 uppercase tracking-wider block">Total Outstanding Dues (कुल बकाया)</span>
+                <span class="text-2xl font-black font-mono text-rose-600 block mt-0.5">₹{{ number_format($totalOutstanding, 2) }}</span>
+                <span class="text-[11px] text-rose-700/80 font-medium">किसानों से कुल वसूली योग्य राशि (लेना है)</span>
             </div>
         </div>
 
@@ -174,17 +174,19 @@
                             <td class="py-2.5 px-4 text-slate-500">
                                 {{ $f->collectionCenter->name ?? 'Main Center' }}
                             </td>
-                            <td class="py-2.5 px-4 text-right font-mono font-black text-sm {{ $bal > 0 ? 'text-amber-600' : 'text-slate-400' }}">
+                            <td class="py-2.5 px-4 text-right font-mono font-black text-sm {{ $bal > 0 ? 'text-rose-600' : 'text-slate-400' }}">
                                 ₹{{ number_format($bal, 2) }}
                             </td>
                             <td class="py-2.5 px-4 text-center">
                                 @if($bal > 0)
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                        Outstanding Dues
+                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-300 inline-flex items-center gap-1 shadow-2xs">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse"></span>
+                                        <span>₹{{ number_format($bal, 2) }} बाकी (लेना है)</span>
                                     </span>
                                 @else
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                        Cleared
+                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1">
+                                        <i data-lucide="check" class="w-3 h-3 text-emerald-600"></i>
+                                        <span>₹0.00 चुकता (Cleared)</span>
                                     </span>
                                 @endif
                             </td>

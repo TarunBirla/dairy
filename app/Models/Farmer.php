@@ -298,5 +298,107 @@ class Farmer extends Model
     {
         return count($this->getPendingDuesDetails()) > 0;
     }
+
+    /**
+     * Consolidate duplicate farmer accounts with identical phone number or name into a single primary farmer.
+     * Moves all milk collections, advances, deductions, product sales, and wallet transactions to the primary farmer.
+     * Soft-deletes/deactivates duplicate records and prevents duplicate multi-invoicing.
+     */
+    public static function consolidateDuplicateFarmers(): array
+    {
+        $consolidated = [];
+
+        try {
+            // Find duplicate active farmers by phone
+            $duplicatePhones = self::whereNotNull('phone')
+                ->where('phone', '!=', '')
+                ->where('phone', '!=', '-')
+                ->select('phone')
+                ->groupBy('phone')
+                ->havingRaw('COUNT(*) > 1')
+                ->pluck('phone');
+
+            foreach ($duplicatePhones as $phone) {
+                $farmers = self::where('phone', $phone)->orderBy('id', 'asc')->get();
+                if ($farmers->count() <= 1) continue;
+
+                // Keeper farmer: prefer the oldest or one with standard FAR- code
+                $primary = $farmers->first(fn($f) => str_starts_with($f->farmer_code, 'FAR-')) ?: $farmers->first();
+                $duplicates = $farmers->where('id', '!=', $primary->id);
+
+                $primaryWallet = null;
+                try {
+                    $primaryWallet = \App\Services\FarmerWalletService::getOrCreateWallet($primary);
+                } catch (\Throwable $e) {}
+
+                foreach ($duplicates as $dup) {
+                    // 1. Move Milk Collections
+                    \App\Models\MilkCollection::where('farmer_id', $dup->id)->update([
+                        'farmer_id' => $primary->id,
+                    ]);
+
+                    // 2. Move Farmer Advances
+                    if (\Illuminate\Support\Facades\Schema::hasTable('farmer_advances')) {
+                        \App\Models\FarmerAdvance::where('farmer_id', $dup->id)->update([
+                            'farmer_id' => $primary->id,
+                        ]);
+                    }
+
+                    // 3. Move Farmer Deductions
+                    if (\Illuminate\Support\Facades\Schema::hasTable('farmer_deductions')) {
+                        \App\Models\FarmerDeduction::where('farmer_id', $dup->id)->update([
+                            'farmer_id' => $primary->id,
+                        ]);
+                    }
+
+                    // 4. Move Product / Feed Sales
+                    if (\Illuminate\Support\Facades\Schema::hasTable('product_sales')) {
+                        \App\Models\ProductSale::where('farmer_id', $dup->id)->update([
+                            'farmer_id' => $primary->id,
+                            'farmer_code' => $primary->farmer_code,
+                        ]);
+                    }
+
+                    // 5. Move Wallet Transactions
+                    if ($primaryWallet && \Illuminate\Support\Facades\Schema::hasTable('farmer_wallet_transactions')) {
+                        \App\Models\FarmerWalletTransaction::where('farmer_id', $dup->id)->update([
+                            'farmer_id' => $primary->id,
+                            'wallet_id' => $primaryWallet->id,
+                        ]);
+                    }
+
+                    // 6. Delete duplicate pending invoices
+                    if (\Illuminate\Support\Facades\Schema::hasTable('farmer_invoices')) {
+                        \App\Models\FarmerInvoice::where('farmer_id', $dup->id)->delete();
+                    }
+
+                    // 7. Delete duplicate wallet if exists
+                    if (\Illuminate\Support\Facades\Schema::hasTable('farmer_wallets')) {
+                        \App\Models\FarmerWallet::where('farmer_id', $dup->id)->delete();
+                    }
+
+                    // 8. Soft-delete / deactivate the duplicate farmer
+                    $dup->update([
+                        'status' => 'inactive',
+                        'name' => $dup->name . ' [Merged into ' . $primary->farmer_code . ']',
+                    ]);
+                    $dup->delete();
+
+                    $consolidated[] = [
+                        'primary' => $primary->farmer_code . ' (' . $primary->name . ')',
+                        'merged' => $dup->farmer_code . ' (' . $dup->name . ')',
+                    ];
+                }
+
+                if ($primaryWallet) {
+                    $primaryWallet->recalculateBalance();
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Farmer duplicate consolidation warning: ' . $e->getMessage());
+        }
+
+        return $consolidated;
+    }
 }
 

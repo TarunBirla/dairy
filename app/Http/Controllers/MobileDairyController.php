@@ -416,6 +416,16 @@ class MobileDairyController extends Controller
         $date = $validated['collection_date'];
         $shift = $validated['shift'];
 
+        // Block collection entry if a generated/finalized invoice already covers this collection date
+        $lockingInvoice = FarmerInvoice::getLockingInvoice($farmer->id, $date);
+        if ($lockingInvoice) {
+            $msg = "दिनांक {$date} का इनवॉइस (#{$lockingInvoice->invoice_number}) पहले ही जनरेट (Finalize) हो चुका है। इस बिलिंग अवधि में नया दूध कलेक्शन नहीं जोड़ा जा सकता। यदि बदलाव करना है तो पहले इनवॉइस को डिलीट (वापस पेंडिंग) करें।";
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 422);
+            }
+            return back()->withInput()->with('error', $msg);
+        }
+
         // Duplicate entry check
         if (empty($validated['allow_duplicate'])) {
             $existing = MilkCollection::where('farmer_id', $farmer->id)
@@ -537,6 +547,19 @@ class MobileDairyController extends Controller
 
         $farmer = $collection->farmer;
         $oldNet = (float) $collection->net_amount;
+
+        // Block modifying collection entry if covered by a generated invoice
+        $colDate = $collection->collection_date ? $collection->collection_date->format('Y-m-d') : null;
+        if ($colDate) {
+            $locking = FarmerInvoice::getLockingInvoice($collection->farmer_id, $colDate);
+            if ($locking) {
+                $msg = "यह दूध कलेक्शन जनरेटेड इनवॉइस (#{$locking->invoice_number}) में शामिल है। इस अवधि का कलेक्शन संशोधित नहीं किया जा सकता। बदलाव के लिए पहले इनवॉइस को डिलीट (वापस पेंडिंग) करें।";
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => $msg], 422);
+                }
+                return back()->withInput()->with('error', $msg);
+            }
+        }
 
         $qty = (float) $validated['quantity_liters'];
         $rate = (float) $validated['applied_rate'];

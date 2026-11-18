@@ -319,7 +319,44 @@ class FarmerInvoice extends Model
             ];
         }
 
+        // 5. Existing Deduction Wallet Balance
+        try {
+            $wallet = \App\Services\FarmerWalletService::getOrCreateWallet($farmerId);
+            $catBals = $wallet->getCategoryBalances();
+            foreach ($catBals as $cName => $cBal) {
+                $cBal = (float) $cBal;
+                if ($cBal <= 0) continue;
+                $cSlug = \Illuminate\Support\Str::slug($cName, '_');
+                $alreadyExists = collect($breakdown)->contains(function ($item) use ($cSlug, $cName) {
+                    return $item['key'] === $cSlug || strtolower($item['name']) === strtolower($cName) || strtolower($item['category']) === strtolower($cName);
+                });
+                if (!$alreadyExists) {
+                    $breakdown[] = [
+                        'key' => 'wallet_' . $cSlug,
+                        'name' => "{$cName} (Deduction Wallet)",
+                        'category' => $cName,
+                        'original_balance' => $cBal,
+                        'deducted_amount' => min($cBal, (float) $this->total_deduction),
+                        'remaining_balance' => max(0, $cBal - min($cBal, (float) $this->total_deduction)),
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {}
+
         return $breakdown;
+    }
+
+    /**
+     * Check if a farmer is locked for milk collection on a given date due to a finalized/generated invoice.
+     * Invoices with status != 'pending' (i.e. 'generated', 'finalized', 'paid') lock milk collections in their date range.
+     */
+    public static function getLockingInvoice(int $farmerId, string $date): ?self
+    {
+        return self::where('farmer_id', $farmerId)
+            ->where('status', '!=', 'pending')
+            ->whereDate('period_start', '<=', $date)
+            ->whereDate('period_end', '>=', $date)
+            ->first();
     }
 
     /**

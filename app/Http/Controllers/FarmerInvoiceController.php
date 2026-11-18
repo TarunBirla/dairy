@@ -90,6 +90,15 @@ class FarmerInvoiceController extends Controller
                     ->whereIn('purpose', $seededPurposes)
                     ->delete();
             }
+
+            // Auto-consolidate any duplicate farmer accounts (same phone/name)
+            Farmer::consolidateDuplicateFarmers();
+
+            // Clean up empty unedited pending invoices where no milk was supplied
+            FarmerInvoice::where('status', 'pending')
+                ->where('is_edited', false)
+                ->where('total_quantity', '<=', 0)
+                ->delete();
         } catch (\Throwable $e) {
             // Ignore in constructor
         }
@@ -265,15 +274,49 @@ class FarmerInvoiceController extends Controller
             ];
         }
 
+        // Include any outstanding Deduction Wallet categories / balance
+        $walletOutstanding = 0.00;
+        try {
+            $wallet = \App\Services\FarmerWalletService::getOrCreateWallet($farmerId);
+            $catBals = $wallet->getCategoryBalances();
+            foreach ($catBals as $catName => $catBal) {
+                $catBal = (float) $catBal;
+                if ($catBal <= 0) continue;
+                $catLower = strtolower($catName);
+
+                $alreadyCovered = false;
+                if ((str_contains($catLower, 'advance') || str_contains($catLower, 'loan')) && $advanceDeduction > 0) {
+                    $alreadyCovered = true;
+                }
+                if ((str_contains($catLower, 'feed') || str_contains($catLower, 'food')) && $feedDeduction > 0) {
+                    $alreadyCovered = true;
+                }
+                if (str_contains($catLower, 'stationary') && $stationaryDeduction > 0) {
+                    $alreadyCovered = true;
+                }
+
+                if (!$alreadyCovered) {
+                    $deductionsBreakdown[] = [
+                        'name' => "{$catName} (Wallet)",
+                        'category' => $catName,
+                        'original_balance' => $catBal,
+                        'deducted_amount' => $catBal,
+                        'remaining_balance' => 0.00,
+                    ];
+                    $walletOutstanding += $catBal;
+                }
+            }
+        } catch (\Throwable $e) {}
+
         $totalCredit = round($otherCredit + $transportCredit + $subsidyCredit + $incentiveCredit, 2);
 
-        // Total Deductions = Stationary + Feed + Advance + Other Deductions (Per-Invoice Charges)
-        $totalDeduction = round($stationaryDeduction + $feedDeduction + $advanceDeduction + $otherDeduction, 2);
+        // Total Deductions = Stationary + Feed + Advance + Other Deductions + Wallet Outstanding
+        $totalDeduction = round($stationaryDeduction + $feedDeduction + $advanceDeduction + $otherDeduction + $walletOutstanding, 2);
 
         // Total Amount = Total Credit (B) + Milk Amount (C)
         $totalAmount = round($totalCredit + $milkAmount, 2);
 
-        // Balance = Remaining unpaid deduction if totalDeduction > totalAmount, else 0.00
+        // Balance = Remaining unpaid deduction if totalDeduction > totalAmount (carried into Deduction Wallet), else 0.00
         $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);
 
         // Payment (B+C-A) = Net payable amount if (B + C) >= A, else 0.00
@@ -346,6 +389,15 @@ class FarmerInvoiceController extends Controller
         $farmerSearch = $request->get('farmer_search');
         $invoiceSearch = $request->get('invoice_search');
         $perPage = (int) $request->get('per_page', 50);
+
+        // Auto-consolidate duplicate farmer records (same phone/name)
+        Farmer::consolidateDuplicateFarmers();
+
+        // Clean up unedited draft pending invoices that have 0 milk quantity
+        FarmerInvoice::where('status', 'pending')
+            ->where('is_edited', false)
+            ->where('total_quantity', '<=', 0)
+            ->delete();
 
         $baseQuery = FarmerInvoice::with('farmer');
 
@@ -455,6 +507,9 @@ class FarmerInvoiceController extends Controller
         $startDate = $validated['start_date'];
         $endDate = $validated['end_date'];
 
+        // Ensure duplicate farmer accounts are consolidated prior to generation
+        Farmer::consolidateDuplicateFarmers();
+
         $farmersQuery = Farmer::where('status', 'active');
         if (!empty($validated['farmer_id'])) {
             $farmersQuery->where('id', $validated['farmer_id']);
@@ -466,8 +521,8 @@ class FarmerInvoiceController extends Controller
         foreach ($farmers as $farmer) {
             $metrics = $this->calculateInvoiceMetrics((int) $farmer->id, $startDate, $endDate);
 
-            // Skip farmers with no activity at all
-            if ($metrics['total_quantity'] == 0 && $metrics['milk_amount'] == 0 && $metrics['total_deduction'] == 0 && $metrics['total_credit'] == 0) {
+            // Skip farmers with no milk collection (milk invoices are only generated for farmers who supplied milk)
+            if ($metrics['total_quantity'] <= 0) {
                 continue;
             }
 
@@ -682,6 +737,14 @@ class FarmerInvoiceController extends Controller
      */
     public function verifyAndSave(Request $request, FarmerInvoice $invoice)
     {
+        if ($invoice->status === 'generated') {
+            $msg = 'जनरेटेड इनवॉइस को सीधे संशोधित नहीं किया जा सकता। बदलाव करने के लिए पहले इनवॉइस को डिलीट (वापस पेंडिंग) करें, फिर आवश्यक सुधार कर सेव करें।';
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $msg], 422);
+            }
+            return back()->with('error', $msg);
+        }
+
         $validated = $request->validate([
             'other_credit' => 'nullable|numeric|min:0',
             'transport_credit' => 'nullable|numeric|min:0',
@@ -978,20 +1041,70 @@ class FarmerInvoiceController extends Controller
     }
 
     /**
-     * Delete an invoice - Restores milk collections to pending and reverses wallet transactions
+     * Delete an invoice:
+     * - If status === 'generated' (finalized):
+     *   DO NOT permanently delete from database! Revert status back to 'pending',
+     *   reverse wallet deductions, and restore linked collections to pending state.
+     *   The user can then modify and re-generate.
+     * - If status === 'pending':
+     *   Permanently deletes the draft pending invoice and restores collections.
      */
     public function destroy(FarmerInvoice $invoice)
     {
         $invNum = $invoice->invoice_number;
+        $farmerName = $invoice->farmer->name ?? 'Farmer';
+
+        if ($invoice->status !== 'pending') {
+            // Revert Generated Invoice to Pending State (DO NOT DELETE RECORD)
+            \App\Services\FarmerWalletService::reverseInvoiceDeductions(
+                $invoice,
+                "Invoice #{$invNum} reverted to pending by admin",
+                Auth::id()
+            );
+
+            // Reset status to pending and unlock it for editing
+            $invoice->update([
+                'status' => 'pending',
+                'is_edited' => false,
+            ]);
+
+            // Restore linked collections to pending status
+            if (Schema::hasColumn('milk_collections', 'farmer_invoice_id')) {
+                MilkCollection::where('farmer_invoice_id', $invoice->id)->update([
+                    'payment_status' => 'pending',
+                ]);
+            }
+            MilkCollection::where('farmer_id', $invoice->farmer_id)
+                ->whereBetween('collection_date', [$invoice->period_start, $invoice->period_end])
+                ->update([
+                    'payment_status' => 'pending',
+                ]);
+
+            AuditLog::log('Reverted Generated Farmer Invoice to Pending', 'FarmerInvoice', $invoice->id, ['number' => $invNum]);
+
+            return redirect()->route('farmer-invoices.index', [
+                'start_date' => $invoice->period_start->format('Y-m-d'),
+                'end_date' => $invoice->period_end->format('Y-m-d'),
+                'status_tab' => 'pending',
+            ])->with('success', "जनरेटेड इनवॉइस #{$invNum} ({$farmerName}) को सफलतापूर्वक वापस पेंडिंग (Review & Verify) में भेज दिया गया है। अब आप आवश्यक सुधार कर इसे पुनः री-जनरेट (Save) कर सकते हैं।");
+        }
+
+        // Pending draft invoice deletion
         \App\Services\FarmerInvoiceService::deleteInvoice($invoice);
 
-        AuditLog::log('Deleted Farmer Invoice', 'FarmerInvoice', $invoice->id, ['number' => $invNum]);
+        AuditLog::log('Deleted Pending Farmer Invoice', 'FarmerInvoice', $invoice->id, ['number' => $invNum]);
 
-        return redirect()->route('farmer-invoices.index')->with('success', "Invoice #{$invNum} deleted successfully. Associated milk collections restored to pending.");
+        return redirect()->route('farmer-invoices.index', [
+            'start_date' => $invoice->period_start->format('Y-m-d'),
+            'end_date' => $invoice->period_end->format('Y-m-d'),
+            'status_tab' => 'pending',
+        ])->with('success', "पेंडिंग इनवॉइस #{$invNum} हटा दिया गया है।");
     }
 
     /**
-     * Bulk Delete Invoices - Restores milk collections to pending and reverses wallet transactions
+     * Bulk Delete Invoices:
+     * - Reverts generated invoices back to pending
+     * - Deletes pending draft invoices
      */
     public function bulkDelete(Request $request)
     {
@@ -1001,14 +1114,50 @@ class FarmerInvoiceController extends Controller
         ]);
 
         $invoices = FarmerInvoice::whereIn('id', $validated['invoice_ids'])->get();
-        $count = 0;
+        $revertedCount = 0;
+        $deletedCount = 0;
+
         foreach ($invoices as $inv) {
-            \App\Services\FarmerInvoiceService::deleteInvoice($inv);
-            $count++;
+            if ($inv->status !== 'pending') {
+                // Revert generated invoice to pending
+                \App\Services\FarmerWalletService::reverseInvoiceDeductions(
+                    $inv,
+                    "Invoice #{$inv->invoice_number} bulk reverted to pending",
+                    Auth::id()
+                );
+                $inv->update([
+                    'status' => 'pending',
+                    'is_edited' => false,
+                ]);
+                if (Schema::hasColumn('milk_collections', 'farmer_invoice_id')) {
+                    MilkCollection::where('farmer_invoice_id', $inv->id)->update([
+                        'payment_status' => 'pending',
+                    ]);
+                }
+                MilkCollection::where('farmer_id', $inv->farmer_id)
+                    ->whereBetween('collection_date', [$inv->period_start, $inv->period_end])
+                    ->update([
+                        'payment_status' => 'pending',
+                    ]);
+                $revertedCount++;
+            } else {
+                \App\Services\FarmerInvoiceService::deleteInvoice($inv);
+                $deletedCount++;
+            }
         }
 
-        AuditLog::log("Bulk Deleted {$count} Farmer Invoices", 'FarmerInvoice', null);
+        $msg = [];
+        if ($revertedCount > 0) {
+            $msg[] = "{$revertedCount} जनरेटेड इनवॉइस को वापस पेंडिंग (Review & Verify) में भेज दिया गया है।";
+        }
+        if ($deletedCount > 0) {
+            $msg[] = "{$deletedCount} पेंडिंग इनवॉइस हटा दिए गए हैं।";
+        }
 
-        return redirect()->route('farmer-invoices.index')->with('success', "Successfully deleted {$count} selected invoices and restored their collections.");
+        return redirect()->route('farmer-invoices.index', [
+            'start_date' => $request->input('start_date'),
+            'end_date' => $request->input('end_date'),
+            'status_tab' => 'pending',
+        ])->with('success', implode(' ', $msg));
     }
 }

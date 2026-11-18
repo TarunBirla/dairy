@@ -121,15 +121,13 @@
             </a>
         </div>
 
-        <!-- Quick Review All Button when invoices exist -->
-        @if(count($allTabIds) > 0)
+        <!-- Quick Review All Button when invoices exist (Pending tab only) -->
+        @if(count($allTabIds) > 0 && $statusTab === 'pending')
             <div class="flex items-center gap-2">
                 <button type="button" onclick="openReviewAllInTab()"
                         class="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer">
                     <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-emerald-400"></i>
-                    <span>
-                        {{ $statusTab === 'pending' ? 'Review & Verify All Pending (1 / ' . count($allTabIds) . ')' : 'Review / Modify All (1 / ' . count($allTabIds) . ')' }}
-                    </span>
+                    <span>Review & Verify All Pending (1 / {{ count($allTabIds) }})</span>
                 </button>
             </div>
         @endif
@@ -139,16 +137,16 @@
     <div id="bulkActionBar" class="hidden bg-slate-900 text-white p-3.5 px-5 rounded-2xl shadow-lg flex flex-wrap items-center justify-between gap-4 transition-all duration-200">
         <div class="flex items-center gap-3">
             <span class="w-6 h-6 rounded-full bg-emerald-500 text-white text-xs font-bold flex items-center justify-center" id="selectedCountBadge">0</span>
-            <span class="text-xs font-semibold text-slate-200">Projected Invoice Selected: <b id="selectedCountText" class="text-white">0</b></span>
+            <span class="text-xs font-semibold text-slate-200">Selected: <b id="selectedCountText" class="text-white">0</b></span>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-            <!-- Step-by-Step 1-by-1 Review & Modify Selected -->
-            <button type="button" onclick="openReviewSelected()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs">
-                <i data-lucide="file-Edit" class="w-3.5 h-3.5"></i>
-                <span>Review & Modify Selected (<span id="selectedReviewBtnCount">0</span>) One-by-One</span>
-            </button>
-
             @if($statusTab === 'pending')
+                <!-- Step-by-Step 1-by-1 Review & Modify Selected (Pending Only) -->
+                <button type="button" onclick="openReviewSelected()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs">
+                    <i data-lucide="file-Edit" class="w-3.5 h-3.5"></i>
+                    <span>Review & Modify Selected (<span id="selectedReviewBtnCount">0</span>) One-by-One</span>
+                </button>
+
                 <!-- Direct Bulk Approve to Generated -->
                 <button type="button" onclick="submitBulkApprove()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition cursor-pointer">
                     <i data-lucide="check-check" class="w-3.5 h-3.5"></i>
@@ -161,8 +159,8 @@
                 <span>Bank Payment Print</span>
             </button>
             <button type="button" onclick="submitBulkDelete()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition cursor-pointer">
-                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                <span>Delete Selected</span>
+                <i data-lucide="{{ $statusTab === 'pending' ? 'trash-2' : 'undo-2' }}" class="w-3.5 h-3.5"></i>
+                <span>{{ $statusTab === 'pending' ? 'Delete Selected' : 'Delete (Revert to Pending) Selected' }}</span>
             </button>
             <button type="button" onclick="deselectAll()" class="px-2.5 py-1.5 text-xs text-slate-400 hover:text-white transition cursor-pointer">
                 Deselect
@@ -231,7 +229,7 @@
                         <th class="py-2.5 px-3 border-r border-slate-100 text-right bg-amber-50/60 font-bold text-amber-800">Total Credit (B)</th>
                         <th class="py-2.5 px-3 border-r border-slate-100 text-right bg-emerald-50/30">Milk Amount (C)</th>
                         <th class="py-2.5 px-3 border-r border-slate-100 text-right bg-emerald-50/30 font-semibold text-slate-700">Total Amount (B+C)</th>
-                        <th class="py-2.5 px-3 border-r border-slate-100 text-right bg-slate-50">Balance</th>
+                        <th class="py-2.5 px-3 border-r border-slate-100 text-right bg-slate-50">Balance (वॉलेट शेष)</th>
                         <th class="py-2.5 px-3 border-r border-slate-100 text-right bg-emerald-100/60 font-bold text-emerald-900">Payment (B+C-A)</th>
                         <th class="py-2.5 px-3 text-center min-w-[145px]">Action</th>
                     </tr>
@@ -292,21 +290,31 @@
                             <td class="py-3 px-3 border-r border-slate-100 text-right font-mono font-semibold text-slate-800">
                                 {{ number_format($inv->total_amount, 2) }}
                             </td>
-                            <td class="py-3 px-3 border-r border-slate-100 text-right font-mono text-slate-500">
-                                {{ number_format($inv->previous_balance, 2) }}
+                            <td class="py-3 px-3 border-r border-slate-100 text-right font-mono">
+                                @if((float)$inv->previous_balance > 0)
+                                    <span class="px-2 py-0.5 rounded font-black text-rose-700 bg-rose-50 border border-rose-200 text-xs inline-block" title="बकाया डिडक्शन - डिडक्शन वॉलेट में शेष रहेगा">
+                                        ₹{{ number_format($inv->previous_balance, 2) }}
+                                    </span>
+                                @else
+                                    <span class="text-slate-400 font-semibold text-xs">
+                                        ₹0.00
+                                    </span>
+                                @endif
                             </td>
                             <td class="py-3 px-3 border-r border-slate-100 text-right font-mono bg-emerald-50/60 font-black text-emerald-700 text-xs">
                                 ₹{{ number_format($inv->net_payment, 2) }}
                             </td>
                             <td class="py-3 px-3 text-center">
                                 <div class="flex items-center justify-center gap-1">
-                                    <!-- Review & Modify Invoice Button (Single or Queue) -->
-                                    <button type="button" onclick="openReviewQueue([{{ $inv->id }}])"
-                                            title="{{ $inv->status === 'pending' ? 'Verify, Correct & Save Invoice' : 'Modify Invoice' }}"
-                                            class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold {{ $inv->status === 'pending' ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-2xs' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200' }} transition cursor-pointer">
-                                        <i data-lucide="sliders-horizontal" class="w-3 h-3"></i>
-                                        <span>{{ $inv->status === 'pending' ? 'Verify' : 'Modify' }}</span>
-                                    </button>
+                                    @if($inv->status === 'pending')
+                                        <!-- Review, Modify & Verify Button (Pending Invoices Only) -->
+                                        <button type="button" onclick="openReviewQueue([{{ $inv->id }}])"
+                                                title="Verify, Correct & Save Invoice"
+                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-2xs transition cursor-pointer">
+                                            <i data-lucide="sliders-horizontal" class="w-3 h-3"></i>
+                                            <span>Verify</span>
+                                        </button>
+                                    @endif
 
                                     <!-- In-page Quick Preview Modal button -->
                                     <button type="button" onclick="openInvoicePreviewModal({{ $inv->id }})" title="Quick Bill Preview" class="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition cursor-pointer">
@@ -316,12 +324,15 @@
                                     <a href="{{ route('farmer-invoices.print', $inv->id) }}" target="_blank" title="Print Bill" class="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition">
                                         <i data-lucide="printer" class="w-3.5 h-3.5"></i>
                                     </a>
-                                    <!-- Delete Button -->
-                                    <form method="POST" action="{{ route('farmer-invoices.destroy', $inv->id) }}" class="inline" onsubmit="return confirm('Are you sure you want to delete invoice #{{ $inv->invoice_number }}?');">
+                                    <!-- Delete / Revert Button -->
+                                    <form method="POST" action="{{ route('farmer-invoices.destroy', $inv->id) }}" class="inline"
+                                          onsubmit="return confirm('{{ $inv->status === 'pending' ? 'क्या आप इस पेंडिंग इनवॉइस #' . $inv->invoice_number . ' को हटाना चाहते हैं?' : 'क्या आप इस जनरेटेड इनवॉइस #' . $inv->invoice_number . ' को डिलीट करके वापस पेंडिंग (Review & Verify) में भेजना चाहते हैं?\n\nपेंडिंग में जाने के बाद आप इसमें बदलाव कर सकेंगे।' }}');">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" title="Delete Invoice" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer">
-                                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                        <button type="submit"
+                                                title="{{ $inv->status === 'pending' ? 'Delete Pending Invoice' : 'Delete (Revert to Pending)' }}"
+                                                class="p-1.5 {{ $inv->status === 'pending' ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50' : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50' }} rounded-lg transition cursor-pointer">
+                                            <i data-lucide="{{ $inv->status === 'pending' ? 'trash-2' : 'undo-2' }}" class="w-3.5 h-3.5"></i>
                                         </button>
                                     </form>
                                 </div>
