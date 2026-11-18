@@ -27,7 +27,11 @@ Artisan::command('dairy:sync-all', function () {
     $farmers = \App\Models\Farmer::all();
     $farmerData = [];
     foreach ($farmers as $f) {
-        $bal = $f->recalculateBalance();
+        if (method_exists($f, 'recalculateBalance')) {
+            $bal = $f->recalculateBalance();
+        } else {
+            $bal = app(\App\Http\Controllers\MobileDairyController::class)->recalculateFarmerBalanceDirect($f);
+        }
         $walletSummary = \App\Services\FarmerWalletService::getWalletSummary($f);
         $wBal = (float) ($walletSummary['total_balance'] ?? 0);
         $liters = (float) \App\Models\MilkCollection::where('farmer_id', $f->id)->sum('quantity_liters');
@@ -51,7 +55,7 @@ Artisan::command('dairy:sync-all', function () {
     $buyers = \App\Models\Buyer::all();
     $buyerData = [];
     foreach ($buyers as $b) {
-        $bal = $b->recalculateBalance();
+        $bal = method_exists($b, 'recalculateBalance') ? $b->recalculateBalance() : (float) ($b->current_balance ?? 0);
         $buyerData[] = [
             $b->id,
             $b->buyer_code,

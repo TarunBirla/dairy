@@ -14,15 +14,53 @@ use Carbon\Carbon;
 
 class FarmerSettlementController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $settlements = FarmerSettlement::with('farmer')
-            ->where('total_liters', '!=', 0)
-            ->latest()->paginate(15);
-        $totalSettledAmount = FarmerSettlement::where('status', 'paid')->sum('paid_amount');
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
+        $search = $request->get('search');
+        $paymentMode = $request->get('payment_mode');
+
+        $query = FarmerSettlement::with('farmer')
+            ->where('total_liters', '!=', 0);
+
+        if (!empty($startDate)) {
+            $query->whereDate('period_start', '>=', $startDate);
+        }
+        if (!empty($endDate)) {
+            $query->whereDate('period_end', '<=', $endDate);
+        }
+
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('settlement_number', 'like', "%{$search}%")
+                  ->orWhere('payment_reference', 'like', "%{$search}%")
+                  ->orWhereHas('farmer', function ($fq) use ($search) {
+                      $fq->where('name', 'like', "%{$search}%")
+                         ->orWhere('farmer_code', 'like', "%{$search}%")
+                         ->orWhere('phone', 'like', "%{$search}%")
+                         ->orWhere('village', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if (!empty($paymentMode)) {
+            $query->where('payment_mode', $paymentMode);
+        }
+
+        $totalSettledAmount = (clone $query)->where('status', 'paid')->sum('paid_amount');
+        $settlements = $query->latest('period_end')->latest('id')->paginate(20)->withQueryString();
         $farmers = Farmer::where('status', 'active')->get();
 
-        return view('farmers.settlements.index', compact('settlements', 'totalSettledAmount', 'farmers'));
+        return view('farmers.settlements.index', compact(
+            'settlements',
+            'totalSettledAmount',
+            'farmers',
+            'startDate',
+            'endDate',
+            'search',
+            'paymentMode'
+        ));
     }
 
     public function create(Request $request)
