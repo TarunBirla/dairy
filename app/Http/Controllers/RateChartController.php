@@ -252,12 +252,44 @@ class RateChartController extends Controller
             'farmer_ids.*' => 'exists:farmers,id',
             'center_ids' => 'nullable|array',
             'center_ids.*' => 'exists:collection_centers,id',
+            'assign_all' => 'nullable',
+            'shift' => 'nullable|string',
+            'activate_mode' => 'nullable|string',
+            'activate_date' => 'nullable|date',
+            'activate_shift' => 'nullable|string',
         ]);
 
+        $assignAll = filter_var($request->input('assign_all'), FILTER_VALIDATE_BOOLEAN) || $request->input('assign_all') === '1' || $request->input('assign_all') === 'true';
         $farmerIds = $validated['farmer_ids'] ?? [];
         $centerIds = $validated['center_ids'] ?? [];
 
-        DB::transaction(function () use ($rate, $farmerIds, $centerIds) {
+        if ($assignAll) {
+            $farmerIds = Farmer::where('status', 'active')->pluck('id')->toArray();
+        }
+
+        if (empty($farmerIds) && empty($centerIds)) {
+            return back()->with('error', 'Please select at least one farmer or collection center to assign.');
+        }
+
+        DB::transaction(function () use ($rate, $farmerIds, $centerIds, $request) {
+            // Update effective_date and shift on rate_chart if provided
+            $updates = [];
+            if ($request->filled('activate_mode')) {
+                if ($request->activate_mode === 'later' && $request->filled('activate_date')) {
+                    $updates['effective_date'] = $request->activate_date;
+                } elseif ($request->activate_mode === 'now') {
+                    $updates['effective_date'] = now()->toDateString();
+                }
+            }
+
+            if ($request->filled('shift') && \Illuminate\Support\Facades\Schema::hasColumn('rate_charts', 'shift')) {
+                $updates['shift'] = $request->shift;
+            }
+
+            if (!empty($updates)) {
+                $rate->update($updates);
+            }
+
             // Assign selected farmers
             if (!empty($farmerIds)) {
                 Farmer::whereIn('id', $farmerIds)->update([
@@ -272,7 +304,8 @@ class RateChartController extends Controller
             }
         });
 
-        AuditLog::log("Assigned Rate Chart {$rate->name}", 'RateChart', $rate->id);
+        $shiftLabel = $request->shift ?? 'Both';
+        AuditLog::log("Assigned Rate Chart {$rate->name} (Shift: {$shiftLabel}, Mode: {$request->activate_mode})", 'RateChart', $rate->id);
 
         if ($request->wantsJson()) {
             return response()->json([
@@ -282,7 +315,7 @@ class RateChartController extends Controller
             ]);
         }
 
-        return redirect()->route('rates.index')->with('success', "Rate chart '{$rate->name}' assigned to " . count($centerIds) . " center(s) and " . count($farmerIds) . " farmer(s).");
+        return redirect()->route('rates.index')->with('success', "Rate chart '{$rate->name}' assigned successfully to " . count($farmerIds) . " farmer(s)" . (count($centerIds) > 0 ? " and " . count($centerIds) . " center(s)." : "."));
     }
 
     /**

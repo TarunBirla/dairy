@@ -142,6 +142,30 @@ Route::match(['get', 'post'], '/migrate-deduction-categories', function () {
     }
 })->name('migrate-deduction-categories');
 
+// Dedicated 1-Click Route to Migrate Shift Column on Rate Charts
+Route::match(['get', 'post'], '/migrate-rate-charts-shift', function () {
+    try {
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('rate_charts', 'shift')) {
+            \Illuminate\Support\Facades\Schema::table('rate_charts', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->string('shift')->default('both')->nullable()->after('milk_type');
+            });
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Column `shift` added to `rate_charts` table successfully!'
+            ]);
+        }
+        return response()->json([
+            'status' => 'already_exists',
+            'message' => 'Column `shift` already exists in `rate_charts` table.'
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+})->name('migrate-rate-charts-shift');
+
 // Dedicated 1-Click Database Migration Route
 Route::match(['get', 'post'], '/migrate', function (\Illuminate\Http\Request $request) {
     ini_set('max_execution_time', '300');

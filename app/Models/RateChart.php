@@ -13,6 +13,7 @@ class RateChart extends Model
         'name',
         'category',
         'milk_type',
+        'shift',
         'format',
         'type',
         'calculation_type',

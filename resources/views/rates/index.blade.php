@@ -443,175 +443,245 @@
 
 <!-- ================= ASSIGN RATE CHART MODAL ================= -->
 <div id="assignModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div class="p-5 border-b border-slate-100 flex items-start justify-between bg-slate-50/70">
             <div>
                 <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                    <i data-lucide="user-check" class="w-5 h-5 text-blue-600"></i>
+                    <i data-lucide="user-check" class="w-5 h-5 text-emerald-600"></i>
                     Assign Rate Chart
                 </h3>
                 <p class="text-xs text-slate-500 mt-0.5" id="assignModalSubtitle">
-                    Assign this rate chart to collection centers and farmers.
+                    Assign this rate chart to farmers and collection centers.
                 </p>
             </div>
-            <button type="button" onclick="closeAssignModal()" class="w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition">
+            <button type="button" onclick="closeAssignModal()" class="w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer">
                 <i data-lucide="x" class="w-4 h-4"></i>
             </button>
         </div>
 
-        <form id="assignForm" method="POST" action="" class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
+        <form id="assignForm" method="POST" action="" onsubmit="return validateAssignForm(event)" class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
             @csrf
+            <input type="hidden" name="assign_all" id="assignAllHidden" value="0">
 
-            <!-- Centers Selection -->
-            <div>
-                <div class="flex items-center justify-between mb-2">
-                    <h4 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <i data-lucide="building" class="w-3.5 h-3.5 text-blue-600"></i>
-                        Collection Centers
-                        <span id="assignCenterCountBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-bold ml-1">0 selected</span>
-                    </h4>
-                    <div class="flex gap-2">
-                        <button type="button" onclick="toggleAllAssignCenters(true)" class="text-[11px] text-blue-600 hover:underline">Select all</button>
-                        <button type="button" onclick="toggleAllAssignCenters(false)" class="text-[11px] text-slate-500 hover:underline">Clear</button>
-                    </div>
-                </div>
-
-                <!-- Center Search with Auto-Suggestions Popup -->
-                <div class="relative mb-2">
-                    <input type="text" 
-                           id="assignCenterSearchInput" 
-                           oninput="onAssignCenterSearchInput(this.value)" 
-                           onfocus="showCenterSuggestions()"
-                           placeholder="Search collection center by name or code..." 
-                           autocomplete="off"
-                           class="w-full pl-8 pr-8 py-1.5 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
-                    <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2"></i>
-                    <button type="button" 
-                            onclick="clearAssignCenterSearch()" 
-                            id="assignCenterClearBtn" 
-                            class="hidden absolute right-2.5 top-2 text-slate-400 hover:text-slate-600">
-                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
-                    </button>
-
-                    <!-- Suggestions Dropdown for Centers -->
-                    <div id="assignCenterSuggestions" 
-                         class="hidden absolute left-0 right-0 top-full mt-1 z-30 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto divide-y divide-slate-100">
-                    </div>
-                </div>
-
-                <!-- Centers Checkbox Grid -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-slate-50 rounded-xl border border-slate-200" id="assignCentersList">
-                    @forelse($collectionCenters as $center)
-                        <label class="assign-center-card flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200/80 cursor-pointer text-xs hover:border-blue-300 transition"
-                               data-search="{{ strtolower($center->name . ' ' . $center->code) }}"
-                               data-center-id="{{ $center->id }}">
-                            <input type="checkbox" name="center_ids[]" value="{{ $center->id }}" onchange="updateAssignCenterCount()" class="assign-center-cb rounded text-blue-600 focus:ring-blue-500">
-                            <div class="truncate flex-1">
-                                <span class="font-bold text-slate-900 block truncate">{{ $center->name }}</span>
-                                <span class="text-[10px] text-slate-400 font-mono">{{ $center->code }}</span>
-                            </div>
+            <!-- MAIN RATE ASSIGNMENT CARD (Exact Match to User UI) -->
+            <div class="bg-slate-50/60 p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+                
+                <!-- TOP ROW: Shift & Activate On -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 items-center">
+                    <!-- Shift Dropdown -->
+                    <div class="flex items-center gap-3">
+                        <label for="assignShift" class="text-sm font-semibold text-slate-700 whitespace-nowrap min-w-[55px]">
+                            Shift:
                         </label>
-                    @empty
-                        <div class="col-span-2 text-center py-3 text-xs text-slate-400">No centers available</div>
-                    @endforelse
-                </div>
-                <div id="assignCenterNoMatch" class="hidden text-center py-2 text-xs text-slate-400">
-                    No centers match your search.
-                </div>
-            </div>
-
-            <!-- Farmers Selection -->
-            <div>
-                <div class="flex items-center justify-between mb-2">
-                    <h4 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <i data-lucide="users" class="w-3.5 h-3.5 text-emerald-600"></i>
-                        Farmers
-                        <span id="assignSelectedCountBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold ml-1">0 selected</span>
-                    </h4>
-                    <div class="flex gap-2">
-                        <button type="button" onclick="toggleAllAssignFarmers(true)" class="text-[11px] text-blue-600 hover:underline">Select all</button>
-                        <button type="button" onclick="toggleAllAssignFarmers(false)" class="text-[11px] text-slate-500 hover:underline">Clear</button>
-                    </div>
-                </div>
-
-                <!-- Farmer Search with Live Suggestions Dropdown Popup + Quick Dropdown -->
-                <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 mb-2.5">
-                    <!-- Search Input with Auto-Suggestions Popup -->
-                    <div class="sm:col-span-6 relative">
-                        <input type="text" 
-                               id="assignFarmerSearchInput" 
-                               oninput="onAssignFarmerSearchInput(this.value)" 
-                               onfocus="showFarmerSuggestions()"
-                               placeholder="Type name, code, phone (shows suggestions)..." 
-                               autocomplete="off"
-                               class="w-full pl-8 pr-8 py-1.5 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition">
-                        <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2"></i>
-                        <button type="button" 
-                                onclick="clearAssignFarmerSearch()" 
-                                id="assignFarmerClearBtn" 
-                                class="hidden absolute right-2.5 top-2 text-slate-400 hover:text-slate-600">
-                            <i data-lucide="x" class="w-3.5 h-3.5"></i>
-                        </button>
-
-                        <!-- Live Suggestions Dropdown -->
-                        <div id="assignFarmerSuggestions" 
-                             class="hidden absolute left-0 right-0 top-full mt-1 z-30 bg-white border border-slate-200 rounded-xl shadow-xl max-h-56 overflow-y-auto divide-y divide-slate-100">
+                        <div class="relative flex-1">
+                            <select name="shift" id="assignShift" class="w-full bg-white border border-slate-300 hover:border-slate-400 rounded-md px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium transition cursor-pointer appearance-none pr-8 shadow-2xs">
+                                <option value="both" selected>Morning + Evening</option>
+                                <option value="morning">Morning</option>
+                                <option value="evening">Evening</option>
+                            </select>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 absolute right-2.5 top-2.5 pointer-events-none"></i>
                         </div>
                     </div>
 
-                    <!-- Quick Dropdown: Choose Farmer -->
-                    <div class="sm:col-span-6 relative">
-                        <select id="assignFarmerQuickSelect" 
-                                onchange="selectFarmerFromAssignDropdown(this.value)" 
-                                class="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none transition font-medium">
-                            <option value="">-- Choose from Farmer Dropdown --</option>
-                            @foreach($farmers as $fmr)
-                                <option value="{{ $fmr->id }}">
-                                    [{{ $fmr->farmer_code }}] {{ $fmr->name }} {{ $fmr->phone ? '(' . $fmr->phone . ')' : '' }}
-                                </option>
-                            @endforeach
-                        </select>
+                    <!-- Activate On Dropdown -->
+                    <div class="flex items-center gap-3">
+                        <label for="assignActivateMode" class="text-sm font-semibold text-slate-700 whitespace-nowrap min-w-[85px]">
+                            Activate On:
+                        </label>
+                        <div class="relative flex-1">
+                            <select name="activate_mode" id="assignActivateMode" onchange="onActivateModeChange(this.value)" class="w-full bg-white border border-slate-300 hover:border-slate-400 rounded-md px-3.5 py-2 text-sm text-slate-800 focus:outline-none font-medium transition cursor-pointer appearance-none pr-8 shadow-2xs">
+                                <option value="now" selected>Activate Now</option>
+                                <option value="later">Activate Later</option>
+                            </select>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 absolute right-2.5 top-2.5 pointer-events-none"></i>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Farmers Checkbox Grid -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto p-2 bg-slate-50 rounded-xl border border-slate-200" id="assignFarmersList">
-                    @forelse($farmers as $fmr)
-                        <label class="assign-farmer-card flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200/80 cursor-pointer text-xs hover:border-emerald-300 transition"
-                               data-search="{{ strtolower($fmr->name . ' ' . ($fmr->name_hi ?? '') . ' ' . $fmr->farmer_code . ' ' . ($fmr->phone ?? '') . ' ' . ($fmr->village ?? '')) }}"
-                               data-farmer-id="{{ $fmr->id }}"
-                               data-farmer-name="{{ $fmr->name }}"
-                               data-farmer-code="{{ $fmr->farmer_code }}"
-                               data-farmer-phone="{{ $fmr->phone ?? '' }}"
-                               data-farmer-village="{{ $fmr->village ?? '' }}">
-                            <input type="checkbox" name="farmer_ids[]" value="{{ $fmr->id }}" onchange="updateAssignSelectedCount()" class="assign-farmer-cb rounded text-emerald-600 focus:ring-emerald-500">
-                            <div class="truncate flex-1">
-                                <div class="flex items-center gap-1.5 truncate">
-                                    <span class="px-1 py-0.2 bg-emerald-50 text-emerald-800 text-[10px] font-mono font-bold rounded border border-emerald-200">
-                                        {{ $fmr->farmer_code }}
-                                    </span>
-                                    <span class="font-bold text-slate-900 truncate">{{ $fmr->name }}</span>
-                                </div>
-                                <div class="text-[10px] text-slate-400 truncate flex items-center gap-2 mt-0.5">
-                                    @if($fmr->phone) <span>📞 {{ $fmr->phone }}</span> @endif
-                                    @if($fmr->village) <span>🏡 {{ $fmr->village }}</span> @endif
+                <!-- VIEW 1: Activate Now Layout (Row with Select Farmers on left, Assign Button on right) -->
+                <div id="viewActivateNow" class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-1">
+                    <div id="farmersSlotNow" class="flex-1 max-w-sm">
+                        <!-- Select Famers Component -->
+                        <div id="farmerSelectWrapper" class="flex items-center gap-3">
+                            <label class="text-sm font-semibold text-slate-700 whitespace-nowrap min-w-[95px]">
+                                Select Famers:
+                            </label>
+                            <div class="relative flex-1" id="farmerDropdownContainer">
+                                <button type="button" 
+                                        id="farmerDropdownBtn" 
+                                        onclick="toggleAssignFarmerDropdown(event)" 
+                                        class="w-full flex items-center justify-between px-3 py-2 bg-white border border-slate-300 hover:border-slate-400 rounded-md text-sm text-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition shadow-2xs cursor-pointer">
+                                    <span id="farmerDropdownBtnText" class="truncate font-medium text-slate-700">Tap To Select</span>
+                                    <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 shrink-0 ml-2" id="farmerDropdownChevron"></i>
+                                </button>
+
+                                <!-- Farmers Dropdown Menu -->
+                                <div id="assignFarmerDropdownPanel" class="hidden absolute left-0 right-0 sm:right-auto sm:w-[380px] top-full mt-1.5 z-50 bg-white border border-slate-200 rounded-2xl shadow-2xl p-3 space-y-2.5">
+                                    <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                                        <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800 hover:text-emerald-700 select-none">
+                                            <input type="checkbox" id="assignAllFarmersCb" onchange="toggleAssignAllFarmers(this.checked)" class="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4">
+                                            <span>All Farmers ({{ count($farmers) }})</span>
+                                        </label>
+                                        <span id="assignDropdownBadge" class="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                                            0 selected
+                                        </span>
+                                    </div>
+
+                                    <!-- Search input -->
+                                    <div class="relative">
+                                        <input type="text" 
+                                               id="assignFarmerDropdownSearch" 
+                                               oninput="filterAssignFarmerDropdownList(this.value)" 
+                                               placeholder="Search name, code, phone, village..." 
+                                               class="w-full pl-8 pr-7 py-1.5 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none">
+                                        <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2"></i>
+                                        <button type="button" onclick="clearAssignFarmerDropdownSearch()" id="assignFarmerDropdownClearBtn" class="hidden absolute right-2.5 top-2 text-slate-400 hover:text-slate-600">
+                                            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                                        </button>
+                                    </div>
+
+                                    <!-- Farmers Checkbox List -->
+                                    <div class="max-h-52 overflow-y-auto divide-y divide-slate-100 rounded-xl border border-slate-100 p-1 bg-slate-50/50" id="assignFarmerDropdownList">
+                                        @foreach($farmers as $fmr)
+                                            <label class="assign-farmer-drop-item flex items-center justify-between p-2 rounded-lg hover:bg-emerald-50/80 cursor-pointer transition text-xs select-none"
+                                                   data-search="{{ strtolower($fmr->name . ' ' . ($fmr->name_hi ?? '') . ' ' . $fmr->farmer_code . ' ' . ($fmr->phone ?? '') . ' ' . ($fmr->village ?? '')) }}"
+                                                   data-farmer-id="{{ $fmr->id }}"
+                                                   data-farmer-name="{{ $fmr->name }}">
+                                                <div class="flex items-center gap-2.5 truncate flex-1 min-w-0">
+                                                    <input type="checkbox" name="farmer_ids[]" value="{{ $fmr->id }}" onchange="onFarmerCheckboxChange()" class="assign-farmer-cb rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 shrink-0">
+                                                    <div class="truncate flex-1">
+                                                        <div class="flex items-center gap-1.5 truncate">
+                                                            <span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-900 border border-emerald-200 rounded font-mono text-[10px] font-bold">
+                                                                {{ $fmr->farmer_code }}
+                                                            </span>
+                                                            <span class="font-bold text-slate-900 truncate">{{ $fmr->name }}</span>
+                                                            @if($fmr->name_hi)
+                                                                <span class="text-[11px] text-slate-500 truncate">({{ $fmr->name_hi }})</span>
+                                                            @endif
+                                                        </div>
+                                                        <div class="text-[10px] text-slate-400 truncate flex items-center gap-2 mt-0.5">
+                                                            @if($fmr->phone) <span>📞 {{ $fmr->phone }}</span> @endif
+                                                            @if($fmr->village) <span>🏡 {{ $fmr->village }}</span> @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        @endforeach
+                                    </div>
+
+                                    <!-- Footer of Dropdown -->
+                                    <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                                        <button type="button" onclick="clearFarmerSelection()" class="text-xs text-slate-500 hover:text-rose-600 font-semibold cursor-pointer">
+                                            Clear
+                                        </button>
+                                        <button type="button" onclick="closeAssignFarmerDropdown()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition shadow-2xs cursor-pointer">
+                                            Done
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </label>
-                    @empty
-                        <div class="col-span-2 text-center py-3 text-xs text-slate-400">No farmers available</div>
-                    @endforelse
+                        </div>
+                    </div>
+
+                    <!-- Assign Button (Image 1 Right) -->
+                    <div class="flex justify-end items-center">
+                        <button type="submit" 
+                                class="bg-[#84cc16] hover:bg-[#72b012] active:bg-[#5b8c0e] text-white font-bold px-8 py-2 rounded-md shadow-xs transition duration-150 flex items-center justify-center text-sm cursor-pointer tracking-wide">
+                            Assign
+                        </button>
+                    </div>
                 </div>
-                <div id="assignFarmerNoMatch" class="hidden text-center py-3 text-xs text-slate-400">
-                    No farmers match your search.
+
+                <!-- VIEW 2: Activate Later Layout (Row 2: Date + Time on left, Select Farmers on right; Row 3: Assign Button on right) -->
+                <div id="viewActivateLater" class="hidden space-y-4 pt-1">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 items-center">
+                        <!-- Date Input & Time Dropdown -->
+                        <div class="flex items-center gap-2">
+                            <div class="relative flex-1">
+                                <input type="date" 
+                                       name="activate_date" 
+                                       id="assignActivateDate" 
+                                       value="{{ date('Y-m-d') }}" 
+                                       class="w-full bg-white border border-slate-300 hover:border-slate-400 rounded-md px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium shadow-2xs">
+                            </div>
+                            <div class="relative flex-1">
+                                <select name="activate_shift" id="assignActivateShift" class="w-full bg-white border border-slate-300 hover:border-slate-400 rounded-md px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium transition cursor-pointer appearance-none pr-8 shadow-2xs">
+                                    <option value="morning_0500" selected>Morning (05:00)</option>
+                                    <option value="evening_1700">Evening (17:00)</option>
+                                </select>
+                                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 absolute right-2.5 top-2.5 pointer-events-none"></i>
+                            </div>
+                        </div>
+
+                        <!-- Slot for Select Famers when Activate Later is active -->
+                        <div id="farmersSlotLater" class="flex-1">
+                        </div>
+                    </div>
+
+                    <!-- Assign Button (Image 2 Bottom Right) -->
+                    <div class="flex justify-end items-center pt-1">
+                        <button type="submit" 
+                                class="bg-[#84cc16] hover:bg-[#72b012] active:bg-[#5b8c0e] text-white font-bold px-8 py-2 rounded-md shadow-xs transition duration-150 flex items-center justify-center text-sm cursor-pointer tracking-wide">
+                            Assign
+                        </button>
+                    </div>
                 </div>
+
             </div>
 
-            <!-- Footer -->
-            <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
-                <button type="button" onclick="closeAssignModal()" class="px-4 py-2 text-xs font-semibold text-slate-600">Cancel</button>
-                <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition">
-                    Save Assignment
+            <!-- Optional: Assign to Collection Centers Accordion -->
+            <details class="group bg-slate-50/70 border border-slate-200 rounded-2xl p-4 transition">
+                <summary class="cursor-pointer text-xs font-bold text-slate-700 flex items-center justify-between select-none">
+                    <span class="flex items-center gap-2">
+                        <i data-lucide="building" class="w-4 h-4 text-blue-600"></i>
+                        <span>Optional: Assign to Collection Centers</span>
+                        <span id="assignCenterCountBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-bold ml-1">0 selected</span>
+                    </span>
+                    <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
+                </summary>
+                
+                <div class="mt-3 pt-3 border-t border-slate-200/60 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] text-slate-500">Select centers that should use this rate chart:</span>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="toggleAllAssignCenters(true)" class="text-[11px] text-blue-600 hover:underline font-semibold cursor-pointer">Select all</button>
+                            <button type="button" onclick="toggleAllAssignCenters(false)" class="text-[11px] text-slate-500 hover:underline cursor-pointer">Clear</button>
+                        </div>
+                    </div>
+
+                    <!-- Search centers -->
+                    <div class="relative">
+                        <input type="text" 
+                               id="assignCenterSearchInput" 
+                               oninput="filterAssignCenters(this.value)" 
+                               placeholder="Search collection center by name or code..." 
+                               class="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-xl bg-white focus:border-blue-500 outline-none">
+                        <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2"></i>
+                    </div>
+
+                    <!-- Centers Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto p-1 bg-white rounded-xl border border-slate-200" id="assignCentersList">
+                        @forelse($collectionCenters as $center)
+                            <label class="assign-center-card flex items-center gap-2 p-2 bg-slate-50/70 hover:bg-blue-50/60 rounded-lg border border-slate-200/80 cursor-pointer text-xs transition select-none"
+                                   data-search="{{ strtolower($center->name . ' ' . $center->code) }}"
+                                   data-center-id="{{ $center->id }}">
+                                <input type="checkbox" name="center_ids[]" value="{{ $center->id }}" onchange="updateAssignCenterCount()" class="assign-center-cb rounded text-blue-600 focus:ring-blue-500">
+                                <div class="truncate flex-1">
+                                    <span class="font-bold text-slate-900 block truncate">{{ $center->name }}</span>
+                                    <span class="text-[10px] text-slate-400 font-mono">{{ $center->code }}</span>
+                                </div>
+                            </label>
+                        @empty
+                            <div class="col-span-2 text-center py-3 text-xs text-slate-400">No centers available</div>
+                        @endforelse
+                    </div>
+                </div>
+            </details>
+
+            <!-- Bottom Cancel Link -->
+            <div class="pt-2 flex items-center justify-end">
+                <button type="button" onclick="closeAssignModal()" class="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer">
+                    Cancel
                 </button>
             </div>
         </form>
@@ -756,156 +826,147 @@
     }
 
     // Assign Modal Controls
-    function openAssignModal(rateId, rateName) {
-        const form = document.getElementById('assignForm');
-        form.action = `/rates/${rateId}/assign`;
-        document.getElementById('assignModalSubtitle').textContent = `Assign chart "${rateName}" to collection centers and farmers.`;
-        
-        // Reset Center Search & Suggestions
-        clearAssignCenterSearch();
+    function onActivateModeChange(mode) {
+        const isLater = mode === 'later';
+        const selectElem = document.getElementById('assignActivateMode');
+        const viewNow = document.getElementById('viewActivateNow');
+        const viewLater = document.getElementById('viewActivateLater');
+        const slotNow = document.getElementById('farmersSlotNow');
+        const slotLater = document.getElementById('farmersSlotLater');
+        const wrapper = document.getElementById('farmerSelectWrapper');
 
-        // Reset Farmer Search & Suggestions & Dropdown
-        clearAssignFarmerSearch();
-        const quickSelect = document.getElementById('assignFarmerQuickSelect');
-        if (quickSelect) quickSelect.value = '';
-
-        // Reset all checkboxes
-        document.querySelectorAll('.assign-center-cb').forEach(cb => cb.checked = false);
-        document.querySelectorAll('.assign-farmer-cb').forEach(cb => cb.checked = false);
-        updateAssignCenterCount();
-        updateAssignSelectedCount();
-
-        // Fetch already assigned centers & farmers to pre-check
-        fetch(`/rates/${rateId}/assigned-farmers`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.success && data.farmers) {
-                    const assignedIds = new Set(data.farmers.map(f => String(f.id)));
-                    document.querySelectorAll('.assign-farmer-cb').forEach(cb => {
-                        if (assignedIds.has(String(cb.value))) {
-                            cb.checked = true;
-                        }
-                    });
-                    updateAssignSelectedCount();
-                }
-            })
-            .catch(() => {});
-
-        document.getElementById('assignModal').classList.remove('hidden');
+        if (isLater) {
+            // Highlight Activate Later dropdown with emerald/teal border matching screenshot 2
+            if (selectElem) {
+                selectElem.classList.add('border-[#00a884]', 'ring-1', 'ring-[#00a884]');
+                selectElem.classList.remove('border-slate-300');
+            }
+            if (viewNow) viewNow.classList.add('hidden');
+            if (viewLater) viewLater.classList.remove('hidden');
+            if (slotLater && wrapper) {
+                slotLater.appendChild(wrapper);
+            }
+        } else {
+            if (selectElem) {
+                selectElem.classList.remove('border-[#00a884]', 'ring-1', 'ring-[#00a884]');
+                selectElem.classList.add('border-slate-300');
+            }
+            if (viewLater) viewLater.classList.add('hidden');
+            if (viewNow) viewNow.classList.remove('hidden');
+            if (slotNow && wrapper) {
+                slotNow.appendChild(wrapper);
+            }
+        }
         if (window.lucide) { lucide.createIcons(); }
     }
 
-    function closeAssignModal() {
-        document.getElementById('assignModal').classList.add('hidden');
-        hideCenterSuggestions();
-        hideFarmerSuggestions();
-    }
-
-    /* ---------- CENTER SEARCH & AUTO-SUGGESTIONS ---------- */
-    function onAssignCenterSearchInput(val) {
-        const clearBtn = document.getElementById('assignCenterClearBtn');
-        if (clearBtn) {
-            clearBtn.classList.toggle('hidden', !val);
+    function toggleAssignFarmerDropdown(e) {
+        if (e) e.stopPropagation();
+        const panel = document.getElementById('assignFarmerDropdownPanel');
+        const chevron = document.getElementById('farmerDropdownChevron');
+        if (panel) {
+            const isHidden = panel.classList.contains('hidden');
+            panel.classList.toggle('hidden');
+            if (chevron) {
+                chevron.classList.toggle('rotate-180', isHidden);
+            }
+            if (isHidden) {
+                const searchInput = document.getElementById('assignFarmerDropdownSearch');
+                if (searchInput) setTimeout(() => searchInput.focus(), 50);
+            }
         }
-        filterAssignCentersList(val);
-        renderCenterSuggestions(val);
     }
 
-    function clearAssignCenterSearch() {
-        const input = document.getElementById('assignCenterSearchInput');
+    function closeAssignFarmerDropdown() {
+        const panel = document.getElementById('assignFarmerDropdownPanel');
+        const chevron = document.getElementById('farmerDropdownChevron');
+        if (panel) panel.classList.add('hidden');
+        if (chevron) chevron.classList.remove('rotate-180');
+    }
+
+    function toggleAssignAllFarmers(checked) {
+        const cbs = document.querySelectorAll('.assign-farmer-cb');
+        cbs.forEach(cb => cb.checked = checked);
+        const assignAllHidden = document.getElementById('assignAllHidden');
+        if (assignAllHidden) assignAllHidden.value = checked ? '1' : '0';
+        updateFarmerDropdownState();
+    }
+
+    function onFarmerCheckboxChange() {
+        const allCbs = document.querySelectorAll('.assign-farmer-cb');
+        const checkedCbs = document.querySelectorAll('.assign-farmer-cb:checked');
+        const allCheckbox = document.getElementById('assignAllFarmersCb');
+        const assignAllHidden = document.getElementById('assignAllHidden');
+
+        if (allCheckbox) {
+            allCheckbox.checked = (allCbs.length > 0 && allCbs.length === checkedCbs.length);
+        }
+        if (assignAllHidden) {
+            assignAllHidden.value = (allCbs.length > 0 && allCbs.length === checkedCbs.length) ? '1' : '0';
+        }
+        updateFarmerDropdownState();
+    }
+
+    function clearFarmerSelection() {
+        const allCheckbox = document.getElementById('assignAllFarmersCb');
+        if (allCheckbox) allCheckbox.checked = false;
+        const assignAllHidden = document.getElementById('assignAllHidden');
+        if (assignAllHidden) assignAllHidden.value = '0';
+        document.querySelectorAll('.assign-farmer-cb').forEach(cb => cb.checked = false);
+        updateFarmerDropdownState();
+    }
+
+    function updateFarmerDropdownState() {
+        const checkedCbs = document.querySelectorAll('.assign-farmer-cb:checked');
+        const allCbs = document.querySelectorAll('.assign-farmer-cb');
+        const allCheckbox = document.getElementById('assignAllFarmersCb');
+        const btnText = document.getElementById('farmerDropdownBtnText');
+        const badge = document.getElementById('assignDropdownBadge');
+
+        const isAll = (allCheckbox && allCheckbox.checked) || (allCbs.length > 0 && allCbs.length === checkedCbs.length);
+
+        if (isAll) {
+            if (btnText) btnText.textContent = `All Farmers (${allCbs.length})`;
+            if (badge) badge.textContent = 'All selected';
+        } else if (checkedCbs.length === 0) {
+            if (btnText) btnText.textContent = 'Tap To Select';
+            if (badge) badge.textContent = '0 selected';
+        } else if (checkedCbs.length === 1) {
+            const firstCard = checkedCbs[0].closest('.assign-farmer-drop-item');
+            const name = firstCard ? firstCard.getAttribute('data-farmer-name') : '1 Selected';
+            if (btnText) btnText.textContent = name || '1 Farmer Selected';
+            if (badge) badge.textContent = '1 selected';
+        } else {
+            if (btnText) btnText.textContent = `${checkedCbs.length} Farmers Selected`;
+            if (badge) badge.textContent = `${checkedCbs.length} selected`;
+        }
+    }
+
+    function filterAssignFarmerDropdownList(val) {
+        const q = (val || '').toLowerCase().trim();
+        const clearBtn = document.getElementById('assignFarmerDropdownClearBtn');
+        if (clearBtn) clearBtn.classList.toggle('hidden', !q);
+
+        const items = document.querySelectorAll('.assign-farmer-drop-item');
+        items.forEach(item => {
+            const searchData = item.getAttribute('data-search') || '';
+            item.style.display = (!q || searchData.includes(q)) ? 'flex' : 'none';
+        });
+    }
+
+    function clearAssignFarmerDropdownSearch() {
+        const input = document.getElementById('assignFarmerDropdownSearch');
         if (input) input.value = '';
-        const clearBtn = document.getElementById('assignCenterClearBtn');
-        if (clearBtn) clearBtn.classList.add('hidden');
-        filterAssignCentersList('');
-        hideCenterSuggestions();
+        filterAssignFarmerDropdownList('');
     }
 
-    function filterAssignCentersList(val) {
+    function filterAssignCenters(val) {
         const q = (val || '').toLowerCase().trim();
         const cards = document.querySelectorAll('.assign-center-card');
-        let visibleCount = 0;
-
         cards.forEach(card => {
             const searchData = card.getAttribute('data-search') || '';
-            if (!q || searchData.includes(q)) {
-                card.style.display = 'flex';
-                visibleCount++;
-            } else {
-                card.style.display = 'none';
-            }
+            card.style.display = (!q || searchData.includes(q)) ? 'flex' : 'none';
         });
-
-        const noMatch = document.getElementById('assignCenterNoMatch');
-        if (noMatch) {
-            noMatch.classList.toggle('hidden', visibleCount > 0 || cards.length === 0);
-        }
-    }
-
-    function renderCenterSuggestions(val) {
-        const suggestionsBox = document.getElementById('assignCenterSuggestions');
-        if (!suggestionsBox) return;
-
-        const q = (val || '').toLowerCase().trim();
-        if (!q) {
-            suggestionsBox.classList.add('hidden');
-            return;
-        }
-
-        const cards = Array.from(document.querySelectorAll('.assign-center-card'));
-        const matched = cards.filter(c => (c.getAttribute('data-search') || '').includes(q)).slice(0, 8);
-
-        if (matched.length === 0) {
-            suggestionsBox.innerHTML = '<div class="p-2.5 text-center text-xs text-slate-400">No matching centers</div>';
-            suggestionsBox.classList.remove('hidden');
-            return;
-        }
-
-        suggestionsBox.innerHTML = matched.map(c => {
-            const id = c.getAttribute('data-center-id');
-            const name = c.querySelector('span.font-bold')?.textContent || '';
-            const code = c.querySelector('span.font-mono')?.textContent || '';
-            const isChecked = c.querySelector('.assign-center-cb')?.checked;
-
-            return `
-                <div onclick="toggleCenterFromSuggestion('${id}')" 
-                     class="px-3 py-2 cursor-pointer hover:bg-blue-50 transition flex items-center justify-between text-xs ${isChecked ? 'bg-blue-50/60' : ''}">
-                    <div class="truncate">
-                        <span class="font-bold text-slate-900">${name}</span>
-                        <span class="text-[10px] text-slate-400 font-mono ml-1.5">[${code}]</span>
-                    </div>
-                    <span class="text-[10px] px-2 py-0.5 rounded font-bold ${isChecked ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}">
-                        ${isChecked ? '✓ Selected' : '+ Select'}
-                    </span>
-                </div>
-            `;
-        }).join('');
-
-        suggestionsBox.classList.remove('hidden');
-    }
-
-    function showCenterSuggestions() {
-        const val = document.getElementById('assignCenterSearchInput')?.value || '';
-        if (val.trim()) renderCenterSuggestions(val);
-    }
-
-    function hideCenterSuggestions() {
-        const suggestionsBox = document.getElementById('assignCenterSuggestions');
-        if (suggestionsBox) setTimeout(() => suggestionsBox.classList.add('hidden'), 200);
-    }
-
-    function toggleCenterFromSuggestion(centerId) {
-        const card = document.querySelector(`.assign-center-card[data-center-id="${centerId}"]`);
-        if (card) {
-            const cb = card.querySelector('.assign-center-cb');
-            if (cb) {
-                cb.checked = !cb.checked;
-                updateAssignCenterCount();
-                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                card.classList.add('ring-2', 'ring-blue-500');
-                setTimeout(() => card.classList.remove('ring-2', 'ring-blue-500'), 1200);
-            }
-        }
-        hideCenterSuggestions();
     }
 
     function toggleAllAssignCenters(select) {
@@ -921,152 +982,86 @@
     function updateAssignCenterCount() {
         const totalChecked = document.querySelectorAll('.assign-center-cb:checked').length;
         const badge = document.getElementById('assignCenterCountBadge');
-        if (badge) {
-            badge.textContent = `${totalChecked} selected`;
+        if (badge) badge.textContent = `${totalChecked} selected`;
+    }
+
+    function validateAssignForm(e) {
+        const assignAll = document.getElementById('assignAllHidden')?.value === '1';
+        const farmersChecked = document.querySelectorAll('.assign-farmer-cb:checked').length;
+        const centersChecked = document.querySelectorAll('.assign-center-cb:checked').length;
+
+        if (!assignAll && farmersChecked === 0 && centersChecked === 0) {
+            alert('Please select at least one farmer or collection center to assign.');
+            if (e) e.preventDefault();
+            return false;
         }
+        return true;
     }
 
-    /* ---------- FARMER SEARCH & AUTO-SUGGESTIONS ---------- */
-    function onAssignFarmerSearchInput(val) {
-        const clearBtn = document.getElementById('assignFarmerClearBtn');
-        if (clearBtn) {
-            clearBtn.classList.toggle('hidden', !val);
+    function openAssignModal(rateId, rateName) {
+        const form = document.getElementById('assignForm');
+        form.action = `/rates/${rateId}/assign`;
+        document.getElementById('assignModalSubtitle').textContent = `Assign chart "${rateName}" to farmers and collection centers.`;
+        
+        // Reset Shift & Mode
+        const shiftSelect = document.getElementById('assignShift');
+        if (shiftSelect) shiftSelect.value = 'both';
+
+        const modeSelect = document.getElementById('assignActivateMode');
+        if (modeSelect) modeSelect.value = 'now';
+        onActivateModeChange('now');
+
+        // Reset Date & Shift
+        const dateInput = document.getElementById('assignActivateDate');
+        if (dateInput) {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            dateInput.value = `${yyyy}-${mm}-${dd}`;
         }
-        filterAssignFarmersList(val);
-        renderFarmerSuggestions(val);
+        const actShift = document.getElementById('assignActivateShift');
+        if (actShift) actShift.value = 'morning_0500';
+
+        // Reset Farmers & Centers
+        clearFarmerSelection();
+        clearAssignFarmerDropdownSearch();
+        closeAssignFarmerDropdown();
+        document.querySelectorAll('.assign-center-cb').forEach(cb => cb.checked = false);
+        updateAssignCenterCount();
+
+        // Fetch already assigned farmers to pre-check
+        fetch(`/rates/${rateId}/assigned-farmers`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.farmers) {
+                    const assignedIds = new Set(data.farmers.map(f => String(f.id)));
+                    document.querySelectorAll('.assign-farmer-cb').forEach(cb => {
+                        if (assignedIds.has(String(cb.value))) {
+                            cb.checked = true;
+                        }
+                    });
+                    onFarmerCheckboxChange();
+                }
+            })
+            .catch(() => {});
+
+        document.getElementById('assignModal').classList.remove('hidden');
+        if (window.lucide) { lucide.createIcons(); }
     }
 
-    function clearAssignFarmerSearch() {
-        const input = document.getElementById('assignFarmerSearchInput');
-        if (input) input.value = '';
-        const clearBtn = document.getElementById('assignFarmerClearBtn');
-        if (clearBtn) clearBtn.classList.add('hidden');
-        filterAssignFarmersList('');
-        hideFarmerSuggestions();
+    function closeAssignModal() {
+        document.getElementById('assignModal').classList.add('hidden');
+        closeAssignFarmerDropdown();
     }
 
-    function filterAssignFarmersList(query = null) {
-        const q = (query !== null ? query : (document.getElementById('assignFarmerSearchInput')?.value || '')).toLowerCase().trim();
-        const cards = document.querySelectorAll('.assign-farmer-card');
-        let visibleCount = 0;
-
-        cards.forEach(card => {
-            const searchData = card.getAttribute('data-search') || '';
-            if (!q || searchData.includes(q)) {
-                card.style.display = 'flex';
-                visibleCount++;
-            } else {
-                card.style.display = 'none';
-            }
-        });
-
-        const noMatch = document.getElementById('assignFarmerNoMatch');
-        if (noMatch) {
-            noMatch.classList.toggle('hidden', visibleCount > 0 || cards.length === 0);
+    // Close farmer dropdown on outside click
+    document.addEventListener('click', function(e) {
+        const container = document.getElementById('farmerDropdownContainer');
+        if (container && !container.contains(e.target)) {
+            closeAssignFarmerDropdown();
         }
-    }
-
-    function renderFarmerSuggestions(val) {
-        const suggestionsBox = document.getElementById('assignFarmerSuggestions');
-        if (!suggestionsBox) return;
-
-        const q = (val || '').toLowerCase().trim();
-        if (!q) {
-            suggestionsBox.classList.add('hidden');
-            return;
-        }
-
-        const cards = Array.from(document.querySelectorAll('.assign-farmer-card'));
-        const matched = cards.filter(c => (c.getAttribute('data-search') || '').includes(q)).slice(0, 10);
-
-        if (matched.length === 0) {
-            suggestionsBox.innerHTML = '<div class="p-3 text-center text-xs text-slate-400">No matching farmers found</div>';
-            suggestionsBox.classList.remove('hidden');
-            return;
-        }
-
-        suggestionsBox.innerHTML = matched.map(c => {
-            const id = c.getAttribute('data-farmer-id');
-            const name = c.getAttribute('data-farmer-name');
-            const code = c.getAttribute('data-farmer-code');
-            const phone = c.getAttribute('data-farmer-phone');
-            const village = c.getAttribute('data-farmer-village');
-            const isChecked = c.querySelector('.assign-farmer-cb')?.checked;
-
-            return `
-                <div onclick="toggleFarmerFromSuggestion('${id}')" 
-                     class="px-3 py-2 cursor-pointer hover:bg-emerald-50 transition flex items-center justify-between text-xs ${isChecked ? 'bg-emerald-50/60' : ''}">
-                    <div class="truncate pr-2">
-                        <div class="flex items-center gap-1.5 truncate">
-                            <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-900 border border-emerald-200 rounded font-mono text-[10px] font-bold">${code}</span>
-                            <span class="font-bold text-slate-900 truncate">${name}</span>
-                        </div>
-                        <div class="text-[10px] text-slate-400 truncate flex items-center gap-2 mt-0.5">
-                            ${phone ? `<span>📞 ${phone}</span>` : ''}
-                            ${village ? `<span>🏡 ${village}</span>` : ''}
-                        </div>
-                    </div>
-                    <span class="text-[10px] px-2 py-0.5 rounded font-bold shrink-0 ${isChecked ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'}">
-                        ${isChecked ? '✓ Selected' : '+ Select'}
-                    </span>
-                </div>
-            `;
-        }).join('');
-
-        suggestionsBox.classList.remove('hidden');
-    }
-
-    function showFarmerSuggestions() {
-        const val = document.getElementById('assignFarmerSearchInput')?.value || '';
-        if (val.trim()) renderFarmerSuggestions(val);
-    }
-
-    function hideFarmerSuggestions() {
-        const suggestionsBox = document.getElementById('assignFarmerSuggestions');
-        if (suggestionsBox) setTimeout(() => suggestionsBox.classList.add('hidden'), 200);
-    }
-
-    function toggleFarmerFromSuggestion(farmerId) {
-        selectFarmerFromAssignDropdown(farmerId);
-        hideFarmerSuggestions();
-    }
-
-    function toggleAllAssignFarmers(select) {
-        document.querySelectorAll('.assign-farmer-cb').forEach(cb => {
-            const card = cb.closest('.assign-farmer-card');
-            if (!card || card.style.display !== 'none') {
-                cb.checked = select;
-            }
-        });
-        updateAssignSelectedCount();
-    }
-
-    function selectFarmerFromAssignDropdown(farmerId) {
-        if (!farmerId) return;
-
-        const targetCard = document.querySelector(`.assign-farmer-card[data-farmer-id="${farmerId}"]`);
-        if (targetCard) {
-            targetCard.style.display = 'flex';
-            const cb = targetCard.querySelector('.assign-farmer-cb');
-            if (cb) {
-                cb.checked = true;
-                updateAssignSelectedCount();
-                targetCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                targetCard.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-50/50');
-                setTimeout(() => {
-                    targetCard.classList.remove('ring-2', 'ring-emerald-500', 'bg-emerald-50/50');
-                }, 1500);
-            }
-        }
-    }
-
-    function updateAssignSelectedCount() {
-        const totalChecked = document.querySelectorAll('.assign-farmer-cb:checked').length;
-        const badge = document.getElementById('assignSelectedCountBadge');
-        if (badge) {
-            badge.textContent = `${totalChecked} selected`;
-        }
-    }
+    });
 
     // Assigned Farmers Modal Controls
     let currentActiveRateId = null;
