@@ -498,7 +498,7 @@
                     </a> -->
                     <a href="{{ route('collections.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('collections.index*') && !request()->routeIs('collections.create') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                         <i data-lucide="milk" class="w-4 h-4 text-slate-400"></i>
-                        <span>Collection History</span>
+                        <span>Collection</span>
                     </a>
                     <a href="{{ route('farmers.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('farmers.*') && !request()->routeIs('farmers.settlements*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                         <i data-lucide="users" class="w-4 h-4 text-slate-400"></i>
