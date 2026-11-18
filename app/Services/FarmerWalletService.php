@@ -503,6 +503,27 @@ class FarmerWalletService
                 'wallet_deductions_breakdown' => $breakdown,
             ]);
 
+            // Sync recovered deductions into farmer_deductions as received
+            if (\Illuminate\Support\Facades\Schema::hasTable('farmer_deductions') && $totalDeducted > 0) {
+                \App\Models\FarmerDeduction::where('farmer_id', $invoice->farmer_id)
+                    ->where('comments', 'like', "%Invoice #{$invoice->invoice_number}%")
+                    ->delete();
+
+                foreach ($breakdown as $b) {
+                    $dAmt = (float) ($b['deducted_amount'] ?? 0);
+                    if ($dAmt <= 0) continue;
+                    \App\Models\FarmerDeduction::create([
+                        'farmer_id' => $invoice->farmer_id,
+                        'entry_date' => $invoice->period_end ? $invoice->period_end->format('Y-m-d') : date('Y-m-d'),
+                        'deduction_type' => \Illuminate\Support\Str::snake($b['category'] ?? 'other'),
+                        'transaction_type' => 'received',
+                        'amount' => $dAmt,
+                        'comments' => "Recovered in Invoice #{$invoice->invoice_number}",
+                        'created_by' => $createdBy,
+                    ]);
+                }
+            }
+
             return [
                 'opening_wallet_balance' => $openingBalance,
                 'wallet_deducted_amount' => round($totalDeducted, 2),
@@ -592,6 +613,13 @@ class FarmerWalletService
             }
 
             $lockedWallet->update(['balance' => $runningBalance]);
+
+            // Remove received entries recorded in farmer_deductions for this invoice
+            if (\Illuminate\Support\Facades\Schema::hasTable('farmer_deductions')) {
+                \App\Models\FarmerDeduction::where('farmer_id', $invoice->farmer_id)
+                    ->where('comments', 'like', "%Invoice #{$invoice->invoice_number}%")
+                    ->delete();
+            }
 
             AuditLog::log("Reversed wallet deductions for Invoice #{$invoice->invoice_number}", 'FarmerWallet', $lockedWallet->id, [
                 'invoice_id' => $invoice->id,

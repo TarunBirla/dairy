@@ -175,6 +175,28 @@ class FarmerDeductionController extends Controller
             'description' => "Deduction ({$typeLabel} - " . ucfirst($validated['transaction_type']) . "): " . ($validated['comments'] ?? ''),
         ]);
 
+        // Synchronize with Farmer Deduction Wallet
+        try {
+            if ($isGiven) {
+                \App\Services\FarmerWalletService::addDeduction(
+                    $farmer,
+                    $typeLabel,
+                    $amount,
+                    $validated['comments'] ?? null,
+                    Auth::id()
+                );
+            } else {
+                \App\Services\FarmerWalletService::manualAdjustment(
+                    $farmer,
+                    $typeLabel,
+                    $amount,
+                    'debit',
+                    $validated['comments'] ?? 'Deduction recovery/received',
+                    Auth::id()
+                );
+            }
+        } catch (\Throwable $e) {}
+
         AuditLog::log('Recorded Farmer Deduction', 'FarmerDeduction', $deduction->id, [
             'farmer' => $farmer->name,
             'type' => $deduction->deduction_type,
@@ -243,6 +265,30 @@ class FarmerDeductionController extends Controller
                 ? ($farmer->current_balance + $amount) 
                 : ($farmer->current_balance - $amount);
             $farmer->update(['current_balance' => $restoredBalance]);
+
+            // Synchronize with Farmer Deduction Wallet
+            try {
+                $typeLabel = ucfirst(str_replace('_', ' ', $deduction->deduction_type));
+                if ($deduction->transaction_type === 'given') {
+                    \App\Services\FarmerWalletService::manualAdjustment(
+                        $farmer->id,
+                        $typeLabel,
+                        $amount,
+                        'debit',
+                        "Deleted deduction entry #{$deduction->id}",
+                        Auth::id()
+                    );
+                } else {
+                    \App\Services\FarmerWalletService::manualAdjustment(
+                        $farmer->id,
+                        $typeLabel,
+                        $amount,
+                        'credit',
+                        "Deleted received deduction repayment #{$deduction->id}",
+                        Auth::id()
+                    );
+                }
+            } catch (\Throwable $e) {}
         }
 
         $deduction->delete();
