@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Milk Collection History')
-@section('breadcrumb', 'Collection History')
+@section('title', 'Milk Collection')
+@section('breadcrumb', 'Collection')
 @section('header_title', 'Procurement / Milk Collections')
 
 @section('header_action')
@@ -116,6 +116,7 @@
                             <span class="text-[10px] font-semibold text-slate-500 shrink-0">Route:</span>
                             <select id="collection_route_select"
                                     x-model="selectedRouteId"
+                                    @change="onRouteChange()"
                                     class="text-[10px] border border-slate-200 rounded bg-white w-32 sm:w-40 py-0.5 px-1.5 font-semibold text-slate-800 focus:ring-1 focus:ring-emerald-500 focus:outline-none">
                                 <option value="">All Routes {{ !empty($collectionConfig['center_vehicle_route']) ? '(' . $collectionConfig['center_vehicle_route'] . ')' : '' }}</option>
                                 @foreach($routes ?? [] as $rt)
@@ -262,6 +263,7 @@
                                             <div class="text-[10px] text-slate-400 truncate flex items-center gap-1.5">
                                                 <span x-show="farmer.phone" x-text="farmer.phone"></span>
                                                 <span x-show="farmer.village" x-text="'• ' + farmer.village"></span>
+                                                <span x-show="farmer.route && farmer.route.name" class="text-emerald-600 font-semibold" x-text="'• Route: ' + (farmer.route ? farmer.route.name : '')"></span>
                                             </div>
                                         </div>
                                         <span class="text-[9.5px] px-1.5 py-0.5 rounded font-bold border shrink-0" 
@@ -271,6 +273,7 @@
                                 </template>
                                 <div x-show="filteredFarmersByCode.length === 0" class="p-3 text-center text-xs text-slate-400">
                                     No code matches "<span class="font-semibold text-slate-600" x-text="quickFarmerCode"></span>"
+                                    <span x-show="selectedRouteId" class="block text-[10px] text-slate-500 mt-0.5">(in selected route)</span>
                                 </div>
                             </div>
                         </div>
@@ -339,6 +342,7 @@
                                 </template>
                                 <div x-show="filteredFarmers.length === 0" class="p-3 text-center text-xs text-slate-400">
                                     No farmer matches "<span class="font-semibold text-slate-600" x-text="farmerSearchText"></span>"
+                                    <span x-show="selectedRouteId" class="block text-[10px] text-slate-500 mt-0.5">(in selected route)</span>
                                 </div>
                             </div>
                         </div>
@@ -1194,11 +1198,37 @@ function milkCollectionManager() {
             return true;
         },
 
-        get filteredFarmersByCode() {
-            let list = this.allFarmers;
-            if (this.config.route_wise_collection === 'On' && this.selectedRouteId) {
-                list = list.filter(f => String(f.route_id || '') === String(this.selectedRouteId));
+        get activeFarmerPool() {
+            let list = this.allFarmers || [];
+            if (this.selectedRouteId && String(this.selectedRouteId).trim() !== '') {
+                return list.filter(f => String(f.route_id || '') === String(this.selectedRouteId));
             }
+            return list;
+        },
+
+        onRouteChange() {
+            if (this.selectedRouteId && String(this.selectedRouteId).trim() !== '') {
+                if (this.selectedFarmer && this.selectedFarmer.id) {
+                    const matches = (this.allFarmers || []).some(f => 
+                        String(f.id) === String(this.selectedFarmer.id) && 
+                        String(f.route_id || '') === String(this.selectedRouteId)
+                    );
+                    if (!matches) {
+                        this.form.farmer_id = '';
+                        this.quickFarmerCode = '';
+                        this.farmerSearchText = '';
+                        this.selectedFarmer = { id: '', code: '', name: '', phone: '', village: '', animal: 'cow' };
+                    }
+                }
+            }
+            this.codeDropdownOpen = false;
+            this.farmerDropdownOpen = false;
+            this.codeHighlightedIndex = 0;
+            this.highlightedIndex = 0;
+        },
+
+        get filteredFarmersByCode() {
+            let list = this.activeFarmerPool;
             if (!this.quickFarmerCode || this.quickFarmerCode.trim() === '') {
                 return list.slice(0, 30);
             }
@@ -1235,10 +1265,7 @@ function milkCollectionManager() {
         },
 
         get filteredFarmers() {
-            let list = this.allFarmers;
-            if (this.config.route_wise_collection === 'On' && this.selectedRouteId) {
-                list = list.filter(f => String(f.route_id || '') === String(this.selectedRouteId));
-            }
+            let list = this.activeFarmerPool;
             if (!this.farmerSearchText || this.farmerSearchText.trim() === '') {
                 return list;
             }
@@ -1288,15 +1315,15 @@ function milkCollectionManager() {
                 name: farmer.name,
                 phone: farmer.phone || '',
                 village: farmer.village || '',
-                animal: farmer.animal_type || 'cow'
+                animal: farmer.animal_type || 'cow',
+                route_id: farmer.route_id || '',
+                route_name: (farmer.route ? farmer.route.name : '')
             };
-            if (this.config.route_wise_collection === 'On' && farmer.route_id) {
-                this.selectedRouteId = String(farmer.route_id);
-            }
             if (farmer.animal_type && this.config.allowed_milk_types.includes(farmer.animal_type)) {
                 this.form.milk_type = farmer.animal_type;
             }
             this.farmerDropdownOpen = false;
+            this.codeDropdownOpen = false;
             this.applyPerLiterCharges();
             this.triggerRateCalculation();
             this.$nextTick(() => {
@@ -1310,16 +1337,17 @@ function milkCollectionManager() {
             if (!raw) return;
 
             var numOnly = raw.replace(/\D/g, '').replace(/^0+/, '') || '0';
+            var pool = this.activeFarmerPool;
             var found = null;
 
-            found = this.allFarmers.find(f => {
+            found = pool.find(f => {
                 var code = (f.farmer_code || '').trim();
                 var num = (code.replace(/\D/g, '') || String(f.id)).replace(/^0+/, '') || '0';
                 return num === numOnly || code.toLowerCase() === raw.toLowerCase() || String(f.id) === raw;
             });
 
             if (!found && numOnly) {
-                found = this.allFarmers.find(f => {
+                found = pool.find(f => {
                     var code = (f.farmer_code || '').trim();
                     var num = code.replace(/\D/g, '') || String(f.id);
                     return num.indexOf(numOnly) > -1 || code.toLowerCase().indexOf(raw.toLowerCase()) > -1;
@@ -1329,7 +1357,11 @@ function milkCollectionManager() {
             if (found) {
                 this.chooseFarmer(found);
             } else {
-                this.showToast('Farmer code "' + raw + '" not found.', 'error');
+                if (this.selectedRouteId && String(this.selectedRouteId).trim() !== '') {
+                    this.showToast('Farmer code "' + raw + '" not found in selected route.', 'error');
+                } else {
+                    this.showToast('Farmer code "' + raw + '" not found.', 'error');
+                }
             }
         },
 
