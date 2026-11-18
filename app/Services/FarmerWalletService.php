@@ -512,6 +512,31 @@ class FarmerWalletService
                 ->get();
 
             if ($debits->isEmpty()) {
+                // Defensive fallback: If debits were not recorded but wallet_deducted_amount > 0 was tracked, restore balance directly
+                $dedAmt = (float) ($invoice->wallet_deducted_amount ?? 0);
+                if ($dedAmt > 0) {
+                    $wallet = self::getOrCreateWallet($invoice->farmer_id);
+                    $lockedWallet = FarmerWallet::where('id', $wallet->id)->lockForUpdate()->first();
+                    $balBefore = (float) $lockedWallet->balance;
+                    $balAfter = round($balBefore + $dedAmt, 2);
+
+                    FarmerWalletTransaction::create([
+                        'wallet_id' => $lockedWallet->id,
+                        'farmer_id' => $invoice->farmer_id,
+                        'farmer_invoice_id' => $invoice->id,
+                        'transaction_type' => FarmerWalletTransaction::TYPE_REVERSAL,
+                        'category' => 'General',
+                        'amount' => $dedAmt,
+                        'balance_before' => $balBefore,
+                        'balance_after' => $balAfter,
+                        'reference_type' => 'invoice_reversal',
+                        'reference_id' => (string) $invoice->id,
+                        'remarks' => "Reversal: {$reason} (Invoice #{$invoice->invoice_number})",
+                        'created_by' => $createdBy,
+                    ]);
+
+                    $lockedWallet->update(['balance' => $balAfter]);
+                }
                 return;
             }
 

@@ -291,9 +291,16 @@
                                 {{ number_format($inv->total_amount, 2) }}
                             </td>
                             <td class="py-3 px-3 border-r border-slate-100 text-right font-mono">
-                                @if((float)$inv->previous_balance > 0)
+                                @php
+                                    $displayWalletBal = (float) (
+                                        $inv->closing_wallet_balance !== null
+                                            ? $inv->closing_wallet_balance
+                                            : (($inv->farmer && $inv->farmer->wallet) ? $inv->farmer->wallet->balance : $inv->previous_balance)
+                                    );
+                                @endphp
+                                @if($displayWalletBal > 0)
                                     <span class="px-2 py-0.5 rounded font-black text-rose-700 bg-rose-50 border border-rose-200 text-xs inline-block" title="बकाया डिडक्शन - डिडक्शन वॉलेट में शेष रहेगा">
-                                        ₹{{ number_format($inv->previous_balance, 2) }}
+                                        ₹{{ number_format($displayWalletBal, 2) }}
                                     </span>
                                 @else
                                     <span class="text-slate-400 font-semibold text-xs">
@@ -326,7 +333,7 @@
                                     </a>
                                     <!-- Delete / Revert Button -->
                                     <form method="POST" action="{{ route('farmer-invoices.destroy', $inv->id) }}" class="inline"
-                                          onsubmit="return confirm('{{ $inv->status === 'pending' ? 'क्या आप इस पेंडिंग इनवॉइस #' . $inv->invoice_number . ' को हटाना चाहते हैं?' : 'क्या आप इस जनरेटेड इनवॉइस #' . $inv->invoice_number . ' को डिलीट करके वापस पेंडिंग (Review & Verify) में भेजना चाहते हैं?\n\nपेंडिंग में जाने के बाद आप इसमें बदलाव कर सकेंगे।' }}');">
+                                          onsubmit="return confirmRevertInvoice('{{ $inv->invoice_number }}', '{{ $inv->status }}');">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit"
@@ -815,6 +822,13 @@
     const allTabInvoiceIds = @json($allTabIds ?? []);
     const csrfToken = "{{ csrf_token() }}";
 
+    function confirmRevertInvoice(invoiceNumber, status) {
+        if (status === 'pending') {
+            return confirm('क्या आप इस पेंडिंग इनवॉइस #' + invoiceNumber + ' को हटाना चाहते हैं?');
+        }
+        return confirm('क्या आप इस जनरेटेड इनवॉइस #' + invoiceNumber + ' को Revert करके वापस Pending (Review & Verify) में भेजना चाहते हैं?\n\nRevert करने पर डिडक्शन वॉलेट का बैलेंस वापस रीस्टोर हो जाएगा और दूध कलेक्शन अनलॉक हो जाएगा।');
+    }
+
     let currentPreviewInvoiceId = null;
 
     // Review Queue State (for 1-by-1 single or multi-invoice verification & modification)
@@ -1293,7 +1307,11 @@
     function submitBulkDelete() {
         const selected = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
         if (selected.length === 0) return;
-        if (!confirm('Are you sure you want to delete the ' + selected.length + ' selected invoices?')) return;
+        const isGeneratedTab = '{{ $statusTab }}' === 'generated';
+        const confirmMsg = isGeneratedTab
+            ? ('क्या आप चुने गए ' + selected.length + ' जनरेटेड इनवॉइस को Revert करके वापस Pending में भेजना चाहते हैं?\n\nRevert करने पर डिडक्शन वॉलेट का बैलेंस वापस रीस्टोर हो जाएगा।')
+            : ('क्या आप चुने गए ' + selected.length + ' पेंडिंग इनवॉइस को हटाना चाहते हैं?');
+        if (!confirm(confirmMsg)) return;
 
         const form = document.getElementById('bulkDeleteForm');
         const inputsContainer = document.getElementById('bulkDeleteInputs');

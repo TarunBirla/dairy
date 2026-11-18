@@ -450,7 +450,7 @@ class FarmerInvoiceController extends Controller
 
         $allTabIds = (clone $query)->orderBy('id', 'asc')->pluck('id')->toArray();
 
-        $invoices = $query->orderBy('id', 'asc')->paginate($perPage)->withQueryString();
+        $invoices = $query->with(['farmer.wallet'])->orderBy('id', 'asc')->paginate($perPage)->withQueryString();
 
         // Calculate System Totals for Table Summary Row
         $summaryQuery = clone $query;
@@ -462,7 +462,13 @@ class FarmerInvoiceController extends Controller
         $totalCredit = (float) $summaryQuery->sum('total_credit');
         $totalMilkAmount = (float) $summaryQuery->sum('milk_amount');
         $totalAmount = (float) $summaryQuery->sum('total_amount');
-        $totalBalance = (float) $summaryQuery->sum('previous_balance');
+        $totalBalance = (float) $invoices->sum(function ($inv) {
+            return (float) (
+                $inv->closing_wallet_balance !== null
+                    ? $inv->closing_wallet_balance
+                    : (($inv->farmer && $inv->farmer->wallet) ? $inv->farmer->wallet->balance : $inv->previous_balance)
+            );
+        });
         $totalPayment = (float) $summaryQuery->sum('net_payment');
 
         // All active farmers for generate filter
@@ -883,9 +889,17 @@ class FarmerInvoiceController extends Controller
             'invoice_ids.*' => 'exists:farmer_invoices,id',
         ]);
 
-        $count = FarmerInvoice::whereIn('id', $validated['invoice_ids'])->update([
-            'status' => 'generated',
-        ]);
+        $invoices = FarmerInvoice::whereIn('id', $validated['invoice_ids'])->get();
+        $count = 0;
+        foreach ($invoices as $inv) {
+            $inv->update([
+                'status' => 'generated',
+            ]);
+            try {
+                \App\Services\FarmerWalletService::applyInvoiceDeductions($inv, [], Auth::id());
+            } catch (\Throwable $e) {}
+            $count++;
+        }
 
         AuditLog::log("Bulk Approved {$count} Pending Invoices to Generated", 'FarmerInvoice', null);
 
@@ -1062,10 +1076,16 @@ class FarmerInvoiceController extends Controller
                 Auth::id()
             );
 
-            // Reset status to pending and unlock it for editing
+            // Re-sync wallet balance
+            $wallet = \App\Services\FarmerWalletService::getOrCreateWallet($invoice->farmer_id);
+            $restoredBalance = (float) $wallet->balance;
+
+            // Reset status to pending and reset wallet columns
             $invoice->update([
                 'status' => 'pending',
                 'is_edited' => false,
+                'wallet_deducted_amount' => 0.00,
+                'closing_wallet_balance' => $restoredBalance,
             ]);
 
             // Restore linked collections to pending status
@@ -1080,13 +1100,16 @@ class FarmerInvoiceController extends Controller
                     'payment_status' => 'pending',
                 ]);
 
+            // Re-sync invoice metrics with restored data
+            $this->syncInvoice($invoice);
+
             AuditLog::log('Reverted Generated Farmer Invoice to Pending', 'FarmerInvoice', $invoice->id, ['number' => $invNum]);
 
             return redirect()->route('farmer-invoices.index', [
                 'start_date' => $invoice->period_start->format('Y-m-d'),
                 'end_date' => $invoice->period_end->format('Y-m-d'),
                 'status_tab' => 'pending',
-            ])->with('success', "जनरेटेड इनवॉइस #{$invNum} ({$farmerName}) को सफलतापूर्वक वापस पेंडिंग (Review & Verify) में भेज दिया गया है। अब आप आवश्यक सुधार कर इसे पुनः री-जनरेट (Save) कर सकते हैं।");
+            ])->with('success', "जनरेटेड इनवॉइस #{$invNum} ({$farmerName}) को सफलतापूर्वक वापस पेंडिंग (Review & Verify) में भेज दिया गया है। डिडक्शन वॉलेट का बैलेंस वापस रीस्टोर कर दिया गया है।");
         }
 
         // Pending draft invoice deletion
@@ -1125,9 +1148,12 @@ class FarmerInvoiceController extends Controller
                     "Invoice #{$inv->invoice_number} bulk reverted to pending",
                     Auth::id()
                 );
+                $wallet = \App\Services\FarmerWalletService::getOrCreateWallet($inv->farmer_id);
                 $inv->update([
                     'status' => 'pending',
                     'is_edited' => false,
+                    'wallet_deducted_amount' => 0.00,
+                    'closing_wallet_balance' => (float) $wallet->balance,
                 ]);
                 if (Schema::hasColumn('milk_collections', 'farmer_invoice_id')) {
                     MilkCollection::where('farmer_invoice_id', $inv->id)->update([
@@ -1139,6 +1165,7 @@ class FarmerInvoiceController extends Controller
                     ->update([
                         'payment_status' => 'pending',
                     ]);
+                $this->syncInvoice($inv);
                 $revertedCount++;
             } else {
                 \App\Services\FarmerInvoiceService::deleteInvoice($inv);
@@ -1148,7 +1175,7 @@ class FarmerInvoiceController extends Controller
 
         $msg = [];
         if ($revertedCount > 0) {
-            $msg[] = "{$revertedCount} जनरेटेड इनवॉइस को वापस पेंडिंग (Review & Verify) में भेज दिया गया है।";
+            $msg[] = "{$revertedCount} जनरेटेड इनवॉइस को वापस पेंडिंग (Review & Verify) में भेज दिया गया है और डिडक्शन वॉलेट रीस्टोर कर दिया गया है।";
         }
         if ($deletedCount > 0) {
             $msg[] = "{$deletedCount} पेंडिंग इनवॉइस हटा दिए गए हैं।";
