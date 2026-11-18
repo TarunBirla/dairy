@@ -1053,8 +1053,64 @@ class MobileDairyController extends Controller
             }
         } catch (\Throwable $e) {}
 
+        // Per-Invoice additions and deductions from Center Information
+        try {
+            $invAdds = \App\Services\CenterAdditionDeductionService::getInvoiceAdditions($farmer, $totalQty, $milkAmount);
+            foreach ($invAdds['items'] as $ia) {
+                $extraAdditions += (float) $ia['amount'];
+            }
+        } catch (\Throwable $e) {}
+
+        $invoiceDeductionsTotal = 0.00;
+        $invoiceDeductionItems = [];
+        try {
+            $invDeds = \App\Services\CenterAdditionDeductionService::getInvoiceDeductions($farmer, $totalQty, $milkAmount);
+            $invoiceDeductionItems = $invDeds['items'];
+            $invoiceDeductionsTotal = (float) $invDeds['total'];
+        } catch (\Throwable $e) {}
+
+        $otherDeduction = round($invoiceDeductionsTotal, 2);
+
+        $deductionsBreakdown = [];
+        if ($stationaryDeduction > 0) {
+            $deductionsBreakdown[] = [
+                'name' => 'Stationary',
+                'category' => 'Stationary',
+                'original_balance' => $stationaryDeduction,
+                'deducted_amount' => $stationaryDeduction,
+                'remaining_balance' => 0.00,
+            ];
+        }
+        if ($feedDeduction > 0) {
+            $deductionsBreakdown[] = [
+                'name' => 'Food / Feed',
+                'category' => 'Feed',
+                'original_balance' => $feedDeduction,
+                'deducted_amount' => $feedDeduction,
+                'remaining_balance' => 0.00,
+            ];
+        }
+        if ($loanRecovery > 0) {
+            $deductionsBreakdown[] = [
+                'name' => 'Advance / Loan',
+                'category' => 'Advance',
+                'original_balance' => $loanRecovery,
+                'deducted_amount' => $loanRecovery,
+                'remaining_balance' => 0.00,
+            ];
+        }
+        foreach ($invoiceDeductionItems as $idi) {
+            $deductionsBreakdown[] = [
+                'name' => $idi['name'],
+                'category' => $idi['category'],
+                'original_balance' => $idi['original_balance'],
+                'deducted_amount' => $idi['deducted_amount'],
+                'remaining_balance' => $idi['remaining_balance'],
+            ];
+        }
+
         $totalCredit = round($totalCredit + $extraAdditions, 2);
-        $totalDeduction = round($feedDeduction + $stationaryDeduction + $loanRecovery, 2);
+        $totalDeduction = round($feedDeduction + $stationaryDeduction + $loanRecovery + $otherDeduction, 2);
         $totalAmount = round($milkAmount + $totalCredit, 2);
         $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);
         $netPayment = round(max(0, $totalAmount - $totalDeduction), 2);
@@ -1073,7 +1129,8 @@ class MobileDairyController extends Controller
                 'stationary_deduction' => $stationaryDeduction,
                 'feed_deduction' => $feedDeduction,
                 'advance_deduction' => $loanRecovery,
-                'other_deduction' => 0.00,
+                'other_deduction' => $otherDeduction,
+                'deductions_breakdown' => $deductionsBreakdown,
                 'total_deduction' => $totalDeduction,
                 'total_credit' => $totalCredit,
                 'total_amount' => $totalAmount,

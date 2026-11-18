@@ -125,7 +125,31 @@ class CenterAdditionDeductionService
             'unit' => $unit,
             'value' => $val ?: ($isFarmerWise ? 'Farmer Wise' : ($amount > 0 ? "{$amount}{$unit}" : '-')),
             'auto_reset' => !empty($item['auto_reset']),
+            'is_invoice_charge' => self::isInvoiceChargeItem($unit, $val, $name),
         ];
+    }
+
+    /**
+     * Check if an addition or deduction is configured to be charged/credited per invoice.
+     */
+    public static function isInvoiceCharge(array $item): bool
+    {
+        return self::isInvoiceChargeItem($item['unit'] ?? '', $item['value'] ?? '', $item['name'] ?? '');
+    }
+
+    /**
+     * Check if unit/value/name represents a per-invoice charge.
+     */
+    public static function isInvoiceChargeItem(string $unit, string $val, string $name): bool
+    {
+        $u = strtolower(trim($unit));
+        $v = strtolower(trim($val));
+        $n = strtolower(trim($name));
+
+        return str_contains($u, 'invoice') 
+            || str_contains($v, 'invoice') 
+            || str_contains($n, 'invoice')
+            || str_contains($n, '/invoice');
     }
 
     /**
@@ -170,6 +194,8 @@ class CenterAdditionDeductionService
 
     /**
      * Calculate all additions and deductions for a collection entry.
+     * Per-invoice additions and deductions are strictly EXCLUDED here
+     * and are only applied when an invoice/bill is generated.
      *
      * @param Farmer|null $farmer
      * @param float $liters
@@ -178,10 +204,26 @@ class CenterAdditionDeductionService
      */
     public static function calculateForCollection(?Farmer $farmer, float $liters, float $grossAmount = 0.0): array
     {
+        if ($liters <= 0) {
+            return [
+                'additions' => [],
+                'total_additions' => 0.0,
+                'deductions' => [],
+                'total_deductions' => 0.0,
+                'gross_amount' => 0.0,
+                'net_amount' => 0.0,
+            ];
+        }
+
         $additionBreakdown = [];
         $totalAdditions = 0.0;
 
         foreach (self::getAdditionTypes() as $item) {
+            // Per-invoice charges MUST NOT be applied during daily milk collection intake
+            if (self::isInvoiceCharge($item)) {
+                continue;
+            }
+
             $rate = 0.0;
             if ($item['is_farmer_wise']) {
                 $rate = $farmer ? $farmer->getFarmerWiseRate($item['name']) : 0.0;
@@ -210,6 +252,11 @@ class CenterAdditionDeductionService
         $totalDeductions = 0.0;
 
         foreach (self::getDeductionTypes() as $item) {
+            // Per-invoice deductions (e.g. 100/Invoice, Management Charges C) MUST NOT be deducted on collection entry
+            if (self::isInvoiceCharge($item)) {
+                continue;
+            }
+
             $rate = 0.0;
             if ($item['is_farmer_wise']) {
                 $rate = $farmer ? $farmer->getFarmerWiseRate($item['name']) : 0.0;
@@ -245,6 +292,109 @@ class CenterAdditionDeductionService
             'total_deductions' => $totalDeductions,
             'gross_amount' => round($grossAmount, 2),
             'net_amount' => $netAmount,
+        ];
+    }
+
+    /**
+     * Get and calculate per-invoice deductions configured in Center Information.
+     * These apply once when an invoice / bill is generated.
+     *
+     * @param Farmer|null $farmer
+     * @param float $totalLiters
+     * @param float $grossMilkAmount
+     * @return array ['items' => array, 'total' => float]
+     */
+    public static function getInvoiceDeductions(?Farmer $farmer, float $totalLiters = 0.0, float $grossMilkAmount = 0.0): array
+    {
+        $items = [];
+        $total = 0.0;
+
+        foreach (self::getDeductionTypes() as $item) {
+            if (!self::isInvoiceCharge($item)) {
+                continue;
+            }
+
+            $rate = 0.0;
+            if ($item['is_farmer_wise']) {
+                $rate = $farmer ? $farmer->getFarmerWiseRate($item['name']) : 0.0;
+            } else {
+                $rate = (float) $item['amount'];
+            }
+
+            if ($rate <= 0) {
+                continue;
+            }
+
+            $lineAmount = self::computeAmount($rate, $item['unit'], $item['name'], $totalLiters, $grossMilkAmount);
+            if ($lineAmount > 0) {
+                $items[] = [
+                    'key' => \Illuminate\Support\Str::slug($item['name'], '_'),
+                    'name' => $item['name'],
+                    'category' => $item['name'],
+                    'rate' => $rate,
+                    'unit' => $item['unit'],
+                    'amount' => $lineAmount,
+                    'original_balance' => $lineAmount,
+                    'deducted_amount' => $lineAmount,
+                    'remaining_balance' => 0.00,
+                ];
+                $total += $lineAmount;
+            }
+        }
+
+        return [
+            'items' => $items,
+            'total' => round($total, 2),
+        ];
+    }
+
+    /**
+     * Get and calculate per-invoice additions configured in Center Information.
+     * These apply once when an invoice / bill is generated.
+     *
+     * @param Farmer|null $farmer
+     * @param float $totalLiters
+     * @param float $grossMilkAmount
+     * @return array ['items' => array, 'total' => float]
+     */
+    public static function getInvoiceAdditions(?Farmer $farmer, float $totalLiters = 0.0, float $grossMilkAmount = 0.0): array
+    {
+        $items = [];
+        $total = 0.0;
+
+        foreach (self::getAdditionTypes() as $item) {
+            if (!self::isInvoiceCharge($item)) {
+                continue;
+            }
+
+            $rate = 0.0;
+            if ($item['is_farmer_wise']) {
+                $rate = $farmer ? $farmer->getFarmerWiseRate($item['name']) : 0.0;
+            } else {
+                $rate = (float) $item['amount'];
+            }
+
+            if ($rate <= 0) {
+                continue;
+            }
+
+            $lineAmount = self::computeAmount($rate, $item['unit'], $item['name'], $totalLiters, $grossMilkAmount);
+            if ($lineAmount > 0) {
+                $items[] = [
+                    'key' => \Illuminate\Support\Str::slug($item['name'], '_'),
+                    'name' => $item['name'],
+                    'category' => $item['name'],
+                    'rate' => $rate,
+                    'unit' => $item['unit'],
+                    'amount' => $lineAmount,
+                ];
+                $total += $lineAmount;
+            }
+        }
+
+        return [
+            'items' => $items,
+            'total' => round($total, 2),
         ];
     }
 

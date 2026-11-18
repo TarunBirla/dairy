@@ -138,12 +138,13 @@ class FarmerInvoiceController extends Controller
 
         // Dynamically wire Addition Types configured in Center Information (All Farmers + Farmer Wise)
         try {
+            $rawGross = round((float) $collections->sum(function ($c) {
+                $rate = (float) ($c->applied_rate ?: $c->calculated_rate ?: 0);
+                return (float) $c->quantity_liters * $rate;
+            }), 2);
+
             $existingBonusSum = (float) $collections->sum('bonus');
             if ($existingBonusSum <= 0 && $totalQuantity > 0) {
-                $rawGross = round((float) $collections->sum(function ($c) {
-                    $rate = (float) ($c->applied_rate ?: $c->calculated_rate ?: 0);
-                    return (float) $c->quantity_liters * $rate;
-                }), 2);
                 $charges = \App\Services\CenterAdditionDeductionService::calculateForCollection($farmer, $totalQuantity, $rawGross);
                 foreach ($charges['additions'] as $add) {
                     $name = strtolower($add['name'] ?? '');
@@ -159,6 +160,12 @@ class FarmerInvoiceController extends Controller
                         $otherCredit += $amt;
                     }
                 }
+            }
+
+            // Per-Invoice additions configured in Center Information (e.g. Commission In Percent/Invoice)
+            $invAdds = \App\Services\CenterAdditionDeductionService::getInvoiceAdditions($farmer, $totalQuantity, $rawGross);
+            foreach ($invAdds['items'] as $ia) {
+                $otherCredit += (float) $ia['amount'];
             }
         } catch (\Throwable $e) {}
 
@@ -202,7 +209,17 @@ class FarmerInvoiceController extends Controller
         }
 
         $advanceDeduction = round($advanceFromLoans + $advanceFromDeductions, 2);
-        $otherDeduction = 0.00;
+
+        // Per-Invoice deductions configured in Center Information (e.g. Management Charges C 100/Invoice)
+        $invoiceDeductionsTotal = 0.00;
+        $invoiceDeductionItems = [];
+        try {
+            $invDeds = \App\Services\CenterAdditionDeductionService::getInvoiceDeductions($farmer, $totalQuantity, $milkAmount);
+            $invoiceDeductionItems = $invDeds['items'];
+            $invoiceDeductionsTotal = (float) $invDeds['total'];
+        } catch (\Throwable $e) {}
+
+        $otherDeduction = round($invoiceDeductionsTotal, 2);
 
         // Compile category-wise deductions breakdown
         $deductionsBreakdown = [];
@@ -237,15 +254,26 @@ class FarmerInvoiceController extends Controller
             ];
         }
 
+        // Add per-invoice deductions to category-wise breakdown
+        foreach ($invoiceDeductionItems as $idi) {
+            $deductionsBreakdown[] = [
+                'name' => $idi['name'],
+                'category' => $idi['category'],
+                'original_balance' => $idi['original_balance'],
+                'deducted_amount' => $idi['deducted_amount'],
+                'remaining_balance' => $idi['remaining_balance'],
+            ];
+        }
+
         $totalCredit = round($otherCredit + $transportCredit + $subsidyCredit + $incentiveCredit, 2);
 
-        // A = Stationary + Feed + In Hand Advance
-        $totalDeduction = round($stationaryDeduction + $feedDeduction + $advanceDeduction, 2);
+        // Total Deductions = Stationary + Feed + Advance + Other Deductions (Per-Invoice Charges)
+        $totalDeduction = round($stationaryDeduction + $feedDeduction + $advanceDeduction + $otherDeduction, 2);
 
-        // B + C = Total Credit (B) + Milk Amount (C)
+        // Total Amount = Total Credit (B) + Milk Amount (C)
         $totalAmount = round($totalCredit + $milkAmount, 2);
 
-        // Balance = Remaining unpaid deduction if A > (B + C), else 0.00
+        // Balance = Remaining unpaid deduction if totalDeduction > totalAmount, else 0.00
         $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);
 
         // Payment (B+C-A) = Net payable amount if (B + C) >= A, else 0.00

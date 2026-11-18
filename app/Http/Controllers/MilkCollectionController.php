@@ -787,11 +787,25 @@ class MilkCollectionController extends Controller
         $qty = (float) $request->get('quantity_liters', 0);
         $rate = (float) ($resolved['rate'] ?? 0);
         $gross = round($qty * $rate, 2);
-        $charges = \App\Services\CenterAdditionDeductionService::calculateForCollection($farmer, $qty, $gross);
 
-        $bonus = $charges['total_additions'];
-        $deduction = $charges['total_deductions'];
-        $net = max(0, round($gross + $bonus - $deduction, 2));
+        if ($qty <= 0) {
+            $bonus = 0.0;
+            $deduction = 0.0;
+            $net = 0.0;
+            $charges = [
+                'additions' => [],
+                'total_additions' => 0.0,
+                'deductions' => [],
+                'total_deductions' => 0.0,
+                'gross_amount' => 0.0,
+                'net_amount' => 0.0,
+            ];
+        } else {
+            $charges = \App\Services\CenterAdditionDeductionService::calculateForCollection($farmer, $qty, $gross);
+            $bonus = $charges['total_additions'];
+            $deduction = $charges['total_deductions'];
+            $net = max(0, round($gross + $bonus - $deduction, 2));
+        }
 
         return response()->json(array_merge($resolved, $stats, [
             'charges' => $charges,

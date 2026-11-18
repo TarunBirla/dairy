@@ -2457,9 +2457,66 @@ class ProcurementApiController extends Controller
         }
 
         $advanceDeduction = round($advanceFromLoans + $advanceFromDeductions, 2);
-        $otherDeduction = 0.00;
+
+        // Per-Invoice additions and deductions from Center Information
+        try {
+            $invAdds = \App\Services\CenterAdditionDeductionService::getInvoiceAdditions($farmer, $totalQuantity, $milkAmount);
+            foreach ($invAdds['items'] as $ia) {
+                $otherCredit += (float) $ia['amount'];
+            }
+        } catch (\Throwable $e) {}
+
+        $invoiceDeductionsTotal = 0.00;
+        $invoiceDeductionItems = [];
+        try {
+            $invDeds = \App\Services\CenterAdditionDeductionService::getInvoiceDeductions($farmer, $totalQuantity, $milkAmount);
+            $invoiceDeductionItems = $invDeds['items'];
+            $invoiceDeductionsTotal = (float) $invDeds['total'];
+        } catch (\Throwable $e) {}
+
+        $otherDeduction = round($invoiceDeductionsTotal, 2);
+
+        // Compile category-wise deductions breakdown
+        $deductionsBreakdown = [];
+        if ($stationaryDeduction > 0) {
+            $deductionsBreakdown[] = [
+                'name' => 'Stationary',
+                'category' => 'Stationary',
+                'original_balance' => $stationaryDeduction,
+                'deducted_amount' => $stationaryDeduction,
+                'remaining_balance' => 0.00,
+            ];
+        }
+        if ($feedDeduction > 0) {
+            $deductionsBreakdown[] = [
+                'name' => 'Food / Feed',
+                'category' => 'Feed',
+                'original_balance' => $feedDeduction,
+                'deducted_amount' => $feedDeduction,
+                'remaining_balance' => 0.00,
+            ];
+        }
+        if ($advanceDeduction > 0) {
+            $deductionsBreakdown[] = [
+                'name' => 'Advance / Loan',
+                'category' => 'Advance',
+                'original_balance' => $advanceDeduction,
+                'deducted_amount' => $advanceDeduction,
+                'remaining_balance' => 0.00,
+            ];
+        }
+        foreach ($invoiceDeductionItems as $idi) {
+            $deductionsBreakdown[] = [
+                'name' => $idi['name'],
+                'category' => $idi['category'],
+                'original_balance' => $idi['original_balance'],
+                'deducted_amount' => $idi['deducted_amount'],
+                'remaining_balance' => $idi['remaining_balance'],
+            ];
+        }
+
         $totalCredit = round($otherCredit + $transportCredit + $subsidyCredit + $incentiveCredit, 2);
-        $totalDeduction = round($stationaryDeduction + $feedDeduction + $advanceDeduction, 2);
+        $totalDeduction = round($stationaryDeduction + $feedDeduction + $advanceDeduction + $otherDeduction, 2);
         $totalAmount = round($totalCredit + $milkAmount, 2);
         $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);
         $rawPayable = round(max(0, $totalAmount - $totalDeduction), 2);
@@ -2473,6 +2530,7 @@ class ProcurementApiController extends Controller
             'feed_deduction' => $feedDeduction,
             'advance_deduction' => $advanceDeduction,
             'other_deduction' => $otherDeduction,
+            'deductions_breakdown' => $deductionsBreakdown,
             'total_deduction' => $totalDeduction,
             'other_credit' => $otherCredit,
             'transport_credit' => $transportCredit,

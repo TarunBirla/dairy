@@ -1364,6 +1364,12 @@ function milkCollectionManager() {
 
         applyPerLiterCharges() {
             const qty = parseFloat(this.form.quantity_liters) || 0;
+            if (qty <= 0) {
+                this.form.bonus = 0;
+                this.form.deduction = 0;
+                return;
+            }
+
             const gross = (parseFloat(this.form.applied_rate) || 0) * qty;
             const farmer = this.allFarmers.find(f => String(f.id) === String(this.form.farmer_id));
 
@@ -1372,6 +1378,15 @@ function milkCollectionManager() {
 
             if (Array.isArray(this.config.addition_types) && this.config.addition_types.length > 0) {
                 this.config.addition_types.forEach(add => {
+                    const unit = (add.unit || '').toLowerCase();
+                    const val = (add.value || '').toLowerCase();
+                    const name = (add.name || '').toLowerCase();
+
+                    // Per-invoice addition: do NOT apply on single milk collection entry! Applied on invoice generation.
+                    if (unit.includes('invoice') || val.includes('invoice') || name.includes('invoice') || name.includes('/invoice')) {
+                        return;
+                    }
+
                     let rate = 0;
                     if (add.is_all_farmers) {
                         rate = parseFloat(add.amount) || 0;
@@ -1387,7 +1402,6 @@ function milkCollectionManager() {
                     }
 
                     if (rate > 0) {
-                        const unit = (add.unit || '').toLowerCase();
                         if (unit.includes('ltr') || unit.includes('liter')) {
                             totalAdd += qty * rate;
                         } else if (unit.includes('%')) {
@@ -1403,6 +1417,16 @@ function milkCollectionManager() {
 
             if (Array.isArray(this.config.deduction_types) && this.config.deduction_types.length > 0) {
                 this.config.deduction_types.forEach(ded => {
+                    const unit = (ded.unit || '').toLowerCase();
+                    const val = (ded.value || '').toLowerCase();
+                    const name = (ded.name || '').toLowerCase();
+
+                    // Per-invoice deduction (e.g. 100/Invoice, Management Charges C):
+                    // MUST NOT be deducted on collection entry! Applied on Farmer Invoice generation.
+                    if (unit.includes('invoice') || val.includes('invoice') || name.includes('invoice') || name.includes('/invoice')) {
+                        return;
+                    }
+
                     let rate = 0;
                     if (ded.is_all_farmers) {
                         rate = parseFloat(ded.amount) || 0;
@@ -1424,7 +1448,6 @@ function milkCollectionManager() {
                     }
 
                     if (rate > 0) {
-                        const unit = (ded.unit || '').toLowerCase();
                         if (unit.includes('ltr') || unit.includes('liter')) {
                             totalDed += qty * rate;
                         } else if (unit.includes('%')) {

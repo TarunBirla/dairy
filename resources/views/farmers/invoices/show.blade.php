@@ -304,6 +304,12 @@
                         <span>Advance Deduction</span>
                         <span class="font-mono text-slate-600">- ₹{{ number_format($invoice->advance_deduction, 2) }}</span>
                     </div>
+                    @if($invoice->other_deduction > 0)
+                    <div class="flex justify-between text-slate-700">
+                        <span>Other Charges / Deductions (Per Invoice)</span>
+                        <span class="font-mono text-slate-600">- ₹{{ number_format($invoice->other_deduction, 2) }}</span>
+                    </div>
+                    @endif
 
                     <div class="flex justify-between text-rose-700 font-semibold">
                         <span>Total Deductions (A)</span>

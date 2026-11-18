@@ -283,6 +283,18 @@ class FarmerInvoice extends Model
             $breakdown[] = $ec;
         }
 
+        // Fallback for saved other_deduction if extraCategories was empty
+        if ((float) $this->other_deduction > 0 && empty($extraCategories)) {
+            $breakdown[] = [
+                'key' => 'other_deductions',
+                'name' => 'Other Charges (Per Invoice)',
+                'category' => 'Charges',
+                'original_balance' => (float) $this->other_deduction,
+                'deducted_amount' => (float) $this->other_deduction,
+                'remaining_balance' => 0.00,
+            ];
+        }
+
         return $breakdown;
     }
 
