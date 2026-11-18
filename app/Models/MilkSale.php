@@ -25,6 +25,7 @@ class MilkSale extends Model
         'total_amount',
         'paid_amount',
         'balance_amount',
+        'buyer_invoice_id',
         'payment_mode',
         'description',
         'status',
@@ -47,6 +48,11 @@ class MilkSale extends Model
     public function buyer()
     {
         return $this->belongsTo(Buyer::class);
+    }
+
+    public function invoice()
+    {
+        return $this->belongsTo(BuyerInvoice::class, 'buyer_invoice_id');
     }
 
     public function vehicle()

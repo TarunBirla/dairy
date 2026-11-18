@@ -558,8 +558,8 @@
                         <i data-lucide="book-open" class="w-4 h-4 {{ request()->routeIs('buyers.khata*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
                         <span>Buyer Khata</span>
                     </a>
-                    <a href="{{ route('milk-sales.invoices') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('milk-sales.invoices*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
-                        <i data-lucide="receipt" class="w-4 h-4 {{ request()->routeIs('milk-sales.invoices*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
+                    <a href="{{ route('buyer-invoices.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ (request()->routeIs('buyer-invoices.*') || request()->routeIs('milk-sales.invoices*')) ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                        <i data-lucide="receipt" class="w-4 h-4 {{ (request()->routeIs('buyer-invoices.*') || request()->routeIs('milk-sales.invoices*')) ? 'text-emerald-600' : 'text-slate-400' }}"></i>
                         <span>Customer Bill</span>
                     </a>
                     <a href="{{ route('milk-sales.rate-chart') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('milk-sales.rate-chart*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">

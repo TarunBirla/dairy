@@ -766,8 +766,20 @@ Route::middleware('auth')->group(function () {
     Route::get('/milk_sale', function () {
         return redirect()->route('milk-sales.index');
     });
+    // Buyer Invoices (Customer Bills - Matching Farmer Invoices Workflow)
+    Route::prefix('buyer-invoices')->name('buyer-invoices.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\BuyerInvoiceController::class, 'index'])->name('index');
+        Route::post('/generate', [\App\Http\Controllers\BuyerInvoiceController::class, 'generate'])->name('generate');
+        Route::get('/preview/{invoice}', [\App\Http\Controllers\BuyerInvoiceController::class, 'previewData'])->name('preview');
+        Route::post('/verify-save/{invoice}', [\App\Http\Controllers\BuyerInvoiceController::class, 'verifyAndSave'])->name('verify-save');
+        Route::post('/bulk-approve', [\App\Http\Controllers\BuyerInvoiceController::class, 'bulkApprove'])->name('bulk-approve');
+        Route::post('/bulk-delete', [\App\Http\Controllers\BuyerInvoiceController::class, 'bulkDelete'])->name('bulk-delete');
+        Route::delete('/{invoice}', [\App\Http\Controllers\BuyerInvoiceController::class, 'destroy'])->name('destroy');
+        Route::get('/print/{invoice}', [\App\Http\Controllers\BuyerInvoiceController::class, 'print'])->name('print');
+    });
+
     Route::get('/customer-bill', function () {
-        return redirect()->route('milk-sales.invoices');
+        return redirect()->route('buyer-invoices.index');
     });
     Route::get('/milk-sale-ratechart', function () {
         return redirect()->route('milk-sales.rate-chart');

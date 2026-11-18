@@ -60,6 +60,11 @@ class Buyer extends Model
         return $this->hasMany(BuyerPayment::class);
     }
 
+    public function invoices()
+    {
+        return $this->hasMany(BuyerInvoice::class, 'buyer_id');
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -67,17 +72,28 @@ class Buyer extends Model
 
     /**
      * Recalculate balance for this buyer:
-     * Balance = Sum(total_amount of sales) - Sum(paid_amount of sales) - Sum(received payments) + Sum(paid refunds)
+     * Net Due = Total Sales - Total Received Payments (deduplicated) + Refunds
      */
     public function recalculateBalance(): float
     {
         $totalSales = (float) $this->sales()->where('status', 'completed')->sum('total_amount');
-        $directPaidOnSales = (float) $this->sales()->where('status', 'completed')->sum('paid_amount');
+
+        // Deduplicated received calculation:
+        // When a milk sale records paid_amount, MilkSaleController generates a DIR- BuyerPayment.
+        // If DIR- payments exist in payments table, then payments()->where('type', 'received') already includes them.
         $receivedKhata = (float) $this->payments()->where('type', 'received')->sum('amount');
+        $hasDirReceipts = $this->payments()->where('receipt_number', 'like', 'DIR-%')->exists();
+
+        if ($hasDirReceipts) {
+            $totalReceived = $receivedKhata;
+        } else {
+            $directPaidOnSales = (float) $this->sales()->where('status', 'completed')->sum('paid_amount');
+            $totalReceived = $directPaidOnSales + $receivedKhata;
+        }
+
         $refundsPaid = (float) $this->payments()->where('type', 'paid')->sum('amount');
 
-        // Net due by buyer = Total Sales - (Direct Paid on Sales + Separate Khata Received) + Refunds
-        $balance = $totalSales - ($directPaidOnSales + $receivedKhata) + $refundsPaid;
+        $balance = round($totalSales - $totalReceived + $refundsPaid, 2);
 
         $this->update(['current_balance' => $balance]);
         return $balance;

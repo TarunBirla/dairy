@@ -296,11 +296,11 @@ class BuyerController extends Controller
                 'buyer' => $s->buyer,
                 'type' => 'Milk Sale',
                 'reference' => $s->sale_number,
-                'debit' => (float) $s->total_amount, // buyer owes dairy
-                'credit' => (float) $s->paid_amount,  // paid at sale
-                'net_effect' => (float) ($s->total_amount - $s->paid_amount),
+                'debit' => (float) $s->total_amount, // buyer owes dairy for milk
+                'credit' => 0.00,  // direct cash received is represented by the receipt entry
+                'net_effect' => (float) $s->total_amount,
                 'payment_mode' => $s->payment_mode ?? 'Cash',
-                'comment' => $s->description ?: "Sale: {$s->quantity_liters}L {$s->milk_type} (Shift: {$s->shift})",
+                'comment' => $s->description ?: "Sale: {$s->quantity_liters}L {$s->milk_type} (Shift: {$s->shift})" . ($s->paid_amount > 0 ? " [Paid: ₹" . number_format($s->paid_amount, 2) . "]" : ""),
                 'created_at' => $s->created_at,
             ];
         });
@@ -325,13 +325,19 @@ class BuyerController extends Controller
         // Merge and sort chronologically
         $transactions = $sales->concat($payments)->sortByDesc('date')->values();
 
-        // Calculate Totals
-        $totalReceivable = $selectedBuyer 
-            ? (float) $selectedBuyer->current_balance 
-            : (float) Buyer::sum('current_balance');
+        // Ensure balance is accurately recalculated
+        if ($selectedBuyer) {
+            $selectedBuyer->recalculateBalance();
+            $totalReceivable = (float) $selectedBuyer->current_balance;
+        } else {
+            foreach ($buyers as $b) {
+                $b->recalculateBalance();
+            }
+            $totalReceivable = (float) Buyer::sum('current_balance');
+        }
 
         $totalSalesAmount = (float) $sales->sum('debit');
-        $totalReceivedAmount = (float) $sales->sum('credit') + (float) $payments->where('type', 'Received Amount')->sum('credit');
+        $totalReceivedAmount = (float) $payments->where('type', 'Received Amount')->sum('credit');
 
         return view('buyers.khata', compact(
             'buyers',
