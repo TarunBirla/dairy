@@ -29,46 +29,77 @@
         <!-- Left 2 Cols: Product Catalog Grid -->
         <div class="lg:col-span-2 space-y-4">
             
-            <!-- Category Filter Pills -->
-            <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-2 overflow-x-auto">
-                <button 
-                    type="button" 
-                    @click="activeCategory = 'all'" 
-                    :class="activeCategory === 'all' ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" 
-                    class="px-3.5 py-1.5 rounded-xl text-xs whitespace-nowrap transition"
-                >
-                    All Products
-                </button>
-                @foreach($categories as $cat)
+            <!-- Search Bar & Category Filter Pills -->
+            <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2.5">
+                <div class="relative w-full">
+                    <input 
+                        type="text" 
+                        x-model="productSearch" 
+                        placeholder="Search products by name or code..." 
+                        class="w-full pl-9 pr-8 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                    >
+                    <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+                    <button type="button" x-show="productSearch" @click="productSearch = ''" class="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2 overflow-x-auto pb-0.5">
                     <button 
                         type="button" 
-                        @click="activeCategory = {{ $cat->id }}" 
-                        :class="activeCategory === {{ $cat->id }} ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" 
+                        @click="activeCategory = 'all'" 
+                        :class="activeCategory === 'all' ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" 
                         class="px-3.5 py-1.5 rounded-xl text-xs whitespace-nowrap transition"
                     >
-                        {{ $cat->name }}
+                        All Products
                     </button>
-                @endforeach
+                    @foreach($categories as $cat)
+                        <button 
+                            type="button" 
+                            @click="activeCategory = {{ $cat->id }}" 
+                            :class="activeCategory === {{ $cat->id }} ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" 
+                            class="px-3.5 py-1.5 rounded-xl text-xs whitespace-nowrap transition"
+                        >
+                            {{ $cat->name }}
+                        </button>
+                    @endforeach
+                </div>
             </div>
 
-            <!-- Product Cards Grid -->
+            <!-- Product Cards Grid with Product Images -->
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 @foreach($products as $p)
                     <div 
-                        x-show="activeCategory === 'all' || activeCategory === {{ $p->category_id ?? 0 }}"
-                        @click="addToCart({{ $p->id }}, '{{ addslashes($p->name) }}', {{ $p->price }}, '{{ $p->unit }}')"
-                        class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs hover:border-emerald-500 hover:shadow-md cursor-pointer transition flex flex-col justify-between group"
+                        x-show="(activeCategory === 'all' || activeCategory === {{ $p->category_id ?? 0 }}) && (!productSearch || '{{ strtolower(addslashes($p->name)) }}'.includes(productSearch.toLowerCase()) || '{{ strtolower(addslashes($p->code ?? '')) }}'.includes(productSearch.toLowerCase()))"
+                        @click="addToCart({{ $p->id }}, '{{ addslashes($p->name) }}', {{ $p->price }}, '{{ $p->unit }}', '{{ !empty($p->image) ? asset($p->image) : '' }}')"
+                        class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs hover:border-emerald-500 hover:shadow-md cursor-pointer transition flex flex-col justify-between group overflow-hidden"
                     >
                         <div>
-                            <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center mb-2 group-hover:bg-emerald-600 group-hover:text-white transition">
-                                <i data-lucide="package" class="w-4 h-4"></i>
+                            <!-- Product Image / Placeholder -->
+                            <div class="w-full h-28 sm:h-32 rounded-xl overflow-hidden bg-slate-50 border border-slate-100 mb-2.5 flex items-center justify-center relative group-hover:border-emerald-200 transition">
+                                @if(!empty($p->image))
+                                    <img src="{{ asset($p->image) }}" alt="{{ $p->name }}" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.classList.remove('hidden');" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                                    <div class="hidden w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                                        <i data-lucide="package" class="w-6 h-6"></i>
+                                    </div>
+                                @else
+                                    <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition">
+                                        <i data-lucide="package" class="w-6 h-6"></i>
+                                    </div>
+                                @endif
+                                @if($p->current_stock !== null && $p->current_stock > 0)
+                                    <span class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-white/90 backdrop-blur-xs text-slate-700 shadow-2xs border border-slate-200/60">
+                                        Stock: {{ (float)$p->current_stock }}
+                                    </span>
+                                @endif
                             </div>
-                            <h4 class="text-xs font-bold text-slate-900 group-hover:text-emerald-700 transition leading-tight">{{ $p->name }}</h4>
-                            <span class="text-[10px] text-slate-400 capitalize">{{ $p->unit }}</span>
+
+                            <h4 class="text-xs font-bold text-slate-900 group-hover:text-emerald-700 transition leading-tight line-clamp-2" title="{{ $p->name }}">{{ $p->name }}</h4>
+                            <span class="text-[10px] text-slate-400 capitalize block mt-0.5">{{ $p->unit }}</span>
                         </div>
                         <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
                             <span class="text-sm font-extrabold text-slate-900">₹{{ number_format($p->price, 0) }}</span>
-                            <span class="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs group-hover:scale-110 transition">+</span>
+                            <span class="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs group-hover:bg-emerald-600 group-hover:text-white group-hover:scale-110 transition">+</span>
                         </div>
                     </div>
                 @endforeach
@@ -303,9 +334,19 @@
                     <div class="space-y-2.5 max-h-64 overflow-y-auto pr-1 border-y border-slate-100 py-3">
                         <template x-for="(item, idx) in cart" :key="item.id">
                             <div class="p-3 bg-white border border-slate-200 rounded-2xl flex items-center justify-between text-xs shadow-2xs">
-                                <div class="flex-1 truncate pr-2">
-                                    <p class="font-bold text-slate-900 truncate" x-text="item.name"></p>
-                                    <span class="text-[11px] text-slate-500 font-medium" x-text="'₹' + item.price + '/' + (item.unit || 'unit')"></span>
+                                <div class="flex items-center gap-2.5 flex-1 truncate pr-2">
+                                    <template x-if="item.image">
+                                        <img :src="item.image" :alt="item.name" class="w-9 h-9 rounded-xl object-cover border border-slate-200/80 shrink-0">
+                                    </template>
+                                    <template x-if="!item.image">
+                                        <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center shrink-0">
+                                            <i data-lucide="package" class="w-4 h-4"></i>
+                                        </div>
+                                    </template>
+                                    <div class="truncate">
+                                        <p class="font-bold text-slate-900 truncate" x-text="item.name"></p>
+                                        <span class="text-[11px] text-slate-500 font-medium" x-text="'₹' + item.price + '/' + (item.unit || 'unit')"></span>
+                                    </div>
                                     <input type="hidden" :name="'items[' + idx + '][product_id]'" :value="item.id">
                                     <input type="hidden" :name="'items[' + idx + '][unit_price]'" :value="item.price">
                                     <input type="hidden" :name="'items[' + idx + '][quantity]'" :value="item.qty">
@@ -501,6 +542,7 @@
     function posApp() {
         return {
             activeCategory: 'all',
+            productSearch: '',
             payMode: 'cash',
             tenderedCash: '',
             openCustomerDropdown: false,
@@ -591,7 +633,16 @@
             },
 
             cart: [
-                { id: {{ $products->first()->id ?? 1 }}, name: '{{ addslashes($products->first()->name ?? "Paneer") }}', price: {{ $products->first()->price ?? 300 }}, unit: '{{ $products->first()->unit ?? "kg" }}', qty: 1 }
+                @if($firstProduct = $products->first())
+                { 
+                    id: {{ $firstProduct->id }}, 
+                    name: '{{ addslashes($firstProduct->name) }}', 
+                    price: {{ $firstProduct->price }}, 
+                    unit: '{{ $firstProduct->unit ?? "kg" }}', 
+                    image: '{{ !empty($firstProduct->image) ? asset($firstProduct->image) : "" }}', 
+                    qty: 1 
+                }
+                @endif
             ],
 
             clearCart() {
@@ -599,12 +650,15 @@
                 this.tenderedCash = '';
             },
 
-            addToCart(id, name, price, unit) {
+            addToCart(id, name, price, unit, image = '') {
                 const existing = this.cart.find(item => item.id === id);
                 if (existing) {
                     existing.qty += 1;
                 } else {
-                    this.cart.push({ id, name, price, unit, qty: 1 });
+                    this.cart.push({ id, name, price, unit, image, qty: 1 });
+                }
+                if (window.lucide) {
+                    setTimeout(() => lucide.createIcons(), 50);
                 }
             },
 
