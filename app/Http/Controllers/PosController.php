@@ -33,6 +33,11 @@ class PosController extends Controller
                     $table->string('customer_email')->nullable()->after('customer_phone');
                 });
             }
+            if (Schema::hasTable('counter_cashbooks') && !Schema::hasColumn('counter_cashbooks', 'denominations')) {
+                Schema::table('counter_cashbooks', function (Blueprint $table) {
+                    $table->text('denominations')->nullable()->after('actual_counted_cash');
+                });
+            }
         } catch (\Throwable $e) {
             // Ignore in constructor
         }
@@ -456,10 +461,11 @@ class PosController extends Controller
     {
         $today = Carbon::today();
         $cashbook = CounterCashbook::whereDate('entry_date', $today)->first();
+        $todayCashSales = PosOrder::whereDate('created_at', $today)->where('payment_mode', 'cash')->sum('grand_total');
         $counters = PosCounter::all();
         $recentCashbooks = CounterCashbook::latest()->paginate(15);
 
-        return view('pos.cashbook', compact('cashbook', 'counters', 'recentCashbooks', 'today'));
+        return view('pos.cashbook', compact('cashbook', 'counters', 'recentCashbooks', 'today', 'todayCashSales'));
     }
 
     public function updateCashbook(Request $request)
@@ -470,12 +476,20 @@ class PosController extends Controller
             'cash_expenses' => 'nullable|numeric|min:0',
             'actual_counted_cash' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string',
+            'denominations' => 'nullable|array',
         ]);
 
         $today = Carbon::today();
         $closing = ($validated['opening_cash'] ?? 0) + ($validated['cash_sales'] ?? 0) - ($validated['cash_expenses'] ?? 0);
         $counted = (float)($validated['actual_counted_cash'] ?? $closing);
         $variance = $counted - $closing;
+
+        $denominations = $request->input('denominations');
+        if (is_array($denominations)) {
+            $denominations = array_filter($denominations, function ($v) {
+                return $v !== null && $v !== '' && (float)$v > 0;
+            });
+        }
 
         CounterCashbook::updateOrCreate(
             ['entry_date' => $today],
@@ -488,10 +502,11 @@ class PosController extends Controller
                 'variance' => $variance,
                 'status' => 'closed',
                 'notes' => $validated['notes'] ?? null,
+                'denominations' => !empty($denominations) ? json_encode($denominations) : null,
                 'operator_id' => Auth::id(),
             ]
         );
 
-        return back()->with('success', 'Counter cashbook saved and closed.');
+        return back()->with('success', 'Counter cashbook saved and closed successfully.');
     }
 }

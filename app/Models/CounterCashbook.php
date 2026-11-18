@@ -19,6 +19,7 @@ class CounterCashbook extends Model
         'cash_expenses',
         'closing_cash',
         'actual_counted_cash',
+        'denominations',
         'variance',
         'status',
         'notes',
@@ -31,6 +32,7 @@ class CounterCashbook extends Model
         'cash_expenses' => 'decimal:2',
         'closing_cash' => 'decimal:2',
         'actual_counted_cash' => 'decimal:2',
+        'denominations' => 'array',
         'variance' => 'decimal:2',
     ];
 
