@@ -392,6 +392,9 @@ class Farmer extends Model
 
                 if ($primaryWallet) {
                     $primaryWallet->recalculateBalance();
+                    \App\Models\FarmerInvoice::where('farmer_id', $primary->id)
+                        ->where('status', 'pending')
+                        ->update(['closing_wallet_balance' => (float) $primaryWallet->balance]);
                 }
             }
         } catch (\Throwable $e) {

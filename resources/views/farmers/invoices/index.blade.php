@@ -293,9 +293,9 @@
                             <td class="py-3 px-3 border-r border-slate-100 text-right font-mono">
                                 @php
                                     $displayWalletBal = (float) (
-                                        $inv->closing_wallet_balance !== null
-                                            ? $inv->closing_wallet_balance
-                                            : (($inv->farmer && $inv->farmer->wallet) ? $inv->farmer->wallet->balance : $inv->previous_balance)
+                                        ($inv->farmer && $inv->farmer->wallet)
+                                            ? $inv->farmer->wallet->balance
+                                            : ($inv->closing_wallet_balance ?? 0)
                                     );
                                 @endphp
                                 @if($displayWalletBal > 0)

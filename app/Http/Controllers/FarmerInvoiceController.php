@@ -376,6 +376,14 @@ class FarmerInvoiceController extends Controller
             $invoice->update($metrics);
         }
 
+        if ($invoice->status === 'pending') {
+            try {
+                $wallet = \App\Services\FarmerWalletService::getOrCreateWallet($invoice->farmer_id);
+                $wallet->recalculateBalance();
+                $invoice->update(['closing_wallet_balance' => (float) $wallet->balance]);
+            } catch (\Throwable $e) {}
+        }
+
         return $invoice;
     }
 
@@ -464,9 +472,9 @@ class FarmerInvoiceController extends Controller
         $totalAmount = (float) $summaryQuery->sum('total_amount');
         $totalBalance = (float) $invoices->sum(function ($inv) {
             return (float) (
-                $inv->closing_wallet_balance !== null
-                    ? $inv->closing_wallet_balance
-                    : (($inv->farmer && $inv->farmer->wallet) ? $inv->farmer->wallet->balance : $inv->previous_balance)
+                ($inv->farmer && $inv->farmer->wallet)
+                    ? $inv->farmer->wallet->balance
+                    : ($inv->closing_wallet_balance ?? 0)
             );
         });
         $totalPayment = (float) $summaryQuery->sum('net_payment');
