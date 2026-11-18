@@ -161,7 +161,7 @@
                                     <!-- Edit (Pencil - Blue button) -->
                                     @if($latestDeduction)
                                         <button type="button" 
-                                                onclick="openEditDeductionModal({{ $latestDeduction->id }}, {{ $farmer->id }}, '{{ $latestDeduction->entry_date->format('Y-m-d') }}', '{{ $latestDeduction->deduction_type }}', '{{ $latestDeduction->transaction_type }}', '{{ $latestDeduction->amount }}', '{{ addslashes($latestDeduction->comments ?? '') }}')" 
+                                                onclick="openEditDeductionModal({{ $latestDeduction->id }}, {{ $farmer->id }}, '{{ $latestDeduction->entry_date ? ($latestDeduction->entry_date instanceof \Carbon\Carbon ? $latestDeduction->entry_date->format('Y-m-d') : substr($latestDeduction->entry_date, 0, 10)) : date('Y-m-d') }}', '{{ $latestDeduction->deduction_type }}', '{{ $latestDeduction->transaction_type }}', '{{ $latestDeduction->amount }}', '{{ addslashes($latestDeduction->comments ?? '') }}')" 
                                                 title="Edit Latest Deduction"
                                                 class="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition shadow-2xs">
                                             <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
@@ -560,8 +560,13 @@
                         <td class="py-2 px-3 font-mono font-bold text-slate-900">₹${parseFloat(item.amount).toFixed(2)}</td>
                         <td class="py-2 px-3 text-slate-500">${item.comments || '-'}</td>
                         <td class="py-2 px-3 text-center">
-                            <div class="inline-flex gap-1">
-                                <button type="button" onclick="closeViewModal(); openEditDeductionModal(${item.id}, ${item.farmer_id}, '${item.entry_date.split('T')[0]}', '${item.deduction_type}', '${item.transaction_type}', '${item.amount}', '${escape(item.comments || '')}')" class="text-blue-600 hover:underline font-bold text-[11px]">Edit</button>
+                            <div class="inline-flex items-center gap-2">
+                                <button type="button" onclick="closeViewModal(); openEditDeductionModal(${item.id}, ${item.farmer_id}, '${(item.entry_date || '').split('T')[0]}', '${item.deduction_type}', '${item.transaction_type}', '${item.amount}', '${escape(item.comments || '')}')" class="text-blue-600 hover:underline font-bold text-[11px]">Edit</button>
+                                <form action="/deductions/${item.id}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this deduction entry?');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="_method" value="DELETE">
+                                    <button type="submit" class="text-rose-600 hover:underline font-bold text-[11px]">Delete</button>
+                                </form>
                             </div>
                         </td>
                     </tr>
