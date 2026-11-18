@@ -238,5 +238,65 @@ class Farmer extends Model
             ['balance' => 0.00]
         );
     }
+
+    /**
+     * Check if farmer has any pending financial transactions, dues, or balances.
+     */
+    public function getPendingDuesDetails(): array
+    {
+        $dues = [];
+
+        // 1. Current Ledger Balance
+        $bal = (float) ($this->current_balance ?? 0);
+        if (abs($bal) > 0.01) {
+            $dues[] = "Ledger Balance: ₹" . number_format($bal, 2);
+        }
+
+        // 2. Active Advances
+        try {
+            $advances = $this->advances()->where('status', '!=', 'settled')->get();
+            $pendingAdvance = 0.0;
+            foreach ($advances as $adv) {
+                $rem = (float) $adv->amount - ((float) $adv->deducted_amount + (float) $adv->paid_amount);
+                if ($rem > 0.01) {
+                    $pendingAdvance += $rem;
+                }
+            }
+            if ($pendingAdvance > 0.01) {
+                $dues[] = "Advance Balance: ₹" . number_format($pendingAdvance, 2);
+            }
+        } catch (\Throwable $e) {}
+
+        // 3. Active Loans
+        try {
+            $pendingLoans = (float) $this->loans()->where('status', '!=', 'completed')->where('status', '!=', 'closed')->sum('remaining_amount');
+            if ($pendingLoans > 0.01) {
+                $dues[] = "Loan Balance: ₹" . number_format($pendingLoans, 2);
+            }
+        } catch (\Throwable $e) {}
+
+        // 4. Unpaid Product / Cattle Feed Sales
+        try {
+            $pendingSales = (float) $this->productSales()->where('is_paid', false)->where('remaining_amount', '>', 0.01)->sum('remaining_amount');
+            if ($pendingSales > 0.01) {
+                $dues[] = "Product Sales Dues: ₹" . number_format($pendingSales, 2);
+            }
+        } catch (\Throwable $e) {}
+
+        // 5. Unbilled Milk Collections
+        try {
+            $unbilledMilkCount = $this->collections()->whereNull('invoice_id')->count();
+            if ($unbilledMilkCount > 0) {
+                $dues[] = "Unbilled Milk Collections: {$unbilledMilkCount} entries";
+            }
+        } catch (\Throwable $e) {}
+
+        return $dues;
+    }
+
+    public function hasPendingTransactions(): bool
+    {
+        return count($this->getPendingDuesDetails()) > 0;
+    }
 }
 

@@ -108,6 +108,13 @@ class VehicleController extends Controller
         $validated['status'] = $validated['status'] ?? 'available';
         $validated['created_by'] = Auth::id();
 
+        if (!empty($validated['route_id']) && empty($validated['assigned_route'])) {
+            $rt = DeliveryRoute::find($validated['route_id']);
+            if ($rt) {
+                $validated['assigned_route'] = $rt->name;
+            }
+        }
+
         $vehicle = Vehicle::create($validated);
 
         AuditLog::log("Added Vehicle {$vehicle->vehicle_number}", 'Vehicle', $vehicle->id);
@@ -141,6 +148,13 @@ class VehicleController extends Controller
             'status' => 'nullable|string|in:available,on_duty,maintenance,inactive',
             'notes' => 'nullable|string',
         ]);
+
+        if (!empty($validated['route_id']) && empty($validated['assigned_route'])) {
+            $rt = DeliveryRoute::find($validated['route_id']);
+            if ($rt) {
+                $validated['assigned_route'] = $rt->name;
+            }
+        }
 
         $vehicle->update($validated);
 

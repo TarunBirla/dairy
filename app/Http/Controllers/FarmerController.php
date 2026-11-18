@@ -116,6 +116,8 @@ class FarmerController extends Controller
         $allFarmersAdditions = \App\Services\CenterAdditionDeductionService::getAllFarmersAdditions();
         $allFarmersDeductions = \App\Services\CenterAdditionDeductionService::getAllFarmersDeductions();
 
+        $vehicles = \App\Models\Vehicle::with('route')->orderBy('vehicle_number')->get();
+
         return view('farmers.index', compact(
             'farmers',
             'totalFarmers',
@@ -125,6 +127,7 @@ class FarmerController extends Controller
             'centers',
             'rateCharts',
             'routes',
+            'vehicles',
             'nextCode',
             'farmerWiseAdditions',
             'farmerWiseDeductions',
@@ -150,11 +153,14 @@ class FarmerController extends Controller
         $allFarmersAdditions = \App\Services\CenterAdditionDeductionService::getAllFarmersAdditions();
         $allFarmersDeductions = \App\Services\CenterAdditionDeductionService::getAllFarmersDeductions();
 
+        $vehicles = \App\Models\Vehicle::with('route')->orderBy('vehicle_number')->get();
+
         return view('farmers.create', compact(
             'branches',
             'centers',
             'rateCharts',
             'routes',
+            'vehicles',
             'nextCode',
             'farmerWiseAdditions',
             'farmerWiseDeductions',
@@ -687,6 +693,7 @@ class FarmerController extends Controller
         $centers = CollectionCenter::all();
         $rateCharts = RateChart::where('status', 'active')->get();
         $routes = \App\Models\DeliveryRoute::orderBy('name')->get();
+        $vehicles = \App\Models\Vehicle::with('route')->orderBy('vehicle_number')->get();
 
         $farmerWiseAdditions = \App\Services\CenterAdditionDeductionService::getFarmerWiseAdditions();
         $farmerWiseDeductions = \App\Services\CenterAdditionDeductionService::getFarmerWiseDeductions();
@@ -699,6 +706,7 @@ class FarmerController extends Controller
             'centers',
             'rateCharts',
             'routes',
+            'vehicles',
             'farmerWiseAdditions',
             'farmerWiseDeductions',
             'allFarmersAdditions',
@@ -818,12 +826,24 @@ class FarmerController extends Controller
     }
 
     /**
-     * Delete farmer record
+     * Delete farmer record with strict safety checks (Inactive status + 0 pending dues/len-den)
      */
     public function destroy(Farmer $farmer)
     {
         $name = $farmer->name;
         $code = $farmer->farmer_code;
+
+        // Security Check 1: Farmer must be inactive first
+        if (strtolower($farmer->status ?? '') !== 'inactive') {
+            return back()->with('error', "Cannot delete farmer {$name} ({$code}): Farmer status is currently Active. Please change farmer status to 'Inactive' first before deleting.");
+        }
+
+        // Security Check 2: Farmer must have no pending financial dues or transactions (Len-Den clear)
+        if ($farmer->hasPendingTransactions()) {
+            $duesList = $farmer->getPendingDuesDetails();
+            $duesStr = implode(' | ', $duesList);
+            return back()->with('error', "Cannot delete farmer {$name} ({$code}): Outstanding dues/transactions exist ({$duesStr}). All balances and transactions must be cleared before deleting.");
+        }
 
         $farmer->delete();
         AuditLog::log('Deleted Farmer', 'Farmer', $farmer->id, ['code' => $code, 'name' => $name]);
