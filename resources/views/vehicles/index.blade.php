@@ -265,9 +265,53 @@
             </div>
 
             <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block font-bold text-slate-700 mb-1">Assigned Route</label>
-                    <input type="text" name="assigned_route" placeholder="e.g. Lowadih - Lalpur" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none">
+                <div class="relative" x-data="{
+                    open: false,
+                    search: '',
+                    selectedName: '',
+                    selectedId: '',
+                    routes: {{ json_encode($routes->map(fn($r) => ['id' => $r->id, 'name' => $r->name, 'code' => $r->code])) }},
+                    get filteredRoutes() {
+                        if (!this.search) return this.routes;
+                        const s = this.search.toLowerCase();
+                        return this.routes.filter(r => (r.name && r.name.toLowerCase().includes(s)) || (r.code && r.code.toLowerCase().includes(s)));
+                    },
+                    select(r) {
+                        if (r) {
+                            this.selectedId = r.id;
+                            this.selectedName = r.name;
+                        } else {
+                            this.selectedId = '';
+                            this.selectedName = '';
+                        }
+                        this.open = false;
+                        this.search = '';
+                    }
+                }" @click.outside="open = false">
+                    <label class="block font-bold text-slate-700 mb-1">Assigned Route / मार्ग</label>
+                    <input type="hidden" name="route_id" :value="selectedId">
+                    <input type="hidden" name="assigned_route" :value="selectedName">
+                    <button type="button" @click="open = !open" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none flex items-center justify-between text-left text-xs">
+                        <span x-text="selectedName ? selectedName : 'Select Route (Optional)'" :class="selectedName ? 'text-slate-900 font-semibold' : 'text-slate-400'"></span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+                    </button>
+                    <div x-show="open" x-transition class="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg p-2 max-h-56 overflow-y-auto" style="display: none;">
+                        <input type="text" x-model="search" placeholder="Search route by name or code..." class="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white outline-none mb-2">
+                        <div class="space-y-1">
+                            <button type="button" @click="select(null)" class="w-full text-left px-2.5 py-1.5 text-xs rounded-lg hover:bg-slate-100 text-slate-500">
+                                -- None / No Route --
+                            </button>
+                            <template x-for="r in filteredRoutes" :key="r.id">
+                                <button type="button" @click="select(r)" class="w-full text-left px-2.5 py-1.5 text-xs rounded-lg hover:bg-emerald-50 hover:text-emerald-800 flex items-center justify-between transition">
+                                    <span class="font-medium" x-text="r.name"></span>
+                                    <span class="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded" x-text="r.code" x-show="r.code"></span>
+                                </button>
+                            </template>
+                            <div x-show="filteredRoutes.length === 0" class="text-center py-2 text-xs text-slate-400">
+                                No routes found
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Status</label>
@@ -354,9 +398,60 @@
             </div>
 
             <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block font-bold text-slate-700 mb-1">Assigned Route</label>
-                    <input type="text" name="assigned_route" id="editRoute" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none">
+                <div class="relative" x-data="{
+                    open: false,
+                    search: '',
+                    selectedName: '',
+                    selectedId: '',
+                    routes: {{ json_encode($routes->map(fn($r) => ['id' => $r->id, 'name' => $r->name, 'code' => $r->code])) }},
+                    get filteredRoutes() {
+                        if (!this.search) return this.routes;
+                        const s = this.search.toLowerCase();
+                        return this.routes.filter(r => (r.name && r.name.toLowerCase().includes(s)) || (r.code && r.code.toLowerCase().includes(s)));
+                    },
+                    select(r) {
+                        if (r) {
+                            this.selectedId = r.id;
+                            this.selectedName = r.name;
+                        } else {
+                            this.selectedId = '';
+                            this.selectedName = '';
+                        }
+                        this.open = false;
+                        this.search = '';
+                    }
+                }" @click.outside="open = false" @set-edit-route.window="
+                    selectedId = $event.detail.route_id || '';
+                    selectedName = $event.detail.assigned_route || '';
+                    if (!selectedName && selectedId) {
+                        const found = routes.find(x => x.id == selectedId);
+                        if (found) selectedName = found.name;
+                    }
+                ">
+                    <label class="block font-bold text-slate-700 mb-1">Assigned Route / मार्ग</label>
+                    <input type="hidden" name="route_id" id="editRouteId" :value="selectedId">
+                    <input type="hidden" name="assigned_route" id="editRoute" :value="selectedName">
+                    <button type="button" @click="open = !open" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none flex items-center justify-between text-left text-xs">
+                        <span x-text="selectedName ? selectedName : 'Select Route (Optional)'" :class="selectedName ? 'text-slate-900 font-semibold' : 'text-slate-400'"></span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+                    </button>
+                    <div x-show="open" x-transition class="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg p-2 max-h-56 overflow-y-auto" style="display: none;">
+                        <input type="text" x-model="search" placeholder="Search route by name or code..." class="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white outline-none mb-2">
+                        <div class="space-y-1">
+                            <button type="button" @click="select(null)" class="w-full text-left px-2.5 py-1.5 text-xs rounded-lg hover:bg-slate-100 text-slate-500">
+                                -- None / No Route --
+                            </button>
+                            <template x-for="r in filteredRoutes" :key="r.id">
+                                <button type="button" @click="select(r)" class="w-full text-left px-2.5 py-1.5 text-xs rounded-lg hover:bg-emerald-50 hover:text-emerald-800 flex items-center justify-between transition">
+                                    <span class="font-medium" x-text="r.name"></span>
+                                    <span class="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded" x-text="r.code" x-show="r.code"></span>
+                                </button>
+                            </template>
+                            <div x-show="filteredRoutes.length === 0" class="text-center py-2 text-xs text-slate-400">
+                                No routes found
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Status</label>
@@ -398,8 +493,19 @@
         document.getElementById('editCapacity').value = v.capacity;
         document.getElementById('editKm').value = v.current_km;
         document.getElementById('editPerKm').value = v.per_km_rate;
-        document.getElementById('editRoute').value = v.assigned_route || '';
+        document.getElementById('editRoute').value = v.assigned_route || (v.route ? v.route.name : '');
+        if (document.getElementById('editRouteId')) {
+            document.getElementById('editRouteId').value = v.route_id || '';
+        }
         document.getElementById('editStatus').value = v.status;
+        
+        window.dispatchEvent(new CustomEvent('set-edit-route', {
+            detail: {
+                route_id: v.route_id || '',
+                assigned_route: v.assigned_route || (v.route ? v.route.name : '')
+            }
+        }));
+
         document.getElementById('editVehicleModal').classList.remove('hidden');
     }
     function closeEditModal() {

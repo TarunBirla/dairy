@@ -217,6 +217,10 @@
                                 'extra_rates' => $farmer->extra_rates ?: [],
                                 'current_balance' => $farmer->current_balance ?? 0,
                                 'status' => $farmer->status,
+                                'is_inactive' => (strtolower($farmer->status ?? '') === 'inactive'),
+                                'pending_dues' => $farmer->getPendingDuesDetails(),
+                                'has_dues' => $farmer->hasPendingTransactions(),
+                                'destroy_url' => route('farmers.destroy', $farmer),
                             ];
                         @endphp
                         <tr class="hover:bg-slate-50/70 transition group">
@@ -343,16 +347,13 @@
                                         <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                                     </button>
 
-                                    <!-- Delete Button -->
-                                    <form action="{{ route('farmers.destroy', $farmer) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete farmer {{ addslashes($farmer->name) }} ({{ $farmer->farmer_code }})?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" 
-                                                title="Delete Farmer" 
-                                                class="w-7 h-7 flex items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 transition">
-                                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                                        </button>
-                                    </form>
+                                    <!-- Delete Button with Strict Safeguard Modal -->
+                                    <button type="button" 
+                                            @click="openDeleteWarningModal({{ json_encode($farmerViewData) }})"
+                                            title="Delete Farmer" 
+                                            class="w-7 h-7 flex items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 transition">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -477,34 +478,95 @@
                                    class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none">
                         </div>
 
-                        <!-- Vehicle -->
-                        <div>
+                        <!-- Vehicle / वाहन (Searchable Dropdown with Auto Route Selection) -->
+                        <div class="relative" @click.outside="vehicleDropdownOpen = false">
                             <label class="block text-[11px] font-semibold text-slate-700 mb-1">
                                 Vehicle / वाहन
                             </label>
-                            <select name="vehicle" x-model="form.vehicle" class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none">
-                                <option value="">Select Vehicle</option>
-                                <option value="Van">Van</option>
-                                <option value="Car">Car</option>
-                                <option value="Tanker">Tanker</option>
-                                <option value="Bike">Bike</option>
-                                <option value="Tractor">Tractor</option>
-                                <option value="Auto">Auto / Loader</option>
-                                <option value="Other">Other / अन्य</option>
-                            </select>
+                            <input type="hidden" name="vehicle" :value="form.vehicle">
+                            <button type="button" 
+                                    @click="vehicleDropdownOpen = !vehicleDropdownOpen; if(vehicleDropdownOpen) $nextTick(() => $refs.vehSearchInput?.focus())" 
+                                    class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none flex items-center justify-between text-left">
+                                <span x-text="form.vehicle ? form.vehicle : 'Select Vehicle'" :class="form.vehicle ? 'text-slate-900 font-semibold' : 'text-slate-400'"></span>
+                                <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+                            </button>
+
+                            <!-- Dropdown Box with Search -->
+                            <div x-show="vehicleDropdownOpen" 
+                                 x-transition 
+                                 class="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg p-2 max-h-56 overflow-y-auto" 
+                                 style="display: none;">
+                                <input type="text" 
+                                       x-ref="vehSearchInput"
+                                       x-model="vehicleSearch" 
+                                       placeholder="Search vehicle number..." 
+                                       class="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white outline-none mb-2">
+                                <div class="space-y-1">
+                                    <button type="button" 
+                                            @click="selectVehicle(null)" 
+                                            class="w-full text-left px-2 py-1 text-xs rounded hover:bg-slate-100 text-slate-500">
+                                        -- None / No Vehicle --
+                                    </button>
+                                    <template x-for="v in filteredVehicles" :key="v.id">
+                                        <button type="button" 
+                                                @click="selectVehicle(v)" 
+                                                class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-emerald-50 hover:text-emerald-800 flex items-center justify-between transition">
+                                            <div>
+                                                <span class="font-bold text-slate-900" x-text="v.vehicle_number"></span>
+                                                <span class="text-[10px] text-slate-400 block" x-text="(v.vehicle_type || '') + (v.driver_name ? ' · ' + v.driver_name : '')"></span>
+                                            </div>
+                                            <span class="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded" x-text="v.assigned_route" x-show="v.assigned_route"></span>
+                                        </button>
+                                    </template>
+                                    <div x-show="filteredVehicles.length === 0" class="text-center py-2 text-xs text-slate-400">
+                                        No vehicle found
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Assign Route -->
-                        <div class="sm:col-span-2">
+                        <!-- Assign Route / मार्ग असाइन करें (Searchable Dropdown) -->
+                        <div class="sm:col-span-2 relative" @click.outside="routeDropdownOpen = false">
                             <label class="block text-[11px] font-semibold text-slate-700 mb-1">
                                 Assign Route / मार्ग असाइन करें
                             </label>
-                            <select name="route_id" x-model="form.route_id" class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none">
-                                <option value="">Select Route</option>
-                                @foreach($routes as $rt)
-                                    <option value="{{ $rt->id }}">{{ $rt->name }} ({{ $rt->code ?? 'RT-'.$rt->id }})</option>
-                                @endforeach
-                            </select>
+                            <input type="hidden" name="route_id" :value="form.route_id">
+                            <button type="button" 
+                                    @click="routeDropdownOpen = !routeDropdownOpen; if(routeDropdownOpen) $nextTick(() => $refs.rtSearchInput?.focus())" 
+                                    class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none flex items-center justify-between text-left">
+                                <span x-text="selectedRouteName ? selectedRouteName : 'Select Route'" :class="selectedRouteName ? 'text-slate-900 font-semibold' : 'text-slate-400'"></span>
+                                <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+                            </button>
+
+                            <!-- Dropdown Box with Search -->
+                            <div x-show="routeDropdownOpen" 
+                                 x-transition 
+                                 class="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg p-2 max-h-56 overflow-y-auto" 
+                                 style="display: none;">
+                                <input type="text" 
+                                       x-ref="rtSearchInput"
+                                       x-model="routeSearch" 
+                                       placeholder="Search route by name or code..." 
+                                       class="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white outline-none mb-2">
+                                <div class="space-y-1">
+                                    <button type="button" 
+                                            @click="selectRoute(null)" 
+                                            class="w-full text-left px-2 py-1 text-xs rounded hover:bg-slate-100 text-slate-500">
+                                        -- None / No Route --
+                                    </button>
+                                    <template x-for="r in filteredRoutes" :key="r.id">
+                                        <button type="button" 
+                                                @click="selectRoute(r)" 
+                                                class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-emerald-50 hover:text-emerald-800 flex items-center justify-between transition">
+                                            <span class="font-medium" x-text="r.name"></span>
+                                            <span class="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded" x-text="r.code" x-show="r.code"></span>
+                                        </button>
+                                    </template>
+                                    <div x-show="filteredRoutes.length === 0" class="text-center py-2 text-xs text-slate-400">
+                                        No route found
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1039,6 +1101,133 @@
         </div>
     </div>
 
+    <!-- Farmer Deletion Warning & Safeguard Modal Box (Inactive + 0 Dues Checks) -->
+    <div x-show="showDeleteModal" 
+         x-cloak 
+         class="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
+         style="z-index: 99999 !important;"
+         @click.self="closeDeleteModal()"
+         @keydown.escape.window="closeDeleteModal()">
+
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 relative"
+             style="z-index: 100000 !important;"
+             @click.stop>
+
+            <!-- Condition 1: Farmer is NOT Inactive (Farmer is Active) -->
+            <template x-if="deleteFarmer && !deleteFarmer.is_inactive">
+                <div>
+                    <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 border border-amber-200">
+                        <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-base font-black text-slate-900 text-center">Cannot Delete Active Farmer</h3>
+                    <p class="text-xs text-amber-700 font-bold text-center mt-0.5">सक्रिय किसान को हटाया नहीं जा सकता</p>
+
+                    <div class="mt-4 p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2 text-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-600 font-medium">Farmer:</span>
+                            <span class="font-bold text-slate-900" x-text="(deleteFarmer?.name || '') + ' (' + (deleteFarmer?.farmer_code || '') + ')'"></span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-600 font-medium">Current Status:</span>
+                            <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded text-[10px] uppercase" x-text="deleteFarmer?.status"></span>
+                        </div>
+                        <p class="text-[11px] text-amber-800 font-medium pt-1 border-t border-amber-200/60 leading-relaxed">
+                            किसान को डिलीट करने से पहले उसका स्टेटस <strong>Inactive (निष्क्रिय)</strong> होना आवश्यक है। कृपया पहले Edit में जाकर स्टेटस <strong>Inactive</strong> करें।
+                        </p>
+                    </div>
+
+                    <div class="mt-6 flex items-center justify-end gap-2">
+                        <button type="button" @click="closeDeleteModal()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
+                            OK, I Understand / समझ गया
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Condition 2: Farmer is Inactive, BUT has pending dues/len-den -->
+            <template x-if="deleteFarmer && deleteFarmer.is_inactive && deleteFarmer.has_dues">
+                <div>
+                    <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-4 border border-rose-200">
+                        <i data-lucide="shield-alert" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-base font-black text-slate-900 text-center">Pending Len-Den Exists</h3>
+                    <p class="text-xs text-rose-700 font-bold text-center mt-0.5">किसान का लेन-देन (Dues / Balances) अभी बाकी है</p>
+
+                    <div class="mt-4 p-3.5 bg-rose-50/70 border border-rose-200 rounded-xl space-y-2.5 text-xs">
+                        <div class="flex items-center justify-between pb-2 border-b border-rose-200/70">
+                            <span class="text-slate-600 font-medium">Farmer:</span>
+                            <span class="font-bold text-slate-900" x-text="(deleteFarmer?.name || '') + ' (' + (deleteFarmer?.farmer_code || '') + ')'"></span>
+                        </div>
+                        <p class="text-[11px] text-rose-800 font-medium leading-relaxed">
+                            इस किसान के खाते में बकाया या लेन-देन बाकी है। जब तक संपूर्ण लेन-देन चुकता नहीं होता, किसान को डिलीट नहीं किया जा सकता:
+                        </p>
+                        <div class="space-y-1.5 pt-1">
+                            <template x-for="(due, idx) in (deleteFarmer?.pending_dues || [])" :key="idx">
+                                <div class="flex items-center gap-2 text-rose-900 bg-white/80 px-2.5 py-1.5 rounded-lg border border-rose-200 text-xs font-semibold">
+                                    <i data-lucide="x-circle" class="w-3.5 h-3.5 text-rose-600 shrink-0"></i>
+                                    <span x-text="due"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex items-center justify-end gap-2">
+                        <button type="button" @click="closeDeleteModal()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
+                            OK, Close / बंद करें
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Condition 3: Farmer is Inactive AND Len-Den is ZERO (Clean to delete) -->
+            <template x-if="deleteFarmer && deleteFarmer.is_inactive && !deleteFarmer.has_dues">
+                <div>
+                    <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4 border border-rose-200">
+                        <i data-lucide="alert-octagon" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-base font-black text-slate-900 text-center">Confirm Farmer Deletion</h3>
+                    <p class="text-xs text-slate-500 font-medium text-center mt-0.5">क्या आप निश्चित रूप से इस किसान को हटाना चाहते हैं?</p>
+
+                    <div class="mt-4 p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500">Farmer Name:</span>
+                            <span class="font-bold text-slate-900" x-text="deleteFarmer?.name"></span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500">Farmer Code:</span>
+                            <span class="font-mono font-bold text-slate-800" x-text="deleteFarmer?.farmer_code"></span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500">Status:</span>
+                            <span class="px-2 py-0.5 bg-slate-200 text-slate-700 font-bold rounded text-[10px] uppercase">Inactive ✓</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500">Outstanding Balance:</span>
+                            <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded text-[10px]">₹0.00 (Cleared ✓)</span>
+                        </div>
+                        <div class="pt-2 border-t border-slate-200 text-[11px] text-rose-600 font-semibold flex items-center gap-1.5">
+                            <i data-lucide="alert-triangle" class="w-3.5 h-3.5 shrink-0"></i>
+                            <span>Warning: यह क्रिया स्थायी है। डिलीट करने के बाद इसे पूर्ववत नहीं किया जा सकता।</span>
+                        </div>
+                    </div>
+
+                    <form :action="deleteFarmer?.destroy_url" method="POST" class="mt-6 flex items-center justify-end gap-2">
+                        @csrf
+                        <input type="hidden" name="_method" value="DELETE">
+                        <button type="button" @click="closeDeleteModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition">
+                            Cancel / रद्द करें
+                        </button>
+                        <button type="submit" class="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-1.5">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            <span>Yes, Delete / हाँ, हटाएं</span>
+                        </button>
+                    </form>
+                </div>
+            </template>
+
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -1052,6 +1241,98 @@ function farmerManager() {
         installmentModalAmount: '0.00',
         isEditMode: false,
         formAction: '{{ route("farmers.store") }}',
+
+        vehiclesList: {{ json_encode($vehicles->map(fn($v) => [
+            'id' => $v->id,
+            'vehicle_number' => $v->vehicle_number,
+            'vehicle_type' => $v->vehicle_type,
+            'route_id' => $v->route_id,
+            'assigned_route' => $v->assigned_route ?: ($v->route ? $v->route->name : ''),
+            'driver_name' => $v->driver_name ?? '',
+        ])) }},
+        routesList: {{ json_encode($routes->map(fn($r) => [
+            'id' => $r->id,
+            'name' => $r->name,
+            'code' => $r->code,
+        ])) }},
+
+        vehicleSearch: '',
+        vehicleDropdownOpen: false,
+        routeSearch: '',
+        routeDropdownOpen: false,
+
+        showDeleteModal: false,
+        deleteFarmer: null,
+
+        get filteredVehicles() {
+            if (!this.vehicleSearch) return this.vehiclesList;
+            const s = this.vehicleSearch.toLowerCase();
+            return this.vehiclesList.filter(v => 
+                (v.vehicle_number && v.vehicle_number.toLowerCase().includes(s)) ||
+                (v.vehicle_type && v.vehicle_type.toLowerCase().includes(s)) ||
+                (v.driver_name && v.driver_name.toLowerCase().includes(s))
+            );
+        },
+
+        get filteredRoutes() {
+            if (!this.routeSearch) return this.routesList;
+            const s = this.routeSearch.toLowerCase();
+            return this.routesList.filter(r => 
+                (r.name && r.name.toLowerCase().includes(s)) ||
+                (r.code && r.code.toLowerCase().includes(s))
+            );
+        },
+
+        selectVehicle(veh) {
+            if (!veh) {
+                this.form.vehicle = '';
+                this.vehicleDropdownOpen = false;
+                this.vehicleSearch = '';
+                return;
+            }
+            this.form.vehicle = veh.vehicle_number;
+            this.vehicleDropdownOpen = false;
+            this.vehicleSearch = '';
+
+            // Auto-select route when vehicle is selected
+            if (veh.route_id) {
+                this.form.route_id = veh.route_id;
+            } else if (veh.assigned_route) {
+                const matched = this.routesList.find(r => r.name.toLowerCase() === veh.assigned_route.toLowerCase());
+                if (matched) {
+                    this.form.route_id = matched.id;
+                }
+            }
+        },
+
+        selectRoute(rt) {
+            if (!rt) {
+                this.form.route_id = '';
+            } else {
+                this.form.route_id = rt.id;
+            }
+            this.routeDropdownOpen = false;
+            this.routeSearch = '';
+        },
+
+        get selectedRouteName() {
+            if (!this.form.route_id) return '';
+            const found = this.routesList.find(r => String(r.id) === String(this.form.route_id));
+            return found ? `${found.name} (${found.code || 'RT-' + found.id})` : '';
+        },
+
+        openDeleteWarningModal(farmer) {
+            this.deleteFarmer = farmer;
+            this.showDeleteModal = true;
+            this.$nextTick(() => {
+                if (window.lucide) window.lucide.createIcons();
+            });
+        },
+
+        closeDeleteModal() {
+            this.showDeleteModal = false;
+            this.deleteFarmer = null;
+        },
 
         form: {
             id: null,

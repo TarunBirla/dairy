@@ -95,36 +95,156 @@
                            class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition">
                 </div>
 
-                <!-- Vehicle -->
-                <div>
-                    <label class="block text-[11px] font-semibold text-slate-700 mb-1">
-                        Vehicle / वाहन
-                    </label>
-                    <select name="vehicle" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition">
-                        <option value="">Select Vehicle</option>
-                        <option value="Van" {{ old('vehicle') === 'Van' ? 'selected' : '' }}>Van</option>
-                        <option value="Car" {{ old('vehicle') === 'Car' ? 'selected' : '' }}>Car</option>
-                        <option value="Tanker" {{ old('vehicle') === 'Tanker' ? 'selected' : '' }}>Tanker</option>
-                        <option value="Bike" {{ old('vehicle') === 'Bike' ? 'selected' : '' }}>Bike</option>
-                        <option value="Tractor" {{ old('vehicle') === 'Tractor' ? 'selected' : '' }}>Tractor</option>
-                        <option value="Auto" {{ old('vehicle') === 'Auto' ? 'selected' : '' }}>Auto / Loader</option>
-                        <option value="Other" {{ old('vehicle') === 'Other' ? 'selected' : '' }}>Other / अन्य</option>
-                    </select>
-                </div>
+                <!-- Vehicle & Route Selector (Searchable & Auto-Assign) -->
+                <div class="contents" x-data="{
+                    vehicleSearch: '',
+                    vehicleDropdownOpen: false,
+                    selectedVehicle: '{{ old('vehicle', '') }}',
+                    routeSearch: '',
+                    routeDropdownOpen: false,
+                    selectedRouteId: '{{ old('route_id', '') }}',
+                    vehiclesList: {{ json_encode($vehicles->map(fn($v) => [
+                        'id' => $v->id,
+                        'vehicle_number' => $v->vehicle_number,
+                        'vehicle_type' => $v->vehicle_type,
+                        'route_id' => $v->route_id,
+                        'assigned_route' => $v->assigned_route ?: ($v->route ? $v->route->name : ''),
+                        'driver_name' => $v->driver_name ?? '',
+                    ])) }},
+                    routesList: {{ json_encode($routes->map(fn($r) => [
+                        'id' => $r->id,
+                        'name' => $r->name,
+                        'code' => $r->code,
+                    ])) }},
+                    get filteredVehicles() {
+                        if (!this.vehicleSearch) return this.vehiclesList;
+                        const s = this.vehicleSearch.toLowerCase();
+                        return this.vehiclesList.filter(v => 
+                            (v.vehicle_number && v.vehicle_number.toLowerCase().includes(s)) ||
+                            (v.vehicle_type && v.vehicle_type.toLowerCase().includes(s)) ||
+                            (v.driver_name && v.driver_name.toLowerCase().includes(s))
+                        );
+                    },
+                    get filteredRoutes() {
+                        if (!this.routeSearch) return this.routesList;
+                        const s = this.routeSearch.toLowerCase();
+                        return this.routesList.filter(r => 
+                            (r.name && r.name.toLowerCase().includes(s)) ||
+                            (r.code && r.code.toLowerCase().includes(s))
+                        );
+                    },
+                    selectVehicle(veh) {
+                        if (!veh) {
+                            this.selectedVehicle = '';
+                            this.vehicleDropdownOpen = false;
+                            this.vehicleSearch = '';
+                            return;
+                        }
+                        this.selectedVehicle = veh.vehicle_number;
+                        this.vehicleDropdownOpen = false;
+                        this.vehicleSearch = '';
+                        if (veh.route_id) {
+                            this.selectedRouteId = veh.route_id;
+                        } else if (veh.assigned_route) {
+                            const matched = this.routesList.find(r => r.name.toLowerCase() === veh.assigned_route.toLowerCase());
+                            if (matched) this.selectedRouteId = matched.id;
+                        }
+                    },
+                    selectRoute(rt) {
+                        this.selectedRouteId = rt ? rt.id : '';
+                        this.routeDropdownOpen = false;
+                        this.routeSearch = '';
+                    },
+                    get selectedRouteName() {
+                        if (!this.selectedRouteId) return '';
+                        const found = this.routesList.find(r => String(r.id) === String(this.selectedRouteId));
+                        return found ? `${found.name} (${found.code || 'RT-' + found.id})` : '';
+                    }
+                }">
+                    <!-- Vehicle / वाहन -->
+                    <div class="relative" @click.outside="vehicleDropdownOpen = false">
+                        <label class="block text-[11px] font-semibold text-slate-700 mb-1">
+                            Vehicle / वाहन
+                        </label>
+                        <input type="hidden" name="vehicle" :value="selectedVehicle">
+                        <button type="button" 
+                                @click="vehicleDropdownOpen = !vehicleDropdownOpen; if(vehicleDropdownOpen) $nextTick(() => $refs.vehSearchInput?.focus())" 
+                                class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none flex items-center justify-between text-left transition">
+                            <span x-text="selectedVehicle ? selectedVehicle : 'Select Vehicle'" :class="selectedVehicle ? 'text-slate-900 font-semibold' : 'text-slate-400'"></span>
+                            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+                        </button>
 
-                <!-- Assign Route -->
-                <div class="sm:col-span-2">
-                    <label class="block text-[11px] font-semibold text-slate-700 mb-1">
-                        Assign Route / मार्ग असाइन करें
-                    </label>
-                    <select name="route_id" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition">
-                        <option value="">Select Route</option>
-                        @foreach($routes as $rt)
-                            <option value="{{ $rt->id }}" {{ old('route_id') == $rt->id ? 'selected' : '' }}>
-                                {{ $rt->name }} ({{ $rt->code ?? 'RT-'.$rt->id }})
-                            </option>
-                        @endforeach
-                    </select>
+                        <div x-show="vehicleDropdownOpen" 
+                             x-transition 
+                             class="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg p-2 max-h-56 overflow-y-auto" 
+                             style="display: none;">
+                            <input type="text" 
+                                   x-ref="vehSearchInput"
+                                   x-model="vehicleSearch" 
+                                   placeholder="Search vehicle number..." 
+                                   class="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white outline-none mb-2">
+                            <div class="space-y-1">
+                                <button type="button" @click="selectVehicle(null)" class="w-full text-left px-2 py-1 text-xs rounded hover:bg-slate-100 text-slate-500">
+                                    -- None / No Vehicle --
+                                </button>
+                                <template x-for="v in filteredVehicles" :key="v.id">
+                                    <button type="button" 
+                                            @click="selectVehicle(v)" 
+                                            class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-emerald-50 hover:text-emerald-800 flex items-center justify-between transition">
+                                        <div>
+                                            <span class="font-bold text-slate-900" x-text="v.vehicle_number"></span>
+                                            <span class="text-[10px] text-slate-400 block" x-text="(v.vehicle_type || '') + (v.driver_name ? ' · ' + v.driver_name : '')"></span>
+                                        </div>
+                                        <span class="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded" x-text="v.assigned_route" x-show="v.assigned_route"></span>
+                                    </button>
+                                </template>
+                                <div x-show="filteredVehicles.length === 0" class="text-center py-2 text-xs text-slate-400">
+                                    No vehicle found
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Assign Route / मार्ग असाइन करें -->
+                    <div class="sm:col-span-2 relative" @click.outside="routeDropdownOpen = false">
+                        <label class="block text-[11px] font-semibold text-slate-700 mb-1">
+                            Assign Route / मार्ग असाइन करें
+                        </label>
+                        <input type="hidden" name="route_id" :value="selectedRouteId">
+                        <button type="button" 
+                                @click="routeDropdownOpen = !routeDropdownOpen; if(routeDropdownOpen) $nextTick(() => $refs.rtSearchInput?.focus())" 
+                                class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none flex items-center justify-between text-left transition">
+                            <span x-text="selectedRouteName ? selectedRouteName : 'Select Route'" :class="selectedRouteName ? 'text-slate-900 font-semibold' : 'text-slate-400'"></span>
+                            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+                        </button>
+
+                        <div x-show="routeDropdownOpen" 
+                             x-transition 
+                             class="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg p-2 max-h-56 overflow-y-auto" 
+                             style="display: none;">
+                            <input type="text" 
+                                   x-ref="rtSearchInput"
+                                   x-model="routeSearch" 
+                                   placeholder="Search route by name or code..." 
+                                   class="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white outline-none mb-2">
+                            <div class="space-y-1">
+                                <button type="button" @click="selectRoute(null)" class="w-full text-left px-2 py-1 text-xs rounded hover:bg-slate-100 text-slate-500">
+                                    -- None / No Route --
+                                </button>
+                                <template x-for="r in filteredRoutes" :key="r.id">
+                                    <button type="button" 
+                                            @click="selectRoute(r)" 
+                                            class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-emerald-50 hover:text-emerald-800 flex items-center justify-between transition">
+                                        <span class="font-medium" x-text="r.name"></span>
+                                        <span class="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded" x-text="r.code" x-show="r.code"></span>
+                                    </button>
+                                </template>
+                                <div x-show="filteredRoutes.length === 0" class="text-center py-2 text-xs text-slate-400">
+                                    No route found
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
