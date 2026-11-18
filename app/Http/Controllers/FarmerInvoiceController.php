@@ -234,20 +234,24 @@ class FarmerInvoiceController extends Controller
         $deductionsBreakdown = [];
         if ($stationaryDeduction > 0) {
             $deductionsBreakdown[] = [
+                'key' => 'stationary',
                 'name' => 'Stationary',
                 'category' => 'Stationary',
                 'original_balance' => $stationaryDeduction,
                 'deducted_amount' => $stationaryDeduction,
                 'remaining_balance' => 0.00,
+                'is_wallet' => false,
             ];
         }
         if ($feedDeduction > 0) {
             $deductionsBreakdown[] = [
+                'key' => 'feed',
                 'name' => 'Food / Feed',
                 'category' => 'Feed',
                 'original_balance' => $feedDeduction,
                 'deducted_amount' => $feedDeduction,
                 'remaining_balance' => 0.00,
+                'is_wallet' => false,
             ];
         }
         if ($advanceDeduction > 0 || $totalLoanPrincipal > 0) {
@@ -255,22 +259,26 @@ class FarmerInvoiceController extends Controller
             $dedAdv = min($advanceDeduction, $origAdv);
             $remAdv = max(0, $origAdv - $dedAdv);
             $deductionsBreakdown[] = [
+                'key' => 'advance',
                 'name' => 'Advance / Loan',
                 'category' => 'Advance',
                 'original_balance' => $origAdv,
                 'deducted_amount' => $dedAdv,
                 'remaining_balance' => $remAdv,
+                'is_wallet' => false,
             ];
         }
 
         // Add per-invoice deductions to category-wise breakdown
         foreach ($invoiceDeductionItems as $idi) {
             $deductionsBreakdown[] = [
+                'key' => \Illuminate\Support\Str::slug($idi['name'], '_'),
                 'name' => $idi['name'],
                 'category' => $idi['category'],
                 'original_balance' => $idi['original_balance'],
                 'deducted_amount' => $idi['deducted_amount'],
                 'remaining_balance' => $idi['remaining_balance'],
+                'is_wallet' => false,
             ];
         }
 
@@ -297,11 +305,13 @@ class FarmerInvoiceController extends Controller
 
                 if (!$alreadyCovered) {
                     $deductionsBreakdown[] = [
+                        'key' => 'wallet_' . \Illuminate\Support\Str::slug($catName, '_'),
                         'name' => "{$catName} (Wallet)",
                         'category' => $catName,
                         'original_balance' => $catBal,
                         'deducted_amount' => $catBal,
                         'remaining_balance' => 0.00,
+                        'is_wallet' => true,
                     ];
                     $walletOutstanding += $catBal;
                 }
@@ -783,39 +793,75 @@ class FarmerInvoiceController extends Controller
 
         // Process category-wise deductions if sent from UI
         $breakdown = $invoice->getCategoryDeductionsBreakdown();
+        $walletDeductionsToApply = [];
+
         if ($request->has('category_deductions') && is_array($request->input('category_deductions'))) {
             $catInputs = $request->input('category_deductions');
             $customTotalDed = 0.0;
             $newBreakdown = [];
 
-            foreach ($breakdown as $bItem) {
-                $cKey = $bItem['key'] ?? $bItem['name'];
-                $dedAmt = isset($catInputs[$cKey]) ? round((float)$catInputs[$cKey], 2) : (float)$bItem['deducted_amount'];
-                // Never deduct more than original outstanding balance
-                $origBal = (float)$bItem['original_balance'];
+            $stationaryDeduction = 0.0;
+            $feedDeduction = 0.0;
+            $advanceDeduction = 0.0;
+            $otherDeduction = 0.0;
+
+            foreach ($breakdown as $idx => $bItem) {
+                $cKey = $bItem['key'] ?? ('cat_' . $idx);
+                $cName = $bItem['name'] ?? '';
+                $cCat = $bItem['category'] ?? '';
+                $cSlug = \Illuminate\Support\Str::slug($cName, '_');
+
+                // Robust lookup: match by key, slug, name, category, or indexed key
+                $dedAmt = null;
+                if (array_key_exists($cKey, $catInputs)) {
+                    $dedAmt = (float) $catInputs[$cKey];
+                } elseif (array_key_exists($cSlug, $catInputs)) {
+                    $dedAmt = (float) $catInputs[$cSlug];
+                } elseif (array_key_exists($cName, $catInputs)) {
+                    $dedAmt = (float) $catInputs[$cName];
+                } elseif (array_key_exists($cCat, $catInputs)) {
+                    $dedAmt = (float) $catInputs[$cCat];
+                } elseif (array_key_exists('cat_' . $idx, $catInputs)) {
+                    $dedAmt = (float) $catInputs['cat_' . $idx];
+                } else {
+                    $dedAmt = (float) ($bItem['deducted_amount'] ?? 0);
+                }
+
+                $origBal = (float) ($bItem['original_balance'] ?? 0);
                 if ($origBal > 0) {
                     $dedAmt = min($dedAmt, $origBal);
                 }
-                $dedAmt = max(0, $dedAmt);
-                $remBal = max(0, $origBal - $dedAmt);
+                $dedAmt = round(max(0, $dedAmt), 2);
+                $remBal = round(max(0, $origBal - $dedAmt), 2);
+
+                $isWallet = !empty($bItem['is_wallet']) || str_starts_with($cKey, 'wallet_') || str_contains(strtolower($cName), 'wallet');
 
                 $newBreakdown[] = [
                     'key' => $cKey,
-                    'name' => $bItem['name'],
-                    'category' => $bItem['category'],
+                    'name' => $cName,
+                    'category' => $cCat,
                     'original_balance' => $origBal,
                     'deducted_amount' => $dedAmt,
                     'remaining_balance' => $remBal,
+                    'is_wallet' => $isWallet,
                 ];
+
                 $customTotalDed += $dedAmt;
 
+                if ($isWallet) {
+                    $walletDeductionsToApply[$cCat] = $dedAmt;
+                }
+
                 // Sync with individual category columns
-                if ($cKey === 'advance' || str_contains(strtolower($cKey), 'advance') || str_contains(strtolower($cKey), 'loan')) {
-                    $advanceDeduction = $dedAmt;
-                } elseif ($cKey === 'feed' || str_contains(strtolower($cKey), 'feed') || str_contains(strtolower($cKey), 'food')) {
-                    $feedDeduction = $dedAmt;
-                } elseif ($cKey === 'stationary' || str_contains(strtolower($cKey), 'stationary')) {
-                    $stationaryDeduction = $dedAmt;
+                $searchStr = strtolower($cKey . ' ' . $cName . ' ' . $cCat);
+                if (str_contains($searchStr, 'advance') || str_contains($searchStr, 'loan')) {
+                    $advanceDeduction += $dedAmt;
+                } elseif (str_contains($searchStr, 'feed') || str_contains($searchStr, 'food')) {
+                    $feedDeduction += $dedAmt;
+                } elseif (str_contains($searchStr, 'stationary')) {
+                    $stationaryDeduction += $dedAmt;
+                } else {
+                    $otherDeduction += $dedAmt;
                 }
             }
             $breakdown = $newBreakdown;
@@ -847,6 +893,7 @@ class FarmerInvoiceController extends Controller
             'stationary_deduction' => $stationaryDeduction,
             'feed_deduction' => $feedDeduction,
             'advance_deduction' => $advanceDeduction,
+            'other_deduction' => $otherDeduction,
             'deductions_breakdown' => $breakdown,
             'total_deduction' => $totalDeduction,
             'total_amount' => $totalAmount,
@@ -861,7 +908,7 @@ class FarmerInvoiceController extends Controller
         try {
             \App\Services\FarmerWalletService::applyInvoiceDeductions(
                 $invoice,
-                $request->input('category_deductions', []),
+                $walletDeductionsToApply,
                 Auth::id()
             );
         } catch (\Throwable $e) {}

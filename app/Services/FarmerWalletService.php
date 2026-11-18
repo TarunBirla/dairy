@@ -394,9 +394,29 @@ class FarmerWalletService
                     $requestedAmt = round(max(0, (float) $requestedAmt), 2);
                     if ($requestedAmt <= 0) continue;
 
-                    $origBal = (float) ($categoryBalances[$catName] ?? $requestedAmt);
+                    // Match against actual wallet category balances
+                    $targetCat = null;
+                    $origBal = 0.0;
+                    foreach ($categoryBalances as $cName => $cBal) {
+                        if (
+                            strcasecmp($cName, $catName) === 0 ||
+                            strcasecmp(\Illuminate\Support\Str::slug($cName, '_'), \Illuminate\Support\Str::slug($catName, '_')) === 0 ||
+                            strcasecmp('wallet_' . \Illuminate\Support\Str::slug($cName, '_'), \Illuminate\Support\Str::slug($catName, '_')) === 0 ||
+                            strcasecmp(\Illuminate\Support\Str::slug($cName, '_'), str_replace('wallet_', '', \Illuminate\Support\Str::slug($catName, '_'))) === 0
+                        ) {
+                            $targetCat = $cName;
+                            $origBal = (float) $cBal;
+                            break;
+                        }
+                    }
+
+                    // Only deduct if this category actually exists in the farmer's wallet (e.g. do not deduct center charges like management fee)
+                    if (!$targetCat || $origBal <= 0) {
+                        continue;
+                    }
+
                     // Deduct up to original balance
-                    $deductAmt = min($requestedAmt, $origBal > 0 ? $origBal : $requestedAmt);
+                    $deductAmt = min($requestedAmt, $origBal);
                     if ($deductAmt <= 0) continue;
 
                     $balBefore = $runningBalance;
@@ -408,7 +428,7 @@ class FarmerWalletService
                         'farmer_id' => $invoice->farmer_id,
                         'farmer_invoice_id' => $invoice->id,
                         'transaction_type' => FarmerWalletTransaction::TYPE_DEBIT,
-                        'category' => $catName,
+                        'category' => $targetCat,
                         'amount' => $deductAmt,
                         'balance_before' => $balBefore,
                         'balance_after' => $runningBalance,
@@ -420,9 +440,9 @@ class FarmerWalletService
 
                     $totalDeducted += $deductAmt;
                     $breakdown[] = [
-                        'key' => \Illuminate\Support\Str::slug($catName, '_'),
-                        'name' => $catName,
-                        'category' => $catName,
+                        'key' => \Illuminate\Support\Str::slug($targetCat, '_'),
+                        'name' => $targetCat,
+                        'category' => $targetCat,
                         'original_balance' => $origBal,
                         'deducted_amount' => $deductAmt,
                         'remaining_balance' => $remBal,

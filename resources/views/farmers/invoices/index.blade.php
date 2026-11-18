@@ -1214,11 +1214,21 @@
         btnText.textContent = 'Saving...';
 
         const categoryDeductions = {};
+        let feedDed = 0, advDed = 0, statDed = 0;
         const dedInputs = document.querySelectorAll('#revDeductionsTbody input[id^="input_ded_"]');
         dedInputs.forEach(inp => {
             const key = inp.dataset.key;
             if (key) {
-                categoryDeductions[key] = parseFloat(inp.value || 0);
+                const val = parseFloat(inp.value || 0);
+                categoryDeductions[key] = val;
+                const kLower = key.toLowerCase();
+                if (kLower.includes('advance') || kLower.includes('loan')) {
+                    advDed += val;
+                } else if (kLower.includes('feed') || kLower.includes('food')) {
+                    feedDed += val;
+                } else if (kLower.includes('stationary')) {
+                    statDed += val;
+                }
             }
         });
 
@@ -1227,9 +1237,9 @@
             transport_credit: parseFloat(document.getElementById('revInputTransportCredit').value || 0),
             subsidy_credit: parseFloat(document.getElementById('revInputSubsidyCredit').value || 0),
             incentive_credit: parseFloat(document.getElementById('revInputIncentiveCredit').value || 0),
-            feed_deduction: categoryDeductions['feed'] !== undefined ? categoryDeductions['feed'] : 0,
-            advance_deduction: categoryDeductions['advance'] !== undefined ? categoryDeductions['advance'] : 0,
-            stationary_deduction: categoryDeductions['stationary'] !== undefined ? categoryDeductions['stationary'] : 0,
+            feed_deduction: feedDed,
+            advance_deduction: advDed,
+            stationary_deduction: statDed,
             category_deductions: categoryDeductions,
         };
 
