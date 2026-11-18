@@ -913,6 +913,11 @@ class FarmerInvoiceController extends Controller
             );
         } catch (\Throwable $e) {}
 
+        // Live synchronize farmer ledger balance
+        try {
+            $invoice->farmer?->recalculateBalance();
+        } catch (\Throwable $e) {}
+
         AuditLog::log('Verified & Saved Farmer Invoice', 'FarmerInvoice', $invoice->id, [
             'invoice_number' => $invoice->invoice_number,
             'net_payment' => $netPayment,
@@ -952,6 +957,7 @@ class FarmerInvoiceController extends Controller
             ]);
             try {
                 \App\Services\FarmerWalletService::applyInvoiceDeductions($inv, [], Auth::id());
+                $inv->farmer?->recalculateBalance();
             } catch (\Throwable $e) {}
             $count++;
         }
@@ -1157,6 +1163,7 @@ class FarmerInvoiceController extends Controller
 
             // Re-sync invoice metrics with restored data
             $this->syncInvoice($invoice);
+            try { $invoice->farmer?->recalculateBalance(); } catch (\Throwable $e) {}
 
             AuditLog::log('Reverted Generated Farmer Invoice to Pending', 'FarmerInvoice', $invoice->id, ['number' => $invNum]);
 
@@ -1221,9 +1228,12 @@ class FarmerInvoiceController extends Controller
                         'payment_status' => 'pending',
                     ]);
                 $this->syncInvoice($inv);
+                try { $inv->farmer?->recalculateBalance(); } catch (\Throwable $e) {}
                 $revertedCount++;
             } else {
+                $fModel = $inv->farmer;
                 \App\Services\FarmerInvoiceService::deleteInvoice($inv);
+                try { $fModel?->recalculateBalance(); } catch (\Throwable $e) {}
                 $deletedCount++;
             }
         }

@@ -315,6 +315,20 @@ class ProductSaleController extends Controller
             $createdSales[] = $sale;
         }
 
+        // Synchronize unpaid cattle feed / product credit with Farmer Deduction Wallet
+        if ($farmer && $totalRemainingAmount > 0) {
+            try {
+                \App\Services\FarmerWalletService::addDeduction(
+                    $farmer,
+                    'Cattle Feed',
+                    $totalRemainingAmount,
+                    "Product/Feed Sale #{$baseSaleNumber}",
+                    Auth::id()
+                );
+                $farmer->recalculateBalance();
+            } catch (\Throwable $e) {}
+        }
+
         AuditLog::log('Created Product Sale(s)', 'ProductSale', $createdSales[0]->id, [
             'base_sale_number' => $baseSaleNumber,
             'items_count' => $itemCount,

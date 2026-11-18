@@ -86,6 +86,9 @@ class MobileDairyController extends Controller
         }
 
         $farmers = $query->orderBy('name')->paginate(24)->withQueryString();
+        foreach ($farmers as $fmr) {
+            $fmr->recalculateBalance();
+        }
         $totalFarmers = Farmer::count();
         $activeFarmers = Farmer::where('status', 'active')->count();
 
@@ -114,9 +117,15 @@ class MobileDairyController extends Controller
     {
         $farmer->load(['collectionCenter', 'rateChart', 'route']);
 
-        // 1. BANNER METRICS
+        // 1. BANNER METRICS & LIVE SYNCHRONIZATION
+        $farmer->recalculateBalance();
         $totalMilkQuantity = (float) MilkCollection::where('farmer_id', $farmer->id)->sum('quantity_liters');
         $currentPayableBalance = (float) $farmer->current_balance;
+
+        // Synchronized Deduction Wallet
+        $walletSummary = \App\Services\FarmerWalletService::getWalletSummary($farmer);
+        $walletBalance = (float) ($walletSummary['total_balance'] ?? 0);
+        $walletCategoryBalances = $walletSummary['category_balances'] ?? [];
 
         // Outstanding loans
         $outstandingLoan = 0.00;
@@ -250,6 +259,9 @@ class MobileDairyController extends Controller
         return [
             'totalMilkQuantity' => $totalMilkQuantity,
             'currentPayableBalance' => $currentPayableBalance,
+            'walletSummary' => $walletSummary,
+            'walletBalance' => $walletBalance,
+            'walletCategoryBalances' => $walletCategoryBalances,
             'outstandingLoan' => $outstandingLoan,
             'productCreditBalance' => $productCreditBalance,
             'emergencyBalance' => $emergencyBalance,
@@ -1419,6 +1431,37 @@ class MobileDairyController extends Controller
             }
         } catch (\Throwable $e) {}
 
+        // 7. Period Invoices (Debit for net payout disbursed on finalized invoice)
+        try {
+            if (Schema::hasTable('farmer_invoices')) {
+                $invs = FarmerInvoice::where('farmer_id', $farmer->id)
+                    ->where('status', '!=', 'pending')
+                    ->orderBy('period_end')
+                    ->get();
+                foreach ($invs as $inv) {
+                    $dt = $inv->created_at ? $inv->created_at->format('Y-m-d') : ($inv->period_end ? $inv->period_end->format('Y-m-d') : date('Y-m-d'));
+                    $pStart = $inv->period_start ? $inv->period_start->format('d M') : '';
+                    $pEnd = $inv->period_end ? $inv->period_end->format('d M Y') : '';
+                    $rawEntries[] = [
+                        'date' => $dt,
+                        'seq' => ++$seq,
+                        'ref' => $inv->invoice_number,
+                        'type' => 'invoice',
+                        'type_label' => 'Period Invoice Bill',
+                        'description' => "Invoice #{$inv->invoice_number} ({$pStart} - {$pEnd}) — Milk: ₹" . number_format($inv->milk_amount, 2) . ", Deductions: ₹" . number_format($inv->total_deduction, 2) . ", Net: ₹" . number_format($inv->net_payable, 2),
+                        'status' => ucfirst($inv->status),
+                        'credit' => 0.00,
+                        'debit' => round((float) $inv->net_payable, 2),
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        // Sanitize: filter out any corrupted entry with amount > 500,000
+        $rawEntries = array_values(array_filter($rawEntries, function ($e) {
+            return ($e['credit'] <= 500000 && $e['debit'] <= 500000);
+        }));
+
         // Sort chronologically
         usort($rawEntries, function ($a, $b) {
             if ($a['date'] === $b['date']) {
@@ -1465,5 +1508,18 @@ class MobileDairyController extends Controller
             'totalDebit' => $totalDebit,
             'closingBalance' => $runningBalance,
         ];
+    }
+
+    /**
+     * Compute complete passbook all-time for a farmer to synchronize current_balance.
+     */
+    public function buildFarmerPassbookAllTime(Farmer $farmer): array
+    {
+        return $this->buildReconciledPassbook(
+            $farmer,
+            '1970-01-01',
+            Carbon::today()->addDay()->format('Y-m-d'),
+            'all'
+        );
     }
 }

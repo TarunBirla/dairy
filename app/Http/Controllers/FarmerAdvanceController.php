@@ -269,6 +269,18 @@ class FarmerAdvanceController extends Controller
             'description' => "Advance Issued (Voucher #{$voucher}): " . ($validated['remark'] ?? 'Cash Advance'),
         ]);
 
+        // Synchronize with Farmer Deduction Wallet & Recalculate Live Balance
+        try {
+            \App\Services\FarmerWalletService::addDeduction(
+                $farmer,
+                'Advance / Loan',
+                (float) $validated['amount'],
+                "Advance Issued (Voucher #{$voucher}): " . ($validated['remark'] ?? 'Cash Advance'),
+                Auth::id()
+            );
+            $farmer->recalculateBalance();
+        } catch (\Throwable $e) {}
+
         AuditLog::log('Issued Farmer Advance', 'FarmerAdvance', $advance->id, [
             'farmer' => $farmer->name,
             'amount' => $advance->amount,
@@ -391,6 +403,19 @@ class FarmerAdvanceController extends Controller
             'reference_id' => $repayment->id,
             'description' => "Advance Received Back (Voucher #{$advance->voucher_no}): " . ($validated['remark'] ?? 'Payment Received'),
         ]);
+
+        // Synchronize with Farmer Deduction Wallet & Recalculate Live Balance
+        try {
+            \App\Services\FarmerWalletService::manualAdjustment(
+                $farmer,
+                'Advance / Loan',
+                (float) $received,
+                'debit',
+                "Advance Received Back (Voucher #{$advance->voucher_no})",
+                Auth::id()
+            );
+            $farmer->recalculateBalance();
+        } catch (\Throwable $e) {}
 
         AuditLog::log('Received Advance Repayment', 'FarmerAdvanceRepayment', $repayment->id, [
             'farmer' => $farmer->name,

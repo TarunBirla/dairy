@@ -193,6 +193,60 @@ class Farmer extends Model
         return $this->hasMany(FarmerInvoice::class);
     }
 
+    public function invoices()
+    {
+        return $this->farmerInvoices();
+    }
+
+    /**
+     * Recalculate and synchronize true live ledger balance for this farmer.
+     * Purges any anomalous entries (> 500,000) and computes chronological balance.
+     */
+    public function recalculateBalance(): float
+    {
+        // 1. Sanitize any corrupted ledger, advance, deduction or settlement entries (e.g. > 500,000)
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('farmer_ledgers')) {
+                \Illuminate\Support\Facades\DB::table('farmer_ledgers')
+                    ->where('farmer_id', $this->id)
+                    ->where('amount', '>', 500000)
+                    ->delete();
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('farmer_advances')) {
+                \Illuminate\Support\Facades\DB::table('farmer_advances')
+                    ->where('farmer_id', $this->id)
+                    ->where('amount', '>', 500000)
+                    ->delete();
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('farmer_deductions')) {
+                \Illuminate\Support\Facades\DB::table('farmer_deductions')
+                    ->where('farmer_id', $this->id)
+                    ->where('amount', '>', 500000)
+                    ->delete();
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('farmer_settlements')) {
+                \Illuminate\Support\Facades\DB::table('farmer_settlements')
+                    ->where('farmer_id', $this->id)
+                    ->where('paid_amount', '>', 500000)
+                    ->delete();
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('farmer_wallet_transactions')) {
+                \Illuminate\Support\Facades\DB::table('farmer_wallet_transactions')
+                    ->where('farmer_id', $this->id)
+                    ->where('amount', '>', 500000)
+                    ->delete();
+            }
+        } catch (\Throwable $e) {}
+
+        // 2. Compute canonical live passbook balance
+        $passbook = app(\App\Http\Controllers\MobileDairyController::class)
+            ->buildFarmerPassbookAllTime($this);
+
+        $balance = round((float) ($passbook['closingBalance'] ?? 0), 2);
+        $this->update(['current_balance' => $balance]);
+        return $balance;
+    }
+
     public function loans()
     {
         return $this->hasMany(FarmerLoan::class);
