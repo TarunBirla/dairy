@@ -527,6 +527,10 @@
                         <i data-lucide="minus-circle" class="w-4 h-4 {{ request()->routeIs('deductions.*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
                         <span>Deductions</span>
                     </a>
+                    <a href="{{ route('deduction-categories.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('deduction-categories.*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                        <i data-lucide="tag" class="w-4 h-4 {{ request()->routeIs('deduction-categories.*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
+                        <span>Deductions Category</span>
+                    </a>
                     <a href="{{ route('wallets.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('wallets.*') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                         <i data-lucide="wallet" class="w-4 h-4 {{ request()->routeIs('wallets.*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
                         <span>Deduction Wallet</span>

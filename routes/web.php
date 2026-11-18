@@ -42,6 +42,7 @@ use App\Http\Controllers\DriverController;
 use App\Http\Controllers\VehicleAdvanceController;
 use App\Http\Controllers\LoadUnloadController;
 use App\Http\Controllers\MobileDairyController;
+use App\Http\Controllers\DeductionCategoryController;
 
 // Public Website Pages
 Route::get('/', [WebsiteController::class, 'home'])->name('home');
@@ -120,6 +121,26 @@ Route::match(['get', 'post'], '/setup-database', function (\Illuminate\Http\Requ
 Route::get('/install-db', function () {
     return redirect()->route('setup.database', ['run' => 1]);
 });
+
+// Dedicated 1-Click Route to Migrate Deduction Categories Table
+Route::match(['get', 'post'], '/migrate-deduction-categories', function () {
+    try {
+        \App\Models\DeductionCategory::ensureTableExistsAndSeeded();
+        $count = \App\Models\DeductionCategory::count();
+        $categories = \App\Models\DeductionCategory::all(['id', 'name', 'name_hi', 'code', 'status']);
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Table `deduction_categories` created and default categories seeded successfully!',
+            'categories_count' => $count,
+            'categories' => $categories
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+})->name('migrate-deduction-categories');
 
 // Dedicated 1-Click Database Migration Route
 Route::match(['get', 'post'], '/migrate', function (\Illuminate\Http\Request $request) {
@@ -669,6 +690,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/import', [FarmerDeductionController::class, 'import'])->name('import');
         Route::get('/sample-template', [FarmerDeductionController::class, 'sampleTemplate'])->name('sample-template');
     });
+
+    // Deduction Categories Master
+    Route::resource('deduction-categories', DeductionCategoryController::class);
 
     // Farmer Invoices (Matching Reference Media)
     Route::prefix('farmer-invoices')->name('farmer-invoices.')->group(function () {

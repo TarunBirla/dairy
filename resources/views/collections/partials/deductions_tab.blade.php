@@ -31,14 +31,59 @@
             <input type="hidden" name="tab" value="deductions">
 
             <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                <div class="flex items-center gap-2">
-                    <label class="text-xs font-bold text-slate-700 whitespace-nowrap">Deduction Type:</label>
-                    <select name="deduction_type" onchange="this.form.submit()" class="px-3 py-1.5 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none font-medium">
-                        <option value="all">Tap To Select</option>
-                        @foreach($deductionTypesList ?? [] as $key => $label)
-                            <option value="{{ $key }}" {{ ($deductionType ?? 'all') === $key ? 'selected' : '' }}>{{ $label }}</option>
-                        @endforeach
-                    </select>
+                <div class="relative" x-data="{
+                    open: false,
+                    search: '',
+                    selectedVal: '{{ $deductionType ?? 'all' }}',
+                    categories: window.__COL_DED_CATEGORIES__ || [],
+                    get filtered() {
+                        if (!this.search) return this.categories;
+                        const s = this.search.toLowerCase();
+                        return this.categories.filter(c => 
+                            (c.name && c.name.toLowerCase().includes(s)) ||
+                            (c.name_hi && c.name_hi.toLowerCase().includes(s)) ||
+                            (c.code && c.code.toLowerCase().includes(s))
+                        );
+                    },
+                    get selectedLabel() {
+                        if (this.selectedVal === 'all' || !this.selectedVal) return 'Tap To Select';
+                        const found = this.categories.find(c => c.code === this.selectedVal);
+                        return found ? (found.name + (found.name_hi ? ' (' + found.name_hi + ')' : '')) : this.selectedVal;
+                    },
+                    select(code) {
+                        this.selectedVal = code;
+                        this.open = false;
+                        this.search = '';
+                        $refs.hiddenColFilterType.value = code;
+                        $refs.hiddenColFilterType.form.submit();
+                    }
+                }" @click.outside="open = false">
+                    <input type="hidden" name="deduction_type" x-ref="hiddenColFilterType" :value="selectedVal">
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-bold text-slate-700 whitespace-nowrap">Deduction Type:</label>
+                        <button type="button" @click="open = !open; if(open) $nextTick(() => $refs.colFilterSearchInp?.focus())" class="min-w-[190px] px-3.5 py-1.5 text-xs border border-slate-200 rounded-xl bg-slate-50 hover:bg-white focus:bg-white focus:border-emerald-500 outline-none font-semibold text-slate-800 flex items-center justify-between gap-2 shadow-2xs">
+                            <span x-text="selectedLabel" class="truncate"></span>
+                            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
+                        </button>
+                    </div>
+
+                    <div x-show="open" x-transition class="absolute z-50 left-28 right-0 sm:w-64 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg p-2 max-h-60 overflow-y-auto" style="display: none;">
+                        <input type="text" x-ref="colFilterSearchInp" x-model="search" placeholder="Search category..." class="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white outline-none mb-1.5">
+                        <div class="space-y-1">
+                            <button type="button" @click="select('all')" class="w-full text-left px-2 py-1 text-xs rounded hover:bg-slate-100 text-slate-500 font-medium">
+                                -- All Deduction Types --
+                            </button>
+                            <template x-for="cat in filtered" :key="cat.code">
+                                <button type="button" @click="select(cat.code)" class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-emerald-50 hover:text-emerald-800 flex items-center justify-between transition">
+                                    <span class="font-bold text-slate-800" x-text="cat.name"></span>
+                                    <span class="text-[10px] text-slate-400" x-text="cat.name_hi" x-show="cat.name_hi"></span>
+                                </button>
+                            </template>
+                            <div x-show="filtered.length === 0" class="text-center py-2 text-xs text-slate-400">
+                                No categories found
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="relative w-full sm:w-64">
@@ -231,27 +276,60 @@
                 <input type="date" name="entry_date" id="col_field_entry_date" value="{{ date('Y-m-d') }}" required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-500 outline-none font-medium">
             </div>
 
-            <!-- Type -->
-            <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
-                    <i data-lucide="tag" class="w-3.5 h-3.5 text-blue-600"></i>
-                    Deduction Type *
-                </label>
-                <select name="deduction_type" id="col_field_deduction_type" onchange="toggleColCustomDeductionType(this.value)" required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-500 outline-none font-medium">
-                    <option value="">Select Type</option>
-                    @foreach($deductionTypesList ?? [] as $k => $lbl)
-                        <option value="{{ $k }}">{{ $lbl }}</option>
-                    @endforeach
-                </select>
-            </div>
+            <!-- Type (Searchable Dropdown from Categories, No Other Option) -->
+            <div class="relative" x-data="{
+                open: false,
+                search: '',
+                selectedCode: '',
+                categories: window.__COL_DED_CATEGORIES__ || [],
+                get filtered() {
+                    if (!this.search) return this.categories;
+                    const s = this.search.toLowerCase();
+                    return this.categories.filter(c => 
+                        (c.name && c.name.toLowerCase().includes(s)) ||
+                        (c.name_hi && c.name_hi.toLowerCase().includes(s)) ||
+                        (c.code && c.code.toLowerCase().includes(s))
+                    );
+                },
+                get selectedLabel() {
+                    if (!this.selectedCode) return 'Select Deduction Type';
+                    const found = this.categories.find(c => c.code === this.selectedCode);
+                    return found ? (found.name + (found.name_hi ? ' (' + found.name_hi + ')' : '')) : this.selectedCode;
+                },
+                select(code) {
+                    this.selectedCode = code;
+                    this.open = false;
+                    this.search = '';
+                    document.getElementById('col_field_deduction_type').value = code;
+                }
+            }" @click.outside="open = false" @set-col-ded-type.window="selectedCode = $event.detail">
+                <div class="flex items-center justify-between mb-1">
+                    <label class="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <i data-lucide="tag" class="w-3.5 h-3.5 text-blue-600"></i>
+                        Deduction Type *
+                    </label>
+                    <a href="{{ route('deduction-categories.index') }}" target="_blank" class="text-[10px] text-blue-600 hover:underline font-semibold">+ Manage Categories</a>
+                </div>
+                <input type="hidden" name="deduction_type" id="col_field_deduction_type" required :value="selectedCode">
+                <button type="button" @click="open = !open; if(open) $nextTick(() => $refs.colCatModalSearchInp?.focus())" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-500 outline-none flex items-center justify-between text-left font-medium">
+                    <span x-text="selectedLabel" :class="selectedCode ? 'text-slate-900 font-bold' : 'text-slate-400'"></span>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+                </button>
 
-            <!-- Custom Deduction Type Input (shown when 'other' is selected) -->
-            <div id="col_custom_deduction_type_wrapper" class="hidden">
-                <label class="block text-xs font-bold text-blue-700 mb-1 flex items-center gap-1.5">
-                    <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-600"></i>
-                    Specify Deduction Type Name *
-                </label>
-                <input type="text" name="custom_deduction_type" id="col_field_custom_deduction_type" placeholder="e.g. Medicine, Transport, Equipments..." class="w-full px-3 py-2 text-xs border border-blue-300 rounded-xl bg-blue-50/50 focus:bg-white focus:border-blue-600 outline-none font-bold text-slate-800">
+                <div x-show="open" x-transition class="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg p-2 max-h-56 overflow-y-auto" style="display: none;">
+                    <input type="text" x-ref="colCatModalSearchInp" x-model="search" placeholder="Search deduction category..." class="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white outline-none mb-1.5">
+                    <div class="space-y-1">
+                        <template x-for="cat in filtered" :key="cat.code">
+                            <button type="button" @click="select(cat.code)" class="w-full text-left px-2.5 py-1.5 text-xs rounded-lg hover:bg-emerald-50 hover:text-emerald-800 flex items-center justify-between transition">
+                                <span class="font-bold text-slate-800" x-text="cat.name"></span>
+                                <span class="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded" x-text="cat.name_hi" x-show="cat.name_hi"></span>
+                            </button>
+                        </template>
+                        <div x-show="filtered.length === 0" class="text-center py-2 text-xs text-slate-400">
+                            No categories found
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Transaction Type: Given / Received -->
@@ -398,19 +476,16 @@
 </div>
 
 <script>
+    window.__COL_DED_CATEGORIES__ = {!! json_encode(($deductionCategories ?? collect())->map(function($c) {
+        return [
+            'code' => $c->code,
+            'name' => $c->name,
+            'name_hi' => $c->name_hi
+        ];
+    })) !!};
+
     function toggleColCustomDeductionType(val) {
-        const wrapper = document.getElementById('col_custom_deduction_type_wrapper');
-        const input = document.getElementById('col_field_custom_deduction_type');
-        if (!wrapper || !input) return;
-        if (val === 'other') {
-            wrapper.classList.remove('hidden');
-            input.setAttribute('required', 'required');
-            input.focus();
-        } else {
-            wrapper.classList.add('hidden');
-            input.removeAttribute('required');
-            input.value = '';
-        }
+        // Obsolete: categories now dynamic
     }
 
     function openColAddDeductionModal(defaultFarmerId = null) {
@@ -420,7 +495,8 @@
         document.getElementById('colFormMethodContainer').innerHTML = '';
         document.getElementById('colDeductionForm').reset();
         document.getElementById('col_field_entry_date').value = new Date().toISOString().split('T')[0];
-        toggleColCustomDeductionType('');
+        document.getElementById('col_field_deduction_type').value = '';
+        window.dispatchEvent(new CustomEvent('set-col-ded-type', { detail: '' }));
 
         if (defaultFarmerId) {
             document.getElementById('col_field_farmer_id').value = defaultFarmerId;
@@ -438,18 +514,8 @@
 
         document.getElementById('col_field_farmer_id').value = farmerId;
         document.getElementById('col_field_entry_date').value = date;
-
-        const typeSelect = document.getElementById('col_field_deduction_type');
-        const standardOptions = Array.from(typeSelect.options).map(o => o.value);
-        if (standardOptions.includes(type)) {
-            typeSelect.value = type;
-            toggleColCustomDeductionType(type);
-        } else {
-            typeSelect.value = 'other';
-            toggleColCustomDeductionType('other');
-            const customInput = document.getElementById('col_field_custom_deduction_type');
-            if (customInput) customInput.value = type;
-        }
+        document.getElementById('col_field_deduction_type').value = type;
+        window.dispatchEvent(new CustomEvent('set-col-ded-type', { detail: type }));
 
         const radio = document.querySelector(`input[name="transaction_type"][value="${transType}"]`);
         if (radio) radio.checked = true;

@@ -698,17 +698,21 @@ class MilkCollectionController extends Controller
         }
         $allDeductionFarmers = Farmer::where('status', 'active')->orderBy('name')->get($deductionFarmerColumns);
 
-        $deductionTypesList = [
-            'cattle_feed' => 'Cattle Feed (पशु आहार)',
-            'medicine' => 'Medicine (दवाई)',
-            'ghee_butter' => 'Ghee / Butter',
-            'doctor_fee' => 'Doctor Fee',
-            'insurance' => 'Insurance',
-            'advance_recovery' => 'Advance Recovery',
-            'store_purchase' => 'Store Purchase',
-            'equipment' => 'Equipment / बर्तन',
-            'other' => 'Other (अन्य)',
-        ];
+        \App\Models\DeductionCategory::ensureTableExistsAndSeeded();
+        $deductionCategories = \App\Models\DeductionCategory::where('status', 'active')->orderBy('name')->get();
+        $deductionTypesList = \App\Models\DeductionCategory::getActiveList();
+        if (empty($deductionTypesList)) {
+            $deductionTypesList = [
+                'cattle_feed' => 'Cattle Feed (पशु आहार)',
+                'medicine' => 'Medicine (दवाई)',
+                'ghee_butter' => 'Ghee / Butter',
+                'doctor_fee' => 'Doctor Fee',
+                'insurance' => 'Insurance',
+                'advance_recovery' => 'Advance Recovery',
+                'store_purchase' => 'Store Purchase',
+                'equipment' => 'Equipment / बर्तन',
+            ];
+        }
 
         $activeTab = $request->get('tab', 'collections');
 
@@ -742,7 +746,8 @@ class MilkCollectionController extends Controller
             'deductionTotalGiven',
             'deductionTotalReceived',
             'netDeductionBalance',
-            'deductionTypesList'
+            'deductionTypesList',
+            'deductionCategories'
         ));
     }
 
