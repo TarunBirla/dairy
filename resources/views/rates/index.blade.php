@@ -443,7 +443,7 @@
 
 <!-- ================= ASSIGN RATE CHART MODAL ================= -->
 <div id="assignModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div class="p-5 border-b border-slate-100 flex items-start justify-between bg-slate-50/70">
             <div>
                 <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
@@ -459,7 +459,7 @@
             </button>
         </div>
 
-        <form id="assignForm" method="POST" action="" onsubmit="return validateAssignForm(event)" class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
+        <form id="assignForm" method="POST" action="" onsubmit="return validateAssignForm(event)" class="flex-1 overflow-y-auto overflow-x-hidden p-5 sm:p-6 space-y-5">
             @csrf
             <input type="hidden" name="assign_all" id="assignAllHidden" value="0">
 
@@ -500,7 +500,7 @@
 
                 <!-- VIEW 1: Activate Now Layout (Row with Select Farmers on left, Assign Button on right) -->
                 <div id="viewActivateNow" class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-1">
-                    <div id="farmersSlotNow" class="flex-1 max-w-sm">
+                    <div id="farmersSlotNow" class="flex-1 max-w-md">
                         <!-- Select Famers Component -->
                         <div id="farmerSelectWrapper" class="flex items-center gap-3">
                             <label class="text-sm font-semibold text-slate-700 whitespace-nowrap min-w-[95px]">
@@ -516,7 +516,7 @@
                                 </button>
 
                                 <!-- Farmers Dropdown Menu -->
-                                <div id="assignFarmerDropdownPanel" class="hidden absolute left-0 right-0 sm:right-auto sm:w-[380px] top-full mt-1.5 z-50 bg-white border border-slate-200 rounded-2xl shadow-2xl p-3 space-y-2.5">
+                                <div id="assignFarmerDropdownPanel" class="hidden absolute left-0 sm:left-auto sm:right-0 w-full sm:w-[420px] top-full mt-1.5 z-50 bg-white border border-slate-200 rounded-2xl shadow-2xl p-3 space-y-2.5">
                                     <div class="flex items-center justify-between pb-2 border-b border-slate-100">
                                         <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800 hover:text-emerald-700 select-none">
                                             <input type="checkbox" id="assignAllFarmersCb" onchange="toggleAssignAllFarmers(this.checked)" class="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4">
