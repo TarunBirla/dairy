@@ -527,7 +527,6 @@
         document.getElementById('field_entry_date').value = new Date().toISOString().split('T')[0];
         toggleCustomDeductionType('');
     }
-    }
 
     // View Details Modal Controls
     function viewFarmerDeductions(farmerId) {
