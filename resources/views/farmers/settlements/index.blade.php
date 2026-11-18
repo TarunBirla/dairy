@@ -59,10 +59,15 @@
                         <tr class="hover:bg-slate-50/50">
                             <td class="py-3.5 px-4 font-mono font-bold text-slate-900">{{ $s->settlement_number }}</td>
                             <td class="py-3.5 px-4">
-                                <a href="{{ route('farmers.show', $s->farmer) }}" class="font-bold text-emerald-700 hover:underline">
-                                    {{ $s->farmer->name }}
-                                </a>
-                                <span class="block text-[10px] text-slate-400">{{ $s->farmer->farmer_code }}</span>
+                                @if($s->farmer)
+                                    <a href="{{ route('farmers.show', $s->farmer) }}" class="font-bold text-emerald-700 hover:underline">
+                                        {{ $s->farmer->name }}
+                                    </a>
+                                    <span class="block text-[10px] text-slate-400">{{ $s->farmer->farmer_code }}</span>
+                                @else
+                                    <span class="font-bold text-slate-700">Farmer #{{ $s->farmer_id }}</span>
+                                    <span class="block text-[10px] text-slate-400 italic">Farmer Removed / Deleted</span>
+                                @endif
                             </td>
                             <td class="py-3.5 px-4 font-medium text-slate-700">
                                 {{ $s->period_start->format('d M') }} to {{ $s->period_end->format('d M Y') }}

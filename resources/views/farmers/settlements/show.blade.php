@@ -41,8 +41,8 @@
         <div class="grid grid-cols-2 gap-4 py-3 bg-slate-50 p-4 rounded-xl mb-4">
             <div>
                 <span class="text-[10px] uppercase font-bold text-slate-400 block">Farmer Details:</span>
-                <p class="font-bold text-slate-900 text-sm mt-0.5">{{ $settlement->farmer->name }}</p>
-                <p class="text-[11px] text-slate-500 font-mono">{{ $settlement->farmer->farmer_code }} • Village {{ $settlement->farmer->village }}</p>
+                <p class="font-bold text-slate-900 text-sm mt-0.5">{{ $settlement->farmer->name ?? ('Farmer #' . $settlement->farmer_id) }}</p>
+                <p class="text-[11px] text-slate-500 font-mono">{{ $settlement->farmer->farmer_code ?? '-' }} • Village {{ $settlement->farmer->village ?? '-' }}</p>
             </div>
             <div class="text-right">
                 <span class="text-[10px] uppercase font-bold text-slate-400 block">Settlement Period:</span>
