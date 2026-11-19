@@ -1273,15 +1273,15 @@
     function saveAndVerifyCurrentInvoice() {
         if (!currentReviewData) return;
 
-        const btn = document.getElementById('revSaveInvoiceBtn');
-        if (btn && btn.disabled && btn.classList.contains('cursor-not-allowed')) {
+        const saveSubmitBtn = document.getElementById('revSaveInvoiceBtn');
+        if (saveSubmitBtn && saveSubmitBtn.disabled && saveSubmitBtn.classList.contains('cursor-not-allowed')) {
             alert('Please fix deduction amounts before saving.');
             return;
         }
 
-        const btnText = document.getElementById('revSaveBtnText');
-        if (btn) btn.disabled = true;
-        if (btnText) btnText.textContent = 'Saving...';
+        const saveSubmitBtnText = document.getElementById('revSaveBtnText');
+        if (saveSubmitBtn) saveSubmitBtn.disabled = true;
+        if (saveSubmitBtnText) saveSubmitBtnText.textContent = 'Saving...';
 
         const categoryDeductions = {};
         let feedDed = 0, advDed = 0, statDed = 0;
@@ -1324,8 +1324,8 @@
         })
         .then(res => res.json())
         .then(resp => {
-            btn.disabled = false;
-            btnText.textContent = 'Save Invoice';
+            if (saveSubmitBtn) saveSubmitBtn.disabled = false;
+            if (saveSubmitBtnText) saveSubmitBtnText.textContent = 'Save Invoice';
             hasSavedAnyInQueue = true;
 
             const toast = document.getElementById('revToast');
@@ -1348,8 +1348,8 @@
             }
         })
         .catch(() => {
-            btn.disabled = false;
-            btnText.textContent = 'Save Invoice';
+            if (saveSubmitBtn) saveSubmitBtn.disabled = false;
+            if (saveSubmitBtnText) saveSubmitBtnText.textContent = 'Save Invoice';
             alert('Failed to save invoice. Please check values and try again.');
         });
     }
