@@ -732,10 +732,16 @@
                             </div>
                         </div>
 
-                        <div class="sm:col-span-5 flex flex-col justify-between items-end gap-4">
-                            <div class="w-full flex items-baseline justify-between border-b border-slate-100 pb-2">
-                                <span class="text-xs font-bold text-emerald-700">Payment</span>
-                                <span class="text-lg font-black text-emerald-600 font-mono" id="revSummaryNetPayment">₹0.00</span>
+                        <div class="sm:col-span-5 flex flex-col justify-between items-end gap-3">
+                            <div class="w-full space-y-1.5 border-b border-slate-100 pb-2">
+                                <div class="w-full flex items-baseline justify-between">
+                                    <span class="text-xs font-bold text-emerald-700">Payment</span>
+                                    <span class="text-lg font-black text-emerald-600 font-mono" id="revSummaryNetPayment">₹0.00</span>
+                                </div>
+                                <div class="w-full flex items-baseline justify-between">
+                                    <span class="text-xs font-bold text-rose-600">Balance</span>
+                                    <span class="text-sm font-bold text-rose-600 font-mono" id="revSummaryBalance">0.00</span>
+                                </div>
                             </div>
 
                             <button type="button" id="revSaveInvoiceBtn" onclick="saveAndVerifyCurrentInvoice()"
@@ -1023,36 +1029,16 @@
         tbody.innerHTML = html;
     }
 
+    function formatDeductNum(n) {
+        if (isNaN(n) || n === null) return '0';
+        if (Math.abs(n - Math.round(n)) < 0.001) {
+            return Math.round(n).toString();
+        }
+        return n.toFixed(2);
+    }
+
     function onDeductAmountChanged(key) {
-        const input = document.getElementById('input_ded_' + key);
-        if (!input) return;
-
-        const origBal = parseFloat(input.dataset.orig || 0);
-        let val = parseFloat(input.value || 0);
-        if (isNaN(val) || val < 0) val = 0;
-
-        const errDiv = document.getElementById('err_ded_' + key);
-        if (origBal > 0 && val > origBal) {
-            if (errDiv) {
-                errDiv.textContent = `Deduction ${val.toFixed(2)} must be less than or equal to ${origBal.toFixed(2)}`;
-                errDiv.classList.remove('hidden');
-            }
-            input.classList.add('border-rose-500', 'bg-rose-100');
-        } else {
-            if (errDiv) {
-                errDiv.textContent = '';
-                errDiv.classList.add('hidden');
-            }
-            input.classList.remove('border-rose-500', 'bg-rose-100');
-        }
-
-        const remBal = Math.max(0, origBal - val);
-        const remCell = document.getElementById('rem_bal_' + key);
-        if (remCell) {
-            remCell.textContent = remBal.toFixed(2);
-        }
-
-        recalcReviewSummary();
+        recalcReviewSummary(key);
     }
 
     function setReviewShiftFilter(shift) {
@@ -1177,6 +1163,7 @@
         const subsidyCr = parseFloat(document.getElementById('revInputSubsidyCredit').value || 0);
         const incentiveCr = parseFloat(document.getElementById('revInputIncentiveCredit').value || 0);
         const totalAdditions = otherCr + transportCr + subsidyCr + incentiveCr;
+        const totalAmount = milkAmount + totalAdditions;
 
         // Calculate dynamic category deductions
         let totalDeductions = 0.0;
@@ -1184,20 +1171,58 @@
         let totalRemainingBal = 0.0;
         let hasValidationError = false;
 
-        const dedInputs = document.querySelectorAll('#revDeductionsTbody input[id^="input_ded_"]');
+        const dedInputs = Array.from(document.querySelectorAll('#revDeductionsTbody input[id^="input_ded_"]'));
         if (dedInputs.length > 0) {
-            dedInputs.forEach(inp => {
+            const inputsData = dedInputs.map(inp => {
+                const key = inp.dataset.key;
                 const orig = parseFloat(inp.dataset.orig || 0);
-                const ded = parseFloat(inp.value || 0);
-                if (orig > 0 && ded > orig) {
-                    hasValidationError = true;
-                }
-                const cleanDed = Math.max(0, ded);
-                const rem = Math.max(0, orig - cleanDed);
+                const raw = parseFloat(inp.value);
+                const val = (isNaN(raw) || raw < 0) ? 0 : raw;
+                return { inp, key, orig, val, rawIsNaN: isNaN(raw) };
+            });
 
-                totalOrigBal += orig;
-                totalDeductions += cleanDed;
-                totalRemainingBal += rem;
+            inputsData.forEach(item => {
+                totalOrigBal += item.orig;
+
+                // Sum valid deductions of all OTHER inputs
+                const otherSum = inputsData
+                    .filter(o => o.key !== item.key)
+                    .reduce((sum, o) => {
+                        const oMax = o.orig > 0 ? Math.min(o.orig, Math.max(0, totalAmount)) : 0;
+                        const oValid = (o.val <= oMax) ? o.val : 0;
+                        return sum + oValid;
+                    }, 0);
+
+                const availablePayment = Math.max(0, totalAmount - otherSum);
+                const maxAllowed = item.orig > 0 ? Math.min(item.orig, availablePayment) : 0;
+
+                const errDiv = document.getElementById('err_ded_' + item.key);
+                if (item.val > maxAllowed) {
+                    hasValidationError = true;
+                    if (errDiv) {
+                        errDiv.textContent = `Deduction ${formatDeductNum(item.val)} must be less than or equal to ${formatDeductNum(maxAllowed)}`;
+                        errDiv.classList.remove('hidden');
+                    }
+                    item.inp.classList.add('border-rose-500', 'bg-rose-50');
+                } else {
+                    if (errDiv) {
+                        errDiv.textContent = '';
+                        errDiv.classList.add('hidden');
+                    }
+                    item.inp.classList.remove('border-rose-500', 'bg-rose-50');
+                }
+
+                // If input is invalid, it is not applied to total deductions or payment (matches Mobile Dairy)
+                const appliedDed = item.val <= maxAllowed ? item.val : 0;
+                const remBal = Math.max(0, item.orig - appliedDed);
+
+                totalDeductions += appliedDed;
+                totalRemainingBal += remBal;
+
+                const remCell = document.getElementById('rem_bal_' + item.key);
+                if (remCell) {
+                    remCell.textContent = remBal.toFixed(2);
+                }
             });
         } else {
             const feedDed = parseFloat(document.getElementById('revInputFeedDeduction') ? document.getElementById('revInputFeedDeduction').value : 0);
@@ -1206,11 +1231,9 @@
             totalDeductions = feedDed + advDed + statDed;
         }
 
-        const totalAmount = milkAmount + totalAdditions;
-        const rawPayable = totalAmount - totalDeductions;
+        const rawPayable = Math.max(0, totalAmount - totalDeductions);
         const roundedPayable = Math.round(rawPayable);
         const roundOff = roundedPayable - rawPayable;
-        const remainingBalance = Math.max(0, totalDeductions - totalAmount);
 
         document.getElementById('revTotalAdditionsCell').textContent = totalAdditions.toFixed(2);
         document.getElementById('revTotalOrigBalanceCell').textContent = totalOrigBal.toFixed(2);
@@ -1226,13 +1249,13 @@
 
         const netElem = document.getElementById('revSummaryNetPayment');
         if (netElem) {
-            if (roundedPayable < 0) {
-                netElem.textContent = '-₹' + Math.abs(roundedPayable).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                netElem.className = 'text-lg font-black text-rose-600 font-mono';
-            } else {
-                netElem.textContent = '₹' + roundedPayable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                netElem.className = 'text-lg font-black text-emerald-600 font-mono';
-            }
+            netElem.textContent = '₹' + roundedPayable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            netElem.className = 'text-lg font-black text-emerald-600 font-mono';
+        }
+
+        const balElem = document.getElementById('revSummaryBalance');
+        if (balElem) {
+            balElem.textContent = totalRemainingBal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
         const saveBtn = document.getElementById('revSaveInvoiceBtn');
@@ -1249,6 +1272,12 @@
 
     function saveAndVerifyCurrentInvoice() {
         if (!currentReviewData) return;
+
+        const btn = document.getElementById('revSaveInvoiceBtn');
+        if (btn && btn.disabled && btn.classList.contains('cursor-not-allowed')) {
+            alert('Please fix deduction amounts before saving.');
+            return;
+        }
 
         const btn = document.getElementById('revSaveInvoiceBtn');
         const btnText = document.getElementById('revSaveBtnText');
