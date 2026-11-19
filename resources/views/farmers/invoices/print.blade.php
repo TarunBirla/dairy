@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice #{{ $invoice->invoice_number }} - {{ $farmer->name }}</title>
+    <title>Bill #{{ $invoice->invoice_number }} - {{ $farmer->name }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: #f1f5f9;
-            color: #0f172a;
+            color: #000000;
         }
         .font-mono {
             font-family: 'JetBrains Mono', monospace;
@@ -31,277 +31,278 @@
             .no-print {
                 display: none !important;
             }
-            .page-container {
+            .invoice-page {
                 box-shadow: none !important;
-                border: 1px solid #cbd5e1 !important;
+                border: none !important;
                 margin: 0 auto !important;
-                padding: 6mm !important;
+                padding: 0 !important;
                 max-width: 100% !important;
                 width: 100% !important;
                 page-break-inside: avoid !important;
             }
         }
+        .bill-table {
+            width: 100%;
+            border: 1.5px solid #000000;
+            border-collapse: collapse;
+        }
+        .bill-table th, .bill-table td {
+            border: 1px solid #000000;
+            padding: 3px 6px;
+        }
     </style>
 </head>
-<body class="py-6 px-3 sm:px-6">
+<body class="py-4 px-2 sm:px-6">
 
     @php
         $settings = \App\Models\SystemSetting::all()->pluck('value', 'key');
         $billingInfoRaw = json_decode($settings['center_billing_info'] ?? '{}', true) ?: [];
-        $dairyName = $billingInfoRaw['name'] ?? 'SHREE GOPAL DUDH DAIRY';
-        $dairyAddress = $billingInfoRaw['address'] ?? '265, BHAIJI BHAWAN, BUS STAND, BEDIYA, Khargone, Madhya Pradesh 451113';
-        $dairyPhone = $billingInfoRaw['phone'] ?? '9753672436';
-        $dairyEmail = $billingInfoRaw['email'] ?? 'drk.malviya@gmail.com';
-        $dairyGstin = $billingInfoRaw['gstin'] ?? '23BAZPN5618R1ZN';
+        $dairyName = $billingInfoRaw['name'] ?? 'Shree Gopal Dudh Dairy Bediya';
+        $dairyAddress = $billingInfoRaw['address'] ?? 'Bediya, Bediya, khargone';
+        $dairyPhone = $billingInfoRaw['phone'] ?? '9753441810';
+        $contactPerson = 'KAMLESH MALVIYA';
 
-        $openingWallet = (float) ($invoice->opening_wallet_balance ?? 0);
-        $walletDeducted = (float) ($invoice->wallet_deducted_amount ?? $invoice->total_deduction ?? 0);
-        $closingWallet = (float) ($invoice->closing_wallet_balance ?? max(0, $openingWallet - $walletDeducted));
         $catBreakdown = $invoice->getCategoryDeductionsBreakdown();
 
-        $additionsList = [];
-        if ((float)$invoice->transport_credit > 0) $additionsList[] = ['name' => 'Transport Subsidy', 'amt' => (float)$invoice->transport_credit];
-        if ((float)$invoice->subsidy_credit > 0) $additionsList[] = ['name' => 'Govt / Dairy Subsidy', 'amt' => (float)$invoice->subsidy_credit];
-        if ((float)$invoice->incentive_credit > 0) $additionsList[] = ['name' => 'Quality Incentive', 'amt' => (float)$invoice->incentive_credit];
-        if ((float)$invoice->other_credit > 0) $additionsList[] = ['name' => 'Other Additions', 'amt' => (float)$invoice->other_credit];
+        // Calculate total remaining debt and deposits
+        $totalRemainingDebt = 0.0;
+        $totalDeposits = 0.0;
+
+        $deductionRows = [];
+        foreach ($catBreakdown as $b) {
+            $cName = $b['name'] ?? 'Deduction';
+            $orig = (float) ($b['original_balance'] ?? 0);
+            $ded = (float) ($b['deducted_amount'] ?? 0);
+            $rem = (float) ($b['remaining_balance'] ?? 0);
+            $isWallet = !empty($b['is_wallet']);
+            $cLower = strtolower($cName);
+
+            $isDeposit = str_contains($cLower, 'grocery') || str_contains($cLower, 'tds') || str_contains($cLower, 'deposit') || str_contains($cLower, 'anamat');
+
+            if ($isDeposit) {
+                $depAmt = $orig > 0 ? $orig : $ded;
+                $deductionRows[] = [
+                    'type' => $cName,
+                    'total_balance' => $orig > 0 ? number_format($orig, 2) : '-',
+                    'deduction' => number_format($ded, 2),
+                    'balance' => '-',
+                    'deposit' => $depAmt > 0 ? number_format($depAmt, 2) : '-',
+                ];
+                $totalDeposits += $depAmt;
+            } else {
+                $isDebt = $orig > 0 || str_contains($cLower, 'advance') || str_contains($cLower, 'loan') || str_contains($cLower, 'feed') || str_contains($cLower, 'food') || $isWallet;
+
+                if ($isDebt && $orig > 0) {
+                    $totalRemainingDebt += $rem;
+                    $deductionRows[] = [
+                        'type' => $cName,
+                        'total_balance' => '-' . number_format($orig, 2),
+                        'deduction' => number_format($ded, 2),
+                        'balance' => $rem > 0 ? '-' . number_format($rem, 2) : '-',
+                        'deposit' => '-',
+                    ];
+                } else {
+                    $deductionRows[] = [
+                        'type' => $cName,
+                        'total_balance' => '-',
+                        'deduction' => number_format($ded, 2),
+                        'balance' => '-',
+                        'deposit' => '-',
+                    ];
+                }
+            }
+        }
+
+        if ((float)($farmer->anamat ?? 0) > 0 && !collect($deductionRows)->contains(fn($r) => str_contains(strtolower($r['type']), 'anamat'))) {
+            $anamatVal = (float)$farmer->anamat;
+            $deductionRows[] = [
+                'type' => 'Deposit / Anamat',
+                'total_balance' => number_format($anamatVal, 2),
+                'deduction' => '0.00',
+                'balance' => '-',
+                'deposit' => number_format($anamatVal, 2),
+            ];
+            $totalDeposits += $anamatVal;
+        }
+
+        // Group collections by Shift
+        $shiftGroups = $collections->groupBy(function($c) {
+            return ucfirst(strtolower($c->shift));
+        });
+
+        $grandQuantity = (float) $invoice->total_quantity;
+        $grandAmount = (float) $invoice->milk_amount;
+        $grandAvgFat = $collections->count() > 0 ? (float) $collections->avg('fat') : 0.0;
+        $grandAvgClr = $collections->count() > 0 ? (float) ($collections->avg('clr') ?: $collections->avg('snf')) : 0.0;
+        $grandAvgRate = $grandQuantity > 0 ? ($grandAmount / $grandQuantity) : 0.0;
     @endphp
 
     <!-- Top Action Bar (hidden when printing) -->
-    <div class="max-w-[210mm] mx-auto mb-4 flex items-center justify-between no-print">
-        <a href="{{ route('farmer-invoices.show', $invoice->id) }}" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3.5 py-2 rounded-xl shadow-xs transition">
+    <div class="max-w-[210mm] mx-auto mb-3 flex items-center justify-between no-print">
+        <a href="{{ route('farmer-invoices.show', $invoice->id) }}" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-black bg-white border border-slate-300 px-3 py-1.5 rounded-lg shadow-xs transition">
             ← Back to Invoice View
         </a>
-        <div class="flex items-center gap-2">
-            <button onclick="window.print()" class="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl shadow-xs transition">
-                🖨️ Print Single-Page A4 Invoice
-            </button>
-        </div>
+        <button onclick="window.print()" class="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-black hover:bg-slate-800 px-4 py-1.5 rounded-lg shadow-xs transition cursor-pointer">
+            🖨️ Print Receipt
+        </button>
     </div>
 
-    <!-- Main Single Page A4 Portrait Voucher Container -->
-    <div class="page-container max-w-[210mm] mx-auto bg-white border border-slate-300 rounded-2xl p-5 shadow-sm space-y-3 text-[11px] leading-tight">
+    <!-- Main Printable Receipt Page (Matching reference media_1795106381953_1f928e0e.png) -->
+    <div class="invoice-page max-w-[210mm] mx-auto bg-white p-5 rounded-xl border border-slate-300 shadow-sm text-black text-xs leading-normal">
 
-        <!-- 1. Dairy Header & Invoice Title -->
-        <div class="flex items-start justify-between border-b-2 border-slate-900 pb-2.5">
-            <div class="flex items-start gap-3">
-                <div class="w-11 h-11 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-black text-base shrink-0 shadow-xs">
-                    🐄
-                </div>
-                <div>
-                    <h1 class="text-base font-black uppercase tracking-tight text-slate-900 leading-none">{{ $dairyName }}</h1>
-                    <p class="text-[10px] text-slate-600 mt-1 font-medium">{{ $dairyAddress }}</p>
-                    <div class="flex flex-wrap gap-x-3 text-[9.5px] text-slate-500 mt-0.5 font-medium">
-                        <span>Tel: <b class="text-slate-700">{{ $dairyPhone }}</b></span>
-                        <span>Email: <b class="text-slate-700">{{ $dairyEmail }}</b></span>
-                        @if(!empty($dairyGstin))
-                            <span>GSTIN: <b class="font-mono text-slate-700">{{ $dairyGstin }}</b></span>
-                        @endif
-                    </div>
-                </div>
+        <!-- 1. Dairy Header -->
+        <div class="flex items-start justify-between pb-2 mb-2">
+            <!-- Left Logo -->
+            <div class="w-28 shrink-0">
+                <img src="{{ asset('logo.PNG') }}" alt="Logo" class="h-16 w-auto object-contain"
+                     onerror="this.style.display='none'">
             </div>
-            <div class="text-right shrink-0">
-                <div class="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold uppercase tracking-wider rounded-md">
-                    Milk Purchase Bill
-                </div>
-                <div class="text-xs font-black font-mono text-slate-900 mt-1">#{{ $invoice->invoice_number }}</div>
-                <div class="text-[9.5px] text-slate-500 mt-0.5">Date: <span class="font-bold text-slate-700">{{ $invoice->created_at->format('d/m/Y') }}</span></div>
+
+            <!-- Center Dairy Details -->
+            <div class="text-center flex-1 px-2">
+                <h1 class="text-base font-extrabold uppercase tracking-wide text-black">{{ $dairyName }}</h1>
+                <p class="text-xs text-black mt-0.5 font-medium">{{ $dairyAddress }}</p>
+            </div>
+
+            <!-- Right Bill No & Contact -->
+            <div class="w-48 shrink-0 text-right text-[11px] font-semibold">
+                <div>Bill No. <span class="font-bold">{{ $invoice->invoice_number }}</span></div>
+                <div class="mt-0.5">{{ $contactPerson }}: <span class="font-mono">{{ $dairyPhone }}</span></div>
             </div>
         </div>
 
-        <!-- 2. Farmer Info & Billing Cycle Banner -->
-        <div class="grid grid-cols-2 gap-3 bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-[10.5px]">
+        <!-- 2. Farmer Name & Period Bar -->
+        <div class="flex items-center justify-between font-bold text-[13px] border-t border-black pt-2 pb-1.5 mb-1">
             <div>
-                <span class="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Farmer Details</span>
-                <div class="font-bold text-slate-900 text-xs mt-0.5">
-                    {{ $farmer->name }}
-                    @if(!empty($farmer->name_hi)) <span class="text-slate-600 font-normal">({{ $farmer->name_hi }})</span> @endif
-                </div>
-                <div class="text-slate-600 text-[10px] mt-0.5">
-                    Code: <span class="font-mono font-bold text-slate-900">{{ $farmer->farmer_code }}</span>
-                    @if($farmer->phone) | Mob: <span class="font-medium text-slate-800">{{ $farmer->phone }}</span> @endif
-                </div>
-                <div class="text-slate-500 text-[9.5px]">Route: {{ $farmer->route->name ?? 'Direct' }} | Center: {{ $farmer->collectionCenter->name ?? 'Main Center' }}</div>
+                {{ $farmer->farmer_code }} - {{ strtoupper($farmer->name) }}
             </div>
-            <div class="border-l border-slate-200 pl-3">
-                <span class="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Settlement & Bank Details</span>
-                <div class="text-[10px] text-slate-700 mt-0.5">
-                    Bank: <b class="text-slate-900">{{ $farmer->bank_name ?: 'Cash Account' }}</b>
-                    @if($farmer->account_number) | A/C: <b class="font-mono text-slate-900">{{ $farmer->account_number }}</b> @endif
-                </div>
-                <div class="text-[10px] text-slate-700">
-                    IFSC: <b class="font-mono text-slate-900">{{ $farmer->ifsc_code ?: '-' }}</b>
-                </div>
-                <div class="text-[10px] font-medium text-slate-700 mt-0.5">
-                    Billing Period: <b class="text-emerald-800">{{ $invoice->period_start->format('d/m/Y') }}</b> to <b class="text-emerald-800">{{ $invoice->period_end->format('d/m/Y') }}</b>
-                </div>
+            <div>
+                Date: {{ $invoice->period_start->format('d/m/Y') }} To {{ $invoice->period_end->format('d/m/Y') }}
             </div>
         </div>
 
-        <!-- 3. Milk Procurement Collections Table -->
-        <div>
-            <div class="flex items-center justify-between mb-1">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-800">1. Milk Collection Details</span>
-                <span class="text-[9.5px] text-slate-500 font-medium">{{ count($collections) }} Entries Recorded</span>
-            </div>
-            <table class="w-full text-left border border-slate-200 border-collapse text-[10px]">
-                <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[9.5px]">
-                    <tr>
-                        <th class="py-1 px-2 border-r border-slate-200">Date</th>
-                        <th class="py-1 px-1.5 border-r border-slate-200">Shift</th>
-                        <th class="py-1 px-1.5 border-r border-slate-200">Type</th>
-                        <th class="py-1 px-2 border-r border-slate-200 text-right">Qty (L)</th>
-                        <th class="py-1 px-1.5 border-r border-slate-200 text-right">FAT %</th>
-                        <th class="py-1 px-1.5 border-r border-slate-200 text-right">CLR / SNF</th>
-                        <th class="py-1 px-2 border-r border-slate-200 text-right">Rate (₹)</th>
-                        <th class="py-1 px-2 text-right">Amount (₹)</th>
+        <!-- 3. Milk Collection Details Table (Shift Grouped) -->
+        <div class="mb-3">
+            @foreach($shiftGroups as $shiftName => $sCollections)
+                @php
+                    $sQty = (float) $sCollections->sum('quantity_liters');
+                    $sAmount = (float) $sCollections->sum(function($c) {
+                        return (float) $c->gross_amount > 0 ? (float) $c->gross_amount : ((float) $c->quantity_liters * (float) ($c->applied_rate ?: $c->calculated_rate ?: 0));
+                    });
+                    $sAvgFat = (float) $sCollections->avg('fat');
+                    $sAvgClr = (float) ($sCollections->avg('clr') ?: $sCollections->avg('snf'));
+                    $sAvgRate = $sQty > 0 ? ($sAmount / $sQty) : 0.0;
+                @endphp
+
+                <div class="text-center font-bold text-xs py-1">{{ $shiftName }}</div>
+
+                <table class="bill-table text-[11px] mb-1">
+                    <thead>
+                        <tr class="font-bold text-center">
+                            <th class="w-16">Date</th>
+                            <th class="w-16">M</th>
+                            <th class="text-right w-24">Liter</th>
+                            <th class="text-right w-16">FAT</th>
+                            <th class="text-right w-16">CLR</th>
+                            <th class="text-right w-20">Rate</th>
+                            <th class="text-right w-28">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($sCollections as $c)
+                            @php
+                                $cMilk = (float) $c->gross_amount > 0 ? (float) $c->gross_amount : ((float) $c->quantity_liters * (float) ($c->applied_rate ?: $c->calculated_rate ?: 0));
+                                $mCode = strtoupper(substr($c->milk_type, 0, 1)) . (strtolower($c->shift) === 'evening' ? '1' : '0');
+                            @endphp
+                            <tr>
+                                <td class="text-center font-mono">{{ \Carbon\Carbon::parse($c->collection_date)->format('d') }}</td>
+                                <td class="text-center font-bold">{{ $mCode }}</td>
+                                <td class="text-right font-mono">{{ number_format($c->quantity_liters, 2) }}</td>
+                                <td class="text-right font-mono">{{ number_format($c->fat ?? 0, 1) }}</td>
+                                <td class="text-right font-mono">{{ number_format(($c->clr ?: $c->snf) ?? 0, 1) }}</td>
+                                <td class="text-right font-mono">{{ number_format($c->applied_rate ?: $c->calculated_rate ?: 0, 2) }}</td>
+                                <td class="text-right font-mono font-bold">{{ number_format($cMilk, 2) }}</td>
+                            </tr>
+                        @endforeach
+                        <!-- Shift Subtotal Row -->
+                        <tr class="font-bold">
+                            <td colspan="2" class="text-center">Total</td>
+                            <td class="text-right font-mono">{{ number_format($sQty, 2) }}</td>
+                            <td class="text-right font-mono">{{ number_format($sAvgFat, 1) }}</td>
+                            <td class="text-right font-mono">{{ number_format($sAvgClr, 1) }}</td>
+                            <td class="text-right font-mono">{{ number_format($sAvgRate, 2) }}</td>
+                            <td class="text-right font-mono">{{ number_format($sAmount, 2) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            @endforeach
+
+            <!-- Grand Total Row (if more than 1 shift group or single summary) -->
+            @if($shiftGroups->count() > 1)
+                <table class="bill-table text-[11px] font-bold">
+                    <tbody>
+                        <tr>
+                            <td colspan="2" class="text-center font-bold w-32 uppercase">Total</td>
+                            <td class="text-right font-mono w-24">{{ number_format($grandQuantity, 2) }}</td>
+                            <td class="text-right font-mono w-16">{{ number_format($grandAvgFat, 1) }}</td>
+                            <td class="text-right font-mono w-16">{{ number_format($grandAvgClr, 1) }}</td>
+                            <td class="text-right font-mono w-20">{{ number_format($grandAvgRate, 2) }}</td>
+                            <td class="text-right font-mono w-28">{{ number_format($grandAmount, 2) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            @endif
+        </div>
+
+        <!-- 4. Deductions Table (Matching Mobile Dairy Screenshot) -->
+        <div class="mb-3">
+            <table class="bill-table text-[11px]">
+                <thead>
+                    <tr class="font-bold text-center">
+                        <th class="text-left w-48">Deduction Type</th>
+                        <th class="text-right w-28">Total Balance</th>
+                        <th class="text-right w-24">Deduction</th>
+                        <th class="text-right w-28">Balance</th>
+                        <th class="text-right w-24">Deposit</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100 text-slate-700">
-                    @forelse($collections as $c)
-                        <tr class="hover:bg-slate-50">
-                            <td class="py-1 px-2 border-r border-slate-100 font-mono">{{ \Carbon\Carbon::parse($c->collection_date)->format('d/m/Y') }}</td>
-                            <td class="py-1 px-1.5 border-r border-slate-100 capitalize font-medium">{{ $c->shift }}</td>
-                            <td class="py-1 px-1.5 border-r border-slate-100 capitalize">{{ $c->milk_type }}</td>
-                            <td class="py-1 px-2 border-r border-slate-100 text-right font-mono font-bold text-slate-900">{{ number_format($c->quantity_liters, 2) }}</td>
-                            <td class="py-1 px-1.5 border-r border-slate-100 text-right font-mono">{{ number_format($c->fat ?? $c->fat_percentage ?? 0, 1) }}</td>
-                            <td class="py-1 px-1.5 border-r border-slate-100 text-right font-mono text-slate-500">{{ ($c->clr ?? $c->clr_reading) ? number_format($c->clr ?? $c->clr_reading, 1) : '-' }} / {{ ($c->snf ?? $c->snf_percentage) ? number_format($c->snf ?? $c->snf_percentage, 1) : '-' }}</td>
-                            <td class="py-1 px-2 border-r border-slate-100 text-right font-mono">₹{{ number_format($c->applied_rate ?? $c->calculated_rate ?? $c->rate_per_liter ?? 0, 2) }}</td>
-                            @php
-                                $cMilk = (float) $c->gross_amount > 0 ? (float) $c->gross_amount : ((float) $c->quantity_liters * (float) ($c->applied_rate ?: $c->calculated_rate ?: $c->rate_per_liter ?: 0));
-                            @endphp
-                            <td class="py-1 px-2 text-right font-mono font-bold text-slate-900">₹{{ number_format($cMilk, 2) }}</td>
+                <tbody>
+                    @forelse($deductionRows as $row)
+                        <tr>
+                            <td class="font-medium text-left">{{ $row['type'] }}</td>
+                            <td class="text-right font-mono">{{ $row['total_balance'] }}</td>
+                            <td class="text-right font-mono font-bold">{{ $row['deduction'] }}</td>
+                            <td class="text-right font-mono">{{ $row['balance'] }}</td>
+                            <td class="text-right font-mono">{{ $row['deposit'] }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="py-2 text-center text-slate-400">No collection entries found.</td>
+                            <td colspan="5" class="text-center text-slate-500 py-2">No deductions recorded</td>
                         </tr>
                     @endforelse
-                </tbody>
-                <tfoot class="bg-slate-100 font-bold border-t-2 border-slate-300 text-[10px]">
-                    <tr>
-                        <td colspan="3" class="py-1 px-2 border-r border-slate-200 uppercase tracking-wider">Total Milk Procurement</td>
-                        <td class="py-1 px-2 border-r border-slate-200 text-right font-mono font-black text-slate-900">{{ number_format($invoice->total_quantity, 2) }} L</td>
-                        <td colspan="3" class="border-r border-slate-200"></td>
-                        <td class="py-1 px-2 text-right font-mono font-black text-slate-900">₹{{ number_format($invoice->milk_amount, 2) }}</td>
+                    <!-- Deductions Total Row -->
+                    <tr class="font-bold">
+                        <td class="text-left">Total</td>
+                        <td class="text-right font-mono">-</td>
+                        <td class="text-right font-mono">{{ number_format($invoice->total_deduction, 2) }}</td>
+                        <td class="text-right font-mono">{{ $totalRemainingDebt > 0 ? '-' . number_format($totalRemainingDebt, 2) : '-' }}</td>
+                        <td class="text-right font-mono">{{ $totalDeposits > 0 ? number_format($totalDeposits, 2) : '-' }}</td>
                     </tr>
-                </tfoot>
+                </tbody>
             </table>
         </div>
 
-        <!-- 4. Two Columns: Category Deductions & Additions -->
-        <div class="grid grid-cols-2 gap-3">
-            
-            <!-- Category-Wise Deductions Table -->
-            <div class="border border-slate-200 rounded-xl overflow-hidden">
-                <div class="bg-slate-100 px-2.5 py-1 font-bold text-[9.5px] uppercase tracking-wider text-slate-700 border-b border-slate-200 flex justify-between">
-                    <span>2. Deductions (Category-Wise)</span>
-                    <span class="text-rose-700 font-mono">-₹{{ number_format($invoice->total_deduction, 2) }}</span>
-                </div>
-                <table class="w-full text-left text-[9.5px]">
-                    <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-                        <tr>
-                            <th class="py-1 px-2 border-r border-slate-200">Category</th>
-                            <th class="py-1 px-1.5 border-r border-slate-200 text-right">Opening</th>
-                            <th class="py-1 px-1.5 border-r border-slate-200 text-right text-rose-700">Deducted</th>
-                            <th class="py-1 px-1.5 text-right text-amber-700">Closing</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100 text-slate-700">
-                        @forelse($catBreakdown as $b)
-                            <tr>
-                                <td class="py-0.5 px-2 border-r border-slate-100 font-medium">{{ $b['name'] }}</td>
-                                <td class="py-0.5 px-1.5 border-r border-slate-100 text-right font-mono">₹{{ number_format($b['original_balance'], 2) }}</td>
-                                <td class="py-0.5 px-1.5 border-r border-slate-100 text-right font-mono font-bold text-rose-700">-₹{{ number_format($b['deducted_amount'], 2) }}</td>
-                                <td class="py-0.5 px-1.5 text-right font-mono font-bold text-amber-700">₹{{ number_format($b['remaining_balance'], 2) }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="4" class="py-1 text-center text-slate-400">No deductions for this billing period.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                    <tfoot class="bg-slate-50 font-bold border-t border-slate-200 text-[9.5px]">
-                        <tr>
-                            <td class="py-1 px-2 border-r border-slate-200">Total</td>
-                            <td class="py-1 px-1.5 border-r border-slate-200 text-right font-mono">₹{{ number_format(collect($catBreakdown)->sum('original_balance'), 2) }}</td>
-                            <td class="py-1 px-1.5 border-r border-slate-200 text-right font-mono font-black text-rose-700">-₹{{ number_format($invoice->total_deduction, 2) }}</td>
-                            <td class="py-1 px-1.5 text-right font-mono font-bold text-amber-700">₹{{ number_format(collect($catBreakdown)->sum('remaining_balance'), 2) }}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-
-            <!-- Additions / Credits Breakdown -->
-            <div class="border border-slate-200 rounded-xl overflow-hidden flex flex-col justify-between">
-                <div>
-                    <div class="bg-slate-100 px-2.5 py-1 font-bold text-[9.5px] uppercase tracking-wider text-slate-700 border-b border-slate-200 flex justify-between">
-                        <span>3. Additions & Subsidies</span>
-                        <span class="text-amber-700 font-mono">+₹{{ number_format($invoice->total_credit, 2) }}</span>
-                    </div>
-                    <table class="w-full text-left text-[9.5px]">
-                        <tbody class="divide-y divide-slate-100 text-slate-700">
-                            @forelse($additionsList as $add)
-                                <tr>
-                                    <td class="py-1 px-2.5 font-medium">{{ $add['name'] }}</td>
-                                    <td class="py-1 px-2.5 text-right font-mono font-bold text-amber-700">+₹{{ number_format($add['amt'], 2) }}</td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="2" class="py-2 text-center text-slate-400">No extra subsidies or bonuses for this period.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Farmer Deduction Wallet Strip -->
-                <div class="bg-amber-50/70 border-t border-amber-200 p-2 text-[10px]">
-                    <div class="flex items-center justify-between font-bold text-slate-800 mb-1">
-                        <span class="flex items-center gap-1 text-amber-900">
-                            <span>💼 Farmer Deduction Wallet:</span>
-                        </span>
-                        <span class="font-mono text-emerald-800">Remaining Balance: ₹{{ number_format($closingWallet, 2) }}</span>
-                    </div>
-                    <div class="grid grid-cols-3 gap-1 text-[9px] text-slate-600 bg-white p-1 rounded border border-amber-200">
-                        <div>Opening: <b class="font-mono text-slate-800">₹{{ number_format($openingWallet, 2) }}</b></div>
-                        <div>Deducted: <b class="font-mono text-rose-700">-₹{{ number_format($walletDeducted, 2) }}</b></div>
-                        <div>Closing: <b class="font-mono text-emerald-700">₹{{ number_format($closingWallet, 2) }}</b></div>
-                    </div>
-                </div>
-            </div>
-
+        <!-- 5. Bottom Summary Single Box (Matching reference media_1795106381953_1f928e0e.png) -->
+        <div class="border-[1.5px] border-black p-2 font-bold text-[12px] flex items-center justify-between mb-2">
+            <div>Amount: <span class="font-mono font-extrabold">{{ number_format($invoice->total_amount, 2) }}</span></div>
+            <div>Deduction: <span class="font-mono font-extrabold">{{ number_format($invoice->total_deduction, 2) }}</span></div>
+            <div>Payment: <span class="font-mono font-extrabold">{{ number_format($invoice->net_payment, 2) }}</span></div>
+            <div>Current Balance: <span class="font-mono font-extrabold">{{ $totalRemainingDebt > 0 ? '- ' . number_format($totalRemainingDebt, 2) : '0.00' }}</span></div>
         </div>
 
-        <!-- 5. Final Financial Settlement & Payable Box -->
-        <div class="grid grid-cols-4 gap-2 bg-slate-900 text-white rounded-xl p-2.5 text-[10.5px]">
-            <div class="bg-white/10 rounded-lg p-2">
-                <span class="text-[9px] font-semibold text-slate-300 uppercase block tracking-wider">Milk Amount (C)</span>
-                <span class="text-sm font-black font-mono mt-0.5 block">₹{{ number_format($invoice->milk_amount, 2) }}</span>
-            </div>
-            <div class="bg-white/10 rounded-lg p-2">
-                <span class="text-[9px] font-semibold text-slate-300 uppercase block tracking-wider">Total Credit (B)</span>
-                <span class="text-sm font-black font-mono text-amber-300 mt-0.5 block">+₹{{ number_format($invoice->total_credit, 2) }}</span>
-            </div>
-            <div class="bg-white/10 rounded-lg p-2">
-                <span class="text-[9px] font-semibold text-slate-300 uppercase block tracking-wider">Total Deductions (A)</span>
-                <span class="text-sm font-black font-mono text-rose-300 mt-0.5 block">-₹{{ number_format($invoice->total_deduction, 2) }}</span>
-            </div>
-            <div class="{{ $invoice->net_payment < 0 ? 'bg-rose-700' : 'bg-emerald-600' }} rounded-lg p-2">
-                <span class="text-[9px] font-black uppercase text-emerald-100 block tracking-wider">{{ $invoice->net_payment < 0 ? 'Balance Due / Recovery' : 'Net Payable Amount' }}</span>
-                <span class="text-base font-black font-mono text-white mt-0.5 block">{{ $invoice->net_payment < 0 ? '-₹' . number_format(abs($invoice->net_payment), 2) : '₹' . number_format($invoice->net_payment, 2) }}</span>
-            </div>
-        </div>
-
-        <!-- 6. Payment Status & Authorizations -->
-        <div class="grid grid-cols-2 gap-8 pt-3 text-[10px] border-t border-slate-200 items-end">
-            <div class="text-center pt-5 border-t border-dashed border-slate-400">
-                <p class="font-bold text-slate-800">Farmer Signature / Thumb Impression</p>
-                <p class="text-[9px] text-slate-500 mt-0.5">({{ $farmer->name }} - {{ $farmer->farmer_code }})</p>
-            </div>
-            <div class="text-center pt-5 border-t border-dashed border-slate-400">
-                <p class="font-bold text-slate-800">Authorized Signatory & Seal</p>
-                <p class="text-[9px] text-slate-500 mt-0.5">{{ $dairyName }}</p>
-            </div>
+        <!-- 6. Footer Hindi Legal Notice -->
+        <div class="text-center font-bold text-[11px] text-black pt-1">
+            प्रिय दुग्ध प्रदायक बंधु अपने बिल को अच्छी तरह से जांच ले व 10 दिनों के अन्दर त्रुटि अगर हो तो दिखाकर निदान करे
         </div>
 
     </div>
