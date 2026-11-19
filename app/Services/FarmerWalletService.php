@@ -503,25 +503,11 @@ class FarmerWalletService
                 'wallet_deductions_breakdown' => $breakdown,
             ]);
 
-            // Sync recovered deductions into farmer_deductions as received
-            if (\Illuminate\Support\Facades\Schema::hasTable('farmer_deductions') && $totalDeducted > 0) {
+            // Clean up any historical sync in farmer_deductions to avoid circular additions
+            if (\Illuminate\Support\Facades\Schema::hasTable('farmer_deductions')) {
                 \App\Models\FarmerDeduction::where('farmer_id', $invoice->farmer_id)
                     ->where('comments', 'like', "%Invoice #{$invoice->invoice_number}%")
                     ->delete();
-
-                foreach ($breakdown as $b) {
-                    $dAmt = (float) ($b['deducted_amount'] ?? 0);
-                    if ($dAmt <= 0) continue;
-                    \App\Models\FarmerDeduction::create([
-                        'farmer_id' => $invoice->farmer_id,
-                        'entry_date' => $invoice->period_end ? $invoice->period_end->format('Y-m-d') : date('Y-m-d'),
-                        'deduction_type' => \Illuminate\Support\Str::snake($b['category'] ?? 'other'),
-                        'transaction_type' => 'received',
-                        'amount' => $dAmt,
-                        'comments' => "Recovered in Invoice #{$invoice->invoice_number}",
-                        'created_by' => $createdBy,
-                    ]);
-                }
             }
 
             return [

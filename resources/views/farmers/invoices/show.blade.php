@@ -207,7 +207,10 @@
                                     <td class="py-2 px-3 text-right font-mono">{{ number_format($c->fat ?? $c->fat_percentage ?? 0, 1) }}%</td>
                                     <td class="py-2 px-3 text-right font-mono text-slate-500">{{ ($c->clr ?? $c->clr_reading) ? number_format($c->clr ?? $c->clr_reading, 1) : '-' }} / {{ ($c->snf ?? $c->snf_percentage) ? number_format($c->snf ?? $c->snf_percentage, 1) : '-' }}</td>
                                     <td class="py-2 px-3 text-right font-mono">₹{{ number_format($c->applied_rate ?? $c->calculated_rate ?? $c->rate_per_liter ?? 0, 2) }}</td>
-                                    <td class="py-2 px-3 text-right font-mono font-bold text-slate-900">₹{{ number_format($c->net_amount, 2) }}</td>
+                                    @php
+                                        $cMilk = (float) $c->gross_amount > 0 ? (float) $c->gross_amount : ((float) $c->quantity_liters * (float) ($c->applied_rate ?: $c->calculated_rate ?: $c->rate_per_liter ?: 0));
+                                    @endphp
+                                    <td class="py-2 px-3 text-right font-mono font-bold text-slate-900">₹{{ number_format($cMilk, 2) }}</td>
                                 </tr>
                             @empty
                                 <tr>
@@ -525,7 +528,9 @@
 
                     <div class="pt-3 border-t-2 border-slate-200 flex justify-between items-center text-sm">
                         <span class="font-bold text-slate-900">Net Payment</span>
-                        <span class="text-base font-black font-mono text-emerald-700">₹{{ number_format($invoice->net_payment, 2) }}</span>
+                        <span class="text-base font-black font-mono {{ $invoice->net_payment < 0 ? 'text-rose-600' : 'text-emerald-700' }}">
+                            {{ $invoice->net_payment < 0 ? '-₹' . number_format(abs($invoice->net_payment), 2) : '₹' . number_format($invoice->net_payment, 2) }}
+                        </span>
                     </div>
                 </div>
 

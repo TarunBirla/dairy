@@ -308,8 +308,8 @@
                                     </span>
                                 @endif
                             </td>
-                            <td class="py-3 px-3 border-r border-slate-100 text-right font-mono bg-emerald-50/60 font-black text-emerald-700 text-xs">
-                                ₹{{ number_format($inv->net_payment, 2) }}
+                            <td class="py-3 px-3 border-r border-slate-100 text-right font-mono {{ $inv->net_payment < 0 ? 'bg-rose-50/60 font-black text-rose-700' : 'bg-emerald-50/60 font-black text-emerald-700' }} text-xs">
+                                {{ $inv->net_payment < 0 ? '-₹' . number_format(abs($inv->net_payment), 2) : '₹' . number_format($inv->net_payment, 2) }}
                             </td>
                             <td class="py-3 px-3 text-center">
                                 <div class="flex items-center justify-center gap-1">
@@ -1008,6 +1008,7 @@
                                placeholder="0.00"
                                title="Enter amount to deduct in current invoice (original balance is preserved)"
                                class="w-full text-right px-2 py-1 text-xs font-mono font-bold text-rose-700 bg-rose-50/50 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-rose-500">
+                        <div id="err_ded_${key}" class="text-[9.5px] text-rose-600 font-bold mt-0.5 hidden text-left leading-tight"></div>
                     </td>
                     <td class="py-2 px-2.5 border-r border-slate-100 text-right font-mono font-bold text-amber-700" id="rem_bal_${key}">
                         ${remBal.toFixed(2)}
@@ -1029,6 +1030,21 @@
         const origBal = parseFloat(input.dataset.orig || 0);
         let val = parseFloat(input.value || 0);
         if (isNaN(val) || val < 0) val = 0;
+
+        const errDiv = document.getElementById('err_ded_' + key);
+        if (origBal > 0 && val > origBal) {
+            if (errDiv) {
+                errDiv.textContent = `Deduction ${val.toFixed(2)} must be less than or equal to ${origBal.toFixed(2)}`;
+                errDiv.classList.remove('hidden');
+            }
+            input.classList.add('border-rose-500', 'bg-rose-100');
+        } else {
+            if (errDiv) {
+                errDiv.textContent = '';
+                errDiv.classList.add('hidden');
+            }
+            input.classList.remove('border-rose-500', 'bg-rose-100');
+        }
 
         const remBal = Math.max(0, origBal - val);
         const remCell = document.getElementById('rem_bal_' + key);
@@ -1083,7 +1099,7 @@
                         <td class="py-2 px-3 border-r border-slate-100 text-right font-mono">${parseFloat(c.snf).toFixed(1)}</td>
                         <td class="py-2 px-3 border-r border-slate-100 text-right font-mono">${parseFloat(c.clr).toFixed(1)}</td>
                         <td class="py-2 px-3 border-r border-slate-100 text-right font-mono">${parseFloat(c.applied_rate).toFixed(2)}</td>
-                        <td class="py-2 px-3 text-right font-mono font-bold text-slate-900">${parseFloat(c.net_amount).toFixed(2)}</td>
+                        <td class="py-2 px-3 text-right font-mono font-bold text-slate-900">${parseFloat(c.milk_amount !== undefined ? c.milk_amount : (c.gross_amount || (c.quantity_liters * c.applied_rate))).toFixed(2)}</td>
                     </tr>
                 `;
             });
@@ -1166,16 +1182,21 @@
         let totalDeductions = 0.0;
         let totalOrigBal = 0.0;
         let totalRemainingBal = 0.0;
+        let hasValidationError = false;
 
         const dedInputs = document.querySelectorAll('#revDeductionsTbody input[id^="input_ded_"]');
         if (dedInputs.length > 0) {
             dedInputs.forEach(inp => {
                 const orig = parseFloat(inp.dataset.orig || 0);
-                const ded = Math.max(0, parseFloat(inp.value || 0));
-                const rem = Math.max(0, orig - ded);
+                const ded = parseFloat(inp.value || 0);
+                if (orig > 0 && ded > orig) {
+                    hasValidationError = true;
+                }
+                const cleanDed = Math.max(0, ded);
+                const rem = Math.max(0, orig - cleanDed);
 
                 totalOrigBal += orig;
-                totalDeductions += ded;
+                totalDeductions += cleanDed;
                 totalRemainingBal += rem;
             });
         } else {
@@ -1186,7 +1207,7 @@
         }
 
         const totalAmount = milkAmount + totalAdditions;
-        const rawPayable = Math.max(0, totalAmount - totalDeductions);
+        const rawPayable = totalAmount - totalDeductions;
         const roundedPayable = Math.round(rawPayable);
         const roundOff = roundedPayable - rawPayable;
         const remainingBalance = Math.max(0, totalDeductions - totalAmount);
@@ -1202,7 +1223,28 @@
         document.getElementById('revSummaryTotalAmount').textContent = totalAmount.toFixed(2);
         document.getElementById('revSummaryTotalDeduction').textContent = totalDeductions.toFixed(2);
         document.getElementById('revSummaryRoundOff').textContent = (roundOff >= 0 ? '+' : '') + roundOff.toFixed(2);
-        document.getElementById('revSummaryNetPayment').textContent = '₹' + roundedPayable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const netElem = document.getElementById('revSummaryNetPayment');
+        if (netElem) {
+            if (roundedPayable < 0) {
+                netElem.textContent = '-₹' + Math.abs(roundedPayable).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                netElem.className = 'text-lg font-black text-rose-600 font-mono';
+            } else {
+                netElem.textContent = '₹' + roundedPayable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                netElem.className = 'text-lg font-black text-emerald-600 font-mono';
+            }
+        }
+
+        const saveBtn = document.getElementById('revSaveInvoiceBtn');
+        if (saveBtn) {
+            if (hasValidationError) {
+                saveBtn.disabled = true;
+                saveBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                saveBtn.disabled = false;
+                saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
     }
 
     function saveAndVerifyCurrentInvoice() {

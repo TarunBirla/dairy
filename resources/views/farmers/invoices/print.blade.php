@@ -166,7 +166,10 @@
                             <td class="py-1 px-1.5 border-r border-slate-100 text-right font-mono">{{ number_format($c->fat ?? $c->fat_percentage ?? 0, 1) }}</td>
                             <td class="py-1 px-1.5 border-r border-slate-100 text-right font-mono text-slate-500">{{ ($c->clr ?? $c->clr_reading) ? number_format($c->clr ?? $c->clr_reading, 1) : '-' }} / {{ ($c->snf ?? $c->snf_percentage) ? number_format($c->snf ?? $c->snf_percentage, 1) : '-' }}</td>
                             <td class="py-1 px-2 border-r border-slate-100 text-right font-mono">₹{{ number_format($c->applied_rate ?? $c->calculated_rate ?? $c->rate_per_liter ?? 0, 2) }}</td>
-                            <td class="py-1 px-2 text-right font-mono font-bold text-slate-900">₹{{ number_format($c->net_amount, 2) }}</td>
+                            @php
+                                $cMilk = (float) $c->gross_amount > 0 ? (float) $c->gross_amount : ((float) $c->quantity_liters * (float) ($c->applied_rate ?: $c->calculated_rate ?: $c->rate_per_liter ?: 0));
+                            @endphp
+                            <td class="py-1 px-2 text-right font-mono font-bold text-slate-900">₹{{ number_format($cMilk, 2) }}</td>
                         </tr>
                     @empty
                         <tr>
@@ -283,9 +286,9 @@
                 <span class="text-[9px] font-semibold text-slate-300 uppercase block tracking-wider">Total Deductions (A)</span>
                 <span class="text-sm font-black font-mono text-rose-300 mt-0.5 block">-₹{{ number_format($invoice->total_deduction, 2) }}</span>
             </div>
-            <div class="bg-emerald-600 rounded-lg p-2">
-                <span class="text-[9px] font-black uppercase text-emerald-100 block tracking-wider">Net Payable Amount</span>
-                <span class="text-base font-black font-mono text-white mt-0.5 block">₹{{ number_format($invoice->net_payment, 2) }}</span>
+            <div class="{{ $invoice->net_payment < 0 ? 'bg-rose-700' : 'bg-emerald-600' }} rounded-lg p-2">
+                <span class="text-[9px] font-black uppercase text-emerald-100 block tracking-wider">{{ $invoice->net_payment < 0 ? 'Balance Due / Recovery' : 'Net Payable Amount' }}</span>
+                <span class="text-base font-black font-mono text-white mt-0.5 block">{{ $invoice->net_payment < 0 ? '-₹' . number_format(abs($invoice->net_payment), 2) : '₹' . number_format($invoice->net_payment, 2) }}</span>
             </div>
         </div>
 

@@ -116,10 +116,11 @@ class FarmerInvoiceController extends Controller
             ->get();
 
         $totalQuantity = round((float) $collections->sum('quantity_liters'), 2);
+        // Pure milk gross amount: Quantity * Rate
         $milkAmount = round((float) $collections->sum(function ($c) {
-            $net = (float) $c->net_amount;
-            if ($net > 0) {
-                return $net;
+            $gross = (float) $c->gross_amount;
+            if ($gross > 0) {
+                return $gross;
             }
             $rate = (float) ($c->applied_rate ?: $c->calculated_rate ?: 0);
             return round((float) $c->quantity_liters * $rate, 2);
@@ -142,39 +143,47 @@ class FarmerInvoiceController extends Controller
             $feedDeduction = round((float) $given->where('deduction_type', 'cattle_feed')->sum('amount'), 2);
             $advanceFromDeductions = round((float) $given->where('deduction_type', 'advance_recovery')->sum('amount'), 2);
             $stationaryDeduction = round((float) $given->whereNotIn('deduction_type', ['cattle_feed', 'advance_recovery'])->sum('amount'), 2);
-            $otherCredit = round((float) $deductions->where('transaction_type', 'received')->sum('amount'), 2);
+            // Only manual external received credits, exclude invoice recovered deductions
+            $otherCredit = round((float) $deductions->where('transaction_type', 'received')
+                ->filter(function ($d) {
+                    $c = strtolower($d->comments ?? '');
+                    return !str_contains($c, 'recovered in invoice') && !str_contains($c, 'invoice #');
+                })
+                ->sum('amount'), 2);
         }
 
         // Dynamically wire Addition Types configured in Center Information (All Farmers + Farmer Wise)
         try {
-            $rawGross = round((float) $collections->sum(function ($c) {
-                $rate = (float) ($c->applied_rate ?: $c->calculated_rate ?: 0);
-                return (float) $c->quantity_liters * $rate;
-            }), 2);
-
-            $existingBonusSum = (float) $collections->sum('bonus');
-            if ($existingBonusSum <= 0 && $totalQuantity > 0) {
-                $charges = \App\Services\CenterAdditionDeductionService::calculateForCollection($farmer, $totalQuantity, $rawGross);
-                foreach ($charges['additions'] as $add) {
-                    $name = strtolower($add['name'] ?? '');
-                    $amt = (float) ($add['amount'] ?? 0);
-                    if ($amt <= 0) continue;
-                    if (str_contains($name, 'transport')) {
-                        $transportCredit += $amt;
-                    } elseif (str_contains($name, 'subsidy')) {
-                        $subsidyCredit += $amt;
-                    } elseif (str_contains($name, 'incentive')) {
-                        $incentiveCredit += $amt;
-                    } else {
-                        $otherCredit += $amt;
-                    }
+            $charges = \App\Services\CenterAdditionDeductionService::calculateForCollection($farmer, $totalQuantity, $milkAmount);
+            foreach ($charges['additions'] as $add) {
+                $name = strtolower($add['name'] ?? '');
+                $amt = (float) ($add['amount'] ?? 0);
+                if ($amt <= 0) continue;
+                if (str_contains($name, 'transport')) {
+                    $transportCredit += $amt;
+                } elseif (str_contains($name, 'subsidy')) {
+                    $subsidyCredit += $amt;
+                } elseif (str_contains($name, 'incentive')) {
+                    $incentiveCredit += $amt;
+                } else {
+                    $otherCredit += $amt;
                 }
             }
 
             // Per-Invoice additions configured in Center Information (e.g. Commission In Percent/Invoice)
-            $invAdds = \App\Services\CenterAdditionDeductionService::getInvoiceAdditions($farmer, $totalQuantity, $rawGross);
+            $invAdds = \App\Services\CenterAdditionDeductionService::getInvoiceAdditions($farmer, $totalQuantity, $milkAmount);
             foreach ($invAdds['items'] as $ia) {
-                $otherCredit += (float) $ia['amount'];
+                $name = strtolower($ia['name'] ?? '');
+                $amt = (float) ($ia['amount'] ?? 0);
+                if (str_contains($name, 'transport')) {
+                    $transportCredit += $amt;
+                } elseif (str_contains($name, 'subsidy')) {
+                    $subsidyCredit += $amt;
+                } elseif (str_contains($name, 'incentive')) {
+                    $incentiveCredit += $amt;
+                } else {
+                    $otherCredit += $amt;
+                }
             }
         } catch (\Throwable $e) {}
 
@@ -329,8 +338,8 @@ class FarmerInvoiceController extends Controller
         // Balance = Remaining unpaid deduction if totalDeduction > totalAmount (carried into Deduction Wallet), else 0.00
         $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);
 
-        // Payment (B+C-A) = Net payable amount if (B + C) >= A, else 0.00
-        $rawPayable = round(max(0, $totalAmount - $totalDeduction), 2);
+        // Payment (B+C-A) = Net payable amount. If totalDeduction > totalAmount, show in negative
+        $rawPayable = round($totalAmount - $totalDeduction, 2);
         $roundOff = 0.00;
         $netPayment = $rawPayable;
 
@@ -676,6 +685,11 @@ class FarmerInvoiceController extends Controller
 
         $formattedCollections = $collections->map(function ($c) {
             $dt = $c->collection_date instanceof Carbon ? $c->collection_date : Carbon::parse($c->collection_date);
+            $gross = (float) $c->gross_amount;
+            if ($gross <= 0) {
+                $rate = (float) ($c->applied_rate ?: $c->calculated_rate ?: 0);
+                $gross = round((float) $c->quantity_liters * $rate, 2);
+            }
             return [
                 'id' => $c->id,
                 'collection_date' => $dt->format('Y-m-d'),
@@ -688,6 +702,7 @@ class FarmerInvoiceController extends Controller
                 'snf' => (float) ($c->snf ?? 0),
                 'clr' => (float) ($c->clr ?? 0),
                 'applied_rate' => (float) ($c->applied_rate ?: $c->calculated_rate ?: 0),
+                'milk_amount' => $gross,
                 'net_amount' => (float) $c->net_amount,
             ];
         });
@@ -873,8 +888,8 @@ class FarmerInvoiceController extends Controller
         $milkAmount = round((float) $invoice->milk_amount, 2);
         $totalAmount = round($milkAmount + $totalCredit, 2);
 
-        $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);
-        $rawPayable = round(max(0, $totalAmount - $totalDeduction), 2);
+        $rawPayable = round($totalAmount - $totalDeduction, 2);
+        $previousBalance = $rawPayable < 0 ? abs($rawPayable) : 0.00;
 
         if (isset($validated['round_off']) && $validated['round_off'] !== null && $validated['round_off'] !== '') {
             $roundOff = round((float) $validated['round_off'], 2);
@@ -882,7 +897,7 @@ class FarmerInvoiceController extends Controller
             $roundOff = round(round($rawPayable) - $rawPayable, 2);
         }
 
-        $netPayment = round(max(0, $rawPayable + $roundOff), 2);
+        $netPayment = round($rawPayable + $roundOff, 2);
 
         $invoice->update([
             'other_credit' => $otherCredit,

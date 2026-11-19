@@ -2402,10 +2402,11 @@ class ProcurementApiController extends Controller
             ->get();
 
         $totalQuantity = round((float) $collections->sum('quantity_liters'), 2);
+        // Pure milk gross amount: Quantity * Rate
         $milkAmount = round((float) $collections->sum(function ($c) {
-            $net = (float) $c->net_amount;
-            if ($net > 0) {
-                return $net;
+            $gross = (float) $c->gross_amount;
+            if ($gross > 0) {
+                return $gross;
             }
             $rate = (float) ($c->applied_rate ?: $c->calculated_rate ?: 0);
             return round((float) $c->quantity_liters * $rate, 2);
@@ -2428,7 +2429,13 @@ class ProcurementApiController extends Controller
             $feedDeduction = round((float) $given->where('deduction_type', 'cattle_feed')->sum('amount'), 2);
             $advanceFromDeductions = round((float) $given->where('deduction_type', 'advance_recovery')->sum('amount'), 2);
             $stationaryDeduction = round((float) $given->whereNotIn('deduction_type', ['cattle_feed', 'advance_recovery'])->sum('amount'), 2);
-            $otherCredit = round((float) $deductions->where('transaction_type', 'received')->sum('amount'), 2);
+            // Only manual external received credits, exclude invoice recovered deductions
+            $otherCredit = round((float) $deductions->where('transaction_type', 'received')
+                ->filter(function ($d) {
+                    $c = strtolower($d->comments ?? '');
+                    return !str_contains($c, 'recovered in invoice') && !str_contains($c, 'invoice #');
+                })
+                ->sum('amount'), 2);
         }
 
         if (Schema::hasTable('product_sales')) {
@@ -2460,9 +2467,35 @@ class ProcurementApiController extends Controller
 
         // Per-Invoice additions and deductions from Center Information
         try {
+            $charges = \App\Services\CenterAdditionDeductionService::calculateForCollection($farmer, $totalQuantity, $milkAmount);
+            foreach ($charges['additions'] as $add) {
+                $name = strtolower($add['name'] ?? '');
+                $amt = (float) ($add['amount'] ?? 0);
+                if ($amt <= 0) continue;
+                if (str_contains($name, 'transport')) {
+                    $transportCredit += $amt;
+                } elseif (str_contains($name, 'subsidy')) {
+                    $subsidyCredit += $amt;
+                } elseif (str_contains($name, 'incentive')) {
+                    $incentiveCredit += $amt;
+                } else {
+                    $otherCredit += $amt;
+                }
+            }
+
             $invAdds = \App\Services\CenterAdditionDeductionService::getInvoiceAdditions($farmer, $totalQuantity, $milkAmount);
             foreach ($invAdds['items'] as $ia) {
-                $otherCredit += (float) $ia['amount'];
+                $name = strtolower($ia['name'] ?? '');
+                $amt = (float) ($ia['amount'] ?? 0);
+                if (str_contains($name, 'transport')) {
+                    $transportCredit += $amt;
+                } elseif (str_contains($name, 'subsidy')) {
+                    $subsidyCredit += $amt;
+                } elseif (str_contains($name, 'incentive')) {
+                    $incentiveCredit += $amt;
+                } else {
+                    $otherCredit += $amt;
+                }
             }
         } catch (\Throwable $e) {}
 
@@ -2519,7 +2552,7 @@ class ProcurementApiController extends Controller
         $totalDeduction = round($stationaryDeduction + $feedDeduction + $advanceDeduction + $otherDeduction, 2);
         $totalAmount = round($totalCredit + $milkAmount, 2);
         $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);
-        $rawPayable = round(max(0, $totalAmount - $totalDeduction), 2);
+        $rawPayable = round($totalAmount - $totalDeduction, 2);
         $roundOff = 0.00;
         $netPayment = $rawPayable;
 
@@ -2856,8 +2889,9 @@ class ProcurementApiController extends Controller
         $totalDeduction = round($stationary + $feed + $advance + $otherDed, 2);
         $totalCredit = round($otherCred + $transport + $subsidy + $incentive, 2);
         $totalAmount = round($milkAmount + $totalCredit, 2);
-        $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);
-        $netPayment = round(max(0, $totalAmount - $totalDeduction + $roundOff), 2);
+        $rawPayable = round($totalAmount - $totalDeduction, 2);
+        $previousBalance = $rawPayable < 0 ? abs($rawPayable) : 0.00;
+        $netPayment = round($rawPayable + $roundOff, 2);
 
         $item->update([
             'stationary_deduction' => $stationary,
