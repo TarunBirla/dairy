@@ -772,6 +772,36 @@ class MilkCollectionController extends Controller
     }
 
     /**
+     * Check if collection entry already exists for a farmer on given date and shift
+     */
+    public function checkDuplicate(Request $request)
+    {
+        $farmerId = $request->get('farmer_id');
+        $date = $request->get('collection_date', Carbon::today()->format('Y-m-d'));
+        $shift = $request->get('shift', 'morning');
+
+        if (!$farmerId) {
+            return response()->json([
+                'exists' => false,
+                'count' => 0,
+                'collections' => []
+            ]);
+        }
+
+        $existing = MilkCollection::where('farmer_id', $farmerId)
+            ->whereDate('collection_date', $date)
+            ->where('shift', $shift)
+            ->latest('id')
+            ->get(['id', 'receipt_number', 'farmer_id', 'quantity_liters', 'fat', 'snf', 'clr', 'net_amount', 'created_at', 'milk_type']);
+
+        return response()->json([
+            'exists' => $existing->isNotEmpty(),
+            'count' => $existing->count(),
+            'collections' => $existing
+        ]);
+    }
+
+    /**
      * Live Rate & Shift Summary Calculation API
      */
     public function calculateRate(Request $request)

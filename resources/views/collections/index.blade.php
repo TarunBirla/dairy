@@ -1039,6 +1039,112 @@
         </div>
     </div>
 
+    <!-- DUPLICATE ENTRY WARNING MODAL (Bilingual: English & Hindi) -->
+    <div x-show="duplicateWarningModalOpen" 
+         x-cloak 
+         class="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4"
+         @keydown.escape.window="duplicateWarningModalOpen = false">
+        <div @click.away="duplicateWarningModalOpen = false" 
+             class="bg-white rounded-3xl border border-amber-200 shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-150">
+            <!-- Modal Header -->
+            <div class="px-5 py-4 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200/80 flex items-start justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-amber-100 border border-amber-300 text-amber-600 flex items-center justify-center shrink-0 shadow-2xs">
+                        <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-600"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-black text-slate-900 tracking-tight">
+                            Duplicate Entry Warning
+                        </h3>
+                        <p class="text-xs font-bold text-amber-700">
+                            डुप्लीकेट दूध कलेक्शन एंट्री चेतावनी
+                        </p>
+                    </div>
+                </div>
+                <button type="button" @click="duplicateWarningModalOpen = false" class="w-8 h-8 rounded-full bg-white/80 hover:bg-white text-slate-400 hover:text-slate-700 flex items-center justify-center transition border border-amber-100 cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-5 space-y-4 text-xs">
+                <!-- Farmer & Shift Info Box -->
+                <div class="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2.5">
+                    <div class="flex items-center justify-between text-xs pb-2 border-b border-amber-200/70">
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 rounded-md bg-white font-mono font-bold text-slate-800 border border-amber-200" x-text="duplicateWarningData.farmer_code"></span>
+                            <span class="font-extrabold text-slate-900 text-sm" x-text="duplicateWarningData.farmer_name"></span>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-200/80 text-amber-900" x-text="duplicateWarningData.shift_label"></span>
+                    </div>
+
+                    <!-- Bilingual Warning Text -->
+                    <div class="space-y-2 pt-1 text-slate-800">
+                        <div class="p-2.5 bg-white/90 rounded-xl border border-amber-200/80">
+                            <p class="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">English</p>
+                            <p class="text-xs font-semibold leading-relaxed text-slate-800">
+                                An entry for this farmer has <span class="font-extrabold text-amber-800 underline">already been recorded</span> for date <span class="font-bold text-slate-900" x-text="duplicateWarningData.date"></span> in <span class="font-bold text-slate-900" x-text="duplicateWarningData.shift_label"></span> shift. Do you still want to add another entry?
+                            </p>
+                        </div>
+                        <div class="p-2.5 bg-white/90 rounded-xl border border-amber-200/80">
+                            <p class="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">हिंदी</p>
+                            <p class="text-xs font-semibold leading-relaxed text-slate-800">
+                                इस किसान के लिए दिनांक <span class="font-bold text-slate-900" x-text="duplicateWarningData.date"></span> को <span class="font-bold text-slate-900" x-text="duplicateWarningData.shift_label_hi"></span> शिफ्ट में <span class="font-extrabold text-amber-800 underline">पहले से एक एंट्री दर्ज हो चुकी है</span>। क्या आप फिर भी दूसरी एंट्री करना चाहते हैं?
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Existing Entries Details List (if available) -->
+                <template x-if="duplicateWarningData.existing && duplicateWarningData.existing.length > 0">
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5 px-0.5">
+                            <span class="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                                Already Recorded Entry / पहले से दर्ज एंट्री:
+                            </span>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold" x-text="duplicateWarningData.existing.length + ' entry found'"></span>
+                        </div>
+                        <div class="max-h-36 overflow-y-auto space-y-1.5 rounded-xl border border-slate-200 p-2 bg-slate-50/50">
+                            <template x-for="item in duplicateWarningData.existing" :key="item.id">
+                                <div class="p-2.5 bg-white rounded-lg border border-slate-200/80 flex items-center justify-between text-xs">
+                                    <div>
+                                        <div class="flex items-center gap-1.5 font-bold text-slate-800">
+                                            <span class="text-blue-600 font-mono text-[11px]" x-text="item.receipt_number"></span>
+                                            <span class="text-slate-400">•</span>
+                                            <span class="capitalize" x-text="item.milk_type"></span>
+                                        </div>
+                                        <div class="text-[10px] text-slate-500 mt-0.5">
+                                            FAT: <span class="font-bold text-slate-700" x-text="item.fat"></span>% | SNF: <span class="font-bold text-slate-700" x-text="item.snf"></span>%
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="font-black text-slate-900" x-text="item.quantity_liters + ' Ltr'"></div>
+                                        <div class="font-bold text-emerald-600 text-[11px]" x-text="'₹ ' + Number(item.net_amount).toFixed(2)"></div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Modal Footer Buttons -->
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button type="button" 
+                        @click="duplicateWarningModalOpen = false" 
+                        class="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-200/70 rounded-xl transition cursor-pointer">
+                    Cancel / रद्द करें
+                </button>
+                <button type="button" 
+                        @click="confirmDuplicateAndSave()" 
+                        class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white text-xs font-black rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                    <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                    <span>OK / हाँ, दूसरी एंट्री करें</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Floating Live Toast Notifications -->
     <div x-show="toast.show" 
          x-cloak
@@ -1088,6 +1194,19 @@ function milkCollectionManager() {
         isSubmitting: false,
         showAdvanced: false,
         rateChartModalOpen: false,
+        duplicateWarningModalOpen: false,
+        isCheckingDuplicate: false,
+        pendingPrintSlip: false,
+        duplicateWarningData: {
+            farmer_name: '',
+            farmer_code: '',
+            date: '',
+            shift: '',
+            shift_label: '',
+            shift_label_hi: '',
+            count: 0,
+            existing: []
+        },
         activeChartId: @json($initialRateInfo['chart_id'] ?? null),
         rateChartFeedback: '{{ addslashes($initialRateInfo['chart_name'] ?? 'Rate Chart') }} = ₹{{ number_format($initialRateInfo['rate'] ?? 42.50, 2) }}/L',
         config: @json($collectionConfig),
@@ -1719,7 +1838,12 @@ function milkCollectionManager() {
             });
         },
 
-        submitCollection(printSlip = false) {
+        confirmDuplicateAndSave() {
+            this.duplicateWarningModalOpen = false;
+            this.submitCollection(this.pendingPrintSlip, true);
+        },
+
+        async submitCollection(printSlip = false, bypassDuplicateCheck = false) {
             if (!this.form.farmer_id) {
                 this.showToast('Please select or enter a Farmer Code first.', 'error');
                 const codeIn = document.getElementById('quick_farmer_code_input');
@@ -1754,6 +1878,47 @@ function milkCollectionManager() {
                 const snfIn = document.getElementById('collection_snf_input');
                 if (snfIn) snfIn.focus();
                 return;
+            }
+
+            // DUPLICATE ENTRY CHECK: If adding new collection (not editing) and duplicate check not yet confirmed
+            if (!this.isEditMode && !bypassDuplicateCheck) {
+                try {
+                    this.isSubmitting = true;
+                    const checkUrl = `/collections/check-duplicate?farmer_id=${encodeURIComponent(this.form.farmer_id)}&collection_date=${encodeURIComponent(this.form.collection_date)}&shift=${encodeURIComponent(this.form.shift)}`;
+                    const checkRes = await fetch(checkUrl, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    this.isSubmitting = false;
+
+                    if (checkRes.ok) {
+                        const checkData = await checkRes.json();
+                        if (checkData.exists) {
+                            const isMorning = this.form.shift === 'morning';
+                            this.duplicateWarningData = {
+                                farmer_name: this.selectedFarmer.name || 'Farmer',
+                                farmer_code: this.selectedFarmer.code || ('FAR-' + this.form.farmer_id),
+                                date: this.form.collection_date,
+                                shift: this.form.shift,
+                                shift_label: isMorning ? '☀️ Morning' : '🌙 Evening',
+                                shift_label_hi: isMorning ? '☀️ सुबह (Morning)' : '🌙 शाम (Evening)',
+                                count: checkData.count || 1,
+                                existing: checkData.collections || []
+                            };
+                            this.pendingPrintSlip = printSlip;
+                            this.duplicateWarningModalOpen = true;
+                            this.$nextTick(() => {
+                                if (window.lucide) window.lucide.createIcons();
+                            });
+                            return; // Stop and wait for user's confirmation in the modal!
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Duplicate check error:', e);
+                    this.isSubmitting = false;
+                }
             }
 
             this.isSubmitting = true;
