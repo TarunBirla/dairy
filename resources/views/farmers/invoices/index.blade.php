@@ -1279,10 +1279,9 @@
             return;
         }
 
-        const btn = document.getElementById('revSaveInvoiceBtn');
         const btnText = document.getElementById('revSaveBtnText');
-        btn.disabled = true;
-        btnText.textContent = 'Saving...';
+        if (btn) btn.disabled = true;
+        if (btnText) btnText.textContent = 'Saving...';
 
         const categoryDeductions = {};
         let feedDed = 0, advDed = 0, statDed = 0;
