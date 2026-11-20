@@ -318,7 +318,7 @@ class FarmerDeductionController extends Controller
         // Check active advances
         $advances = \App\Models\FarmerAdvance::where('farmer_id', $farmer->id)
             ->where('status', '!=', 'recovered')
-            ->get(['id', 'amount', 'balance', 'status', 'created_at']);
+            ->get();
 
         return response()->json([
             'farmer' => [
@@ -334,7 +334,7 @@ class FarmerDeductionController extends Controller
             'wallet_balance' => $walletBal,
             'wallet_categories' => $walletCategories,
             'advances_count' => $advances->count(),
-            'advances_total' => round((float) $advances->sum('balance'), 2),
+            'advances_total' => round((float) $advances->sum(fn($a) => (float) ($a->principal_balance ?? $a->amount)), 2),
             'deductions' => $deductions,
         ]);
     }

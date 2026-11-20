@@ -320,8 +320,14 @@
                                 </td>
                                 <td class="py-3.5 px-4 font-bold">{{ number_format($s->total_liters, 2) }} L</td>
                                 <td class="py-3.5 px-4">₹ {{ number_format($s->gross_amount, 2) }}</td>
+                                @php
+                                    $effectiveDeduction = round((float)$s->gross_amount + (float)$s->bonus_amount - (float)$s->paid_amount, 2);
+                                    if ($effectiveDeduction <= 0 && ($s->deduction_amount > 0 || $s->advance_recovered > 0)) {
+                                        $effectiveDeduction = (float)$s->deduction_amount + (float)$s->advance_recovered;
+                                    }
+                                @endphp
                                 <td class="py-3.5 px-4 text-rose-600 font-semibold">
-                                    {{ ($s->deduction_amount > 0 || $s->advance_recovered > 0) ? '- ₹ ' . number_format($s->deduction_amount + $s->advance_recovered, 2) : '—' }}
+                                    {{ $effectiveDeduction > 0 ? '- ₹ ' . number_format($effectiveDeduction, 2) : '—' }}
                                 </td>
                                 <td class="py-3.5 px-4 text-right font-black text-sm text-emerald-700">
                                     ₹ {{ number_format($s->paid_amount, 2) }}

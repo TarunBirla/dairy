@@ -36,6 +36,18 @@ class FarmerSettlementController extends Controller
                         ->where('farmer_settlements.status', 'paid');
                 })
                 ->update(['status' => 'settled']);
+
+            // Auto-fix any settlement where deduction_amount + advance_recovered exceeds actual (gross + bonus - paid)
+            $misalignedSettlements = FarmerSettlement::all();
+            foreach ($misalignedSettlements as $st) {
+                $actualDed = round((float) $st->gross_amount + (float) $st->bonus_amount - (float) $st->paid_amount, 2);
+                $sumDed = round((float) $st->deduction_amount + (float) $st->advance_recovered, 2);
+                if (abs($sumDed - $actualDed) > 0.05 && (float) $st->advance_recovered > 0) {
+                    $st->update([
+                        'deduction_amount' => max(0, round($actualDed - (float) $st->advance_recovered, 2))
+                    ]);
+                }
+            }
         } catch (\Throwable $e) {}
 
         // Badge counts (total pending invoices waiting for payout vs total settled payouts)
@@ -414,8 +426,8 @@ class FarmerSettlementController extends Controller
                     'total_liters' => $inv->total_quantity,
                     'gross_amount' => $inv->total_amount,
                     'bonus_amount' => $inv->total_credit,
-                    'deduction_amount' => $inv->total_deduction,
-                    'advance_recovered' => $inv->advance_deduction,
+                    'deduction_amount' => max(0, round((float) $inv->total_deduction - (float) $inv->advance_deduction, 2)),
+                    'advance_recovered' => (float) $inv->advance_deduction,
                     'net_payable' => $inv->net_payment,
                     'paid_amount' => $inv->net_payment,
                     'payment_mode' => $mode,
