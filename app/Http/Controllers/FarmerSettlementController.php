@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use App\Models\Farmer;
 use App\Models\FarmerSettlement;
+use App\Models\FarmerInvoice;
 use App\Models\FarmerLedger;
 use App\Models\FarmerAdvance;
 use App\Models\MilkCollection;
@@ -16,23 +18,57 @@ class FarmerSettlementController extends Controller
 {
     public function index(Request $request)
     {
+        $tab = $request->get('tab', 'pending');
         $startDate = $request->get('start_date');
         $endDate = $request->get('end_date');
         $search = $request->get('search');
         $paymentMode = $request->get('payment_mode');
 
-        $query = FarmerSettlement::with('farmer')
+        // Badge counts (total pending invoices waiting for payout vs total settled payouts)
+        $pendingCount = FarmerInvoice::where('status', 'generated')
+            ->where('net_payment', '>', 0)
+            ->count();
+        $settledCount = FarmerSettlement::count();
+
+        // 1. Pending Invoices Query (Ready for Payout)
+        $pendingQuery = FarmerInvoice::with(['farmer', 'farmer.wallet'])
+            ->where('status', 'generated')
+            ->where('net_payment', '>', 0);
+
+        if (!empty($startDate)) {
+            $pendingQuery->whereDate('period_start', '>=', $startDate);
+        }
+        if (!empty($endDate)) {
+            $pendingQuery->whereDate('period_end', '<=', $endDate);
+        }
+        if (!empty($search)) {
+            $pendingQuery->where(function ($q) use ($search) {
+                $q->where('invoice_number', 'like', "%{$search}%")
+                  ->orWhereHas('farmer', function ($fq) use ($search) {
+                      $fq->where('name', 'like', "%{$search}%")
+                         ->orWhere('farmer_code', 'like', "%{$search}%")
+                         ->orWhere('phone', 'like', "%{$search}%")
+                         ->orWhere('village', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $totalPendingPayable = (clone $pendingQuery)->sum('net_payment');
+        $pendingInvoices = $pendingQuery->latest('period_end')->latest('id')->paginate(50, ['*'], 'pending_page')->withQueryString();
+
+        // 2. Settled History Query
+        $settledQuery = FarmerSettlement::with(['farmer', 'settler'])
             ->where('total_liters', '!=', 0);
 
         if (!empty($startDate)) {
-            $query->whereDate('period_start', '>=', $startDate);
+            $settledQuery->whereDate('period_start', '>=', $startDate);
         }
         if (!empty($endDate)) {
-            $query->whereDate('period_end', '<=', $endDate);
+            $settledQuery->whereDate('period_end', '<=', $endDate);
         }
 
         if (!empty($search)) {
-            $query->where(function ($q) use ($search) {
+            $settledQuery->where(function ($q) use ($search) {
                 $q->where('settlement_number', 'like', "%{$search}%")
                   ->orWhere('payment_reference', 'like', "%{$search}%")
                   ->orWhereHas('farmer', function ($fq) use ($search) {
@@ -45,14 +81,19 @@ class FarmerSettlementController extends Controller
         }
 
         if (!empty($paymentMode)) {
-            $query->where('payment_mode', $paymentMode);
+            $settledQuery->where('payment_mode', $paymentMode);
         }
 
-        $totalSettledAmount = (clone $query)->where('status', 'paid')->sum('paid_amount');
-        $settlements = $query->latest('period_end')->latest('id')->paginate(20)->withQueryString();
-        $farmers = Farmer::where('status', 'active')->get();
+        $totalSettledAmount = (clone $settledQuery)->where('status', 'paid')->sum('paid_amount');
+        $settlements = $settledQuery->latest('settled_at')->latest('id')->paginate(20, ['*'], 'settled_page')->withQueryString();
+        $farmers = Farmer::where('status', 'active')->orderBy('name')->get();
 
         return view('farmers.settlements.index', compact(
+            'tab',
+            'pendingCount',
+            'settledCount',
+            'pendingInvoices',
+            'totalPendingPayable',
             'settlements',
             'totalSettledAmount',
             'farmers',
@@ -302,5 +343,163 @@ class FarmerSettlementController extends Controller
     {
         $settlement->load(['farmer', 'settler']);
         return view('farmers.settlements.show', compact('settlement'));
+    }
+
+    /**
+     * Bulk / single settle selected pending invoices
+     */
+    public function settleInvoices(Request $request)
+    {
+        $validated = $request->validate([
+            'invoice_ids' => 'required|array|min:1',
+            'invoice_ids.*' => 'required|integer|exists:farmer_invoices,id',
+            'payment_mode' => 'required|in:Cash,UPI,Bank Transfer,Cheque',
+            'payment_reference' => 'nullable|string|max:100',
+            'settlement_date' => 'nullable|date',
+        ]);
+
+        $mode = $validated['payment_mode'];
+        // Cash payment mode hides/clears transaction ID
+        $reference = ($mode === 'Cash') ? null : ($validated['payment_reference'] ?? null);
+        $settleDate = !empty($validated['settlement_date']) ? Carbon::parse($validated['settlement_date']) : Carbon::now();
+
+        $invoices = FarmerInvoice::with('farmer')
+            ->whereIn('id', $validated['invoice_ids'])
+            ->where('status', 'generated')
+            ->get();
+
+        if ($invoices->isEmpty()) {
+            return back()->with('error', 'चयनित इनवॉइस पहले ही सेटल हो चुकी हैं या उपलब्ध नहीं हैं।');
+        }
+
+        $settledCount = 0;
+        $totalPaid = 0.0;
+
+        DB::transaction(function () use ($invoices, $mode, $reference, $settleDate, &$settledCount, &$totalPaid) {
+            $maxId = FarmerSettlement::max('id') ?? 100;
+
+            foreach ($invoices as $inv) {
+                $maxId++;
+                $settleNumber = 'SETTLE-' . $maxId;
+
+                $settlement = FarmerSettlement::create([
+                    'settlement_number' => $settleNumber,
+                    'farmer_id' => $inv->farmer_id,
+                    'period_start' => $inv->period_start,
+                    'period_end' => $inv->period_end,
+                    'total_liters' => $inv->total_quantity,
+                    'gross_amount' => $inv->total_amount,
+                    'bonus_amount' => $inv->total_credit,
+                    'deduction_amount' => $inv->total_deduction,
+                    'advance_recovered' => $inv->advance_deduction,
+                    'net_payable' => $inv->net_payment,
+                    'paid_amount' => $inv->net_payment,
+                    'payment_mode' => $mode,
+                    'payment_reference' => $reference,
+                    'status' => 'paid',
+                    'settled_by' => Auth::id(),
+                    'settled_at' => $settleDate,
+                ]);
+
+                // Update invoice status to settled
+                $inv->update([
+                    'status' => 'settled',
+                    'payment_mode' => $mode,
+                    'payment_reference' => $reference ?: $settleNumber,
+                ]);
+
+                // Mark collections settled
+                MilkCollection::where('farmer_id', $inv->farmer_id)
+                    ->whereBetween('collection_date', [$inv->period_start, $inv->period_end])
+                    ->where('payment_status', 'pending')
+                    ->update(['payment_status' => 'settled']);
+
+                // Adjust running balance & create ledger debit record
+                $farmer = $inv->farmer;
+                $currentBal = $farmer ? (float) $farmer->current_balance : 0;
+                $newBal = max(0, $currentBal - $inv->net_payment);
+                if ($farmer) {
+                    $farmer->update(['current_balance' => $newBal]);
+                }
+
+                FarmerLedger::create([
+                    'farmer_id' => $inv->farmer_id,
+                    'transaction_date' => $settleDate->toDateString(),
+                    'type' => 'debit',
+                    'amount' => $inv->net_payment,
+                    'balance' => $newBal,
+                    'reference_type' => 'settlement',
+                    'reference_id' => $settlement->id,
+                    'description' => "Invoice #{$inv->invoice_number} Paid via {$mode}" . ($reference ? " (Ref: {$reference})" : ""),
+                ]);
+
+                AuditLog::log('Settled Farmer Invoice', 'FarmerSettlement', $settlement->id, [
+                    'invoice_number' => $inv->invoice_number,
+                    'amount' => $inv->net_payment,
+                    'payment_mode' => $mode,
+                ]);
+
+                $settledCount++;
+                $totalPaid += (float) $inv->net_payment;
+            }
+        });
+
+        return redirect()->route('settlements.index', ['tab' => 'settled'])
+            ->with('success', "{$settledCount} किसान(ओं) का कुल भुगतान ₹" . number_format($totalPaid, 2) . " सफलतापूर्वक सेटल कर दिया गया है।");
+    }
+
+    /**
+     * Delete settlement and revert the linked FarmerInvoice back to 'generated'
+     */
+    public function destroy(FarmerSettlement $settlement)
+    {
+        $settleNumber = $settlement->settlement_number;
+        $farmerId = $settlement->farmer_id;
+        $paidAmount = (float) $settlement->paid_amount;
+
+        DB::transaction(function () use ($settlement, $farmerId, $paidAmount) {
+            // Find linked invoice if exists
+            $invoice = FarmerInvoice::where('farmer_id', $farmerId)
+                ->whereDate('period_start', $settlement->period_start)
+                ->whereDate('period_end', $settlement->period_end)
+                ->where('status', 'settled')
+                ->first();
+
+            if ($invoice) {
+                // Revert invoice back to 'generated'
+                $invoice->update([
+                    'status' => 'generated',
+                    'payment_mode' => null,
+                    'payment_reference' => null,
+                ]);
+            }
+
+            // Revert milk collections in this period back to pending
+            MilkCollection::where('farmer_id', $farmerId)
+                ->whereBetween('collection_date', [$settlement->period_start, $settlement->period_end])
+                ->where('payment_status', 'settled')
+                ->update(['payment_status' => 'pending']);
+
+            // Revert ledger & farmer balance
+            $farmer = Farmer::find($farmerId);
+            if ($farmer) {
+                $farmer->increment('current_balance', $paidAmount);
+            }
+
+            // Remove ledger debit entry for this settlement
+            FarmerLedger::where('reference_type', 'settlement')
+                ->where('reference_id', $settlement->id)
+                ->delete();
+
+            // Delete the settlement record
+            $settlement->delete();
+
+            AuditLog::log('Deleted Farmer Settlement', 'FarmerSettlement', $settlement->id, [
+                'settlement_number' => $settleNumber,
+                'reverted_invoice' => $invoice ? $invoice->invoice_number : null,
+            ]);
+        });
+
+        return back()->with('success', "सेटलमेंट ({$settleNumber}) सफलतापूर्वक हटा दिया गया है। संबंधित इनवॉइस वापस Unsettled (Generated) हो गई है जिसे अब आप आवश्यकतानुसार एडिट या डिलीट कर सकते हैं।");
     }
 }

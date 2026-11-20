@@ -978,6 +978,25 @@
             });
     }
 
+    function isFixedDairyCharge(cat) {
+        if (cat.is_editable === false) return true;
+        if (cat.is_editable === true) return false;
+        const nameLower = (cat.name || '').toLowerCase();
+        const keyLower = (cat.key || '').toLowerCase();
+        const catLower = (cat.category || '').toLowerCase();
+        const full = `${nameLower} ${keyLower} ${catLower}`;
+
+        if (full.includes('stationary') || full.includes('stationery') || 
+            full.includes('management') || full.includes('mgmt') ||
+            full.includes('dpmcu') || full.includes('doctor') ||
+            full.includes('diesel') || full.includes('contribution') ||
+            full.includes('building fund') || full.includes('grant') ||
+            full.includes('etc')) {
+            return true;
+        }
+        return false;
+    }
+
     function renderReviewDeductionsTable() {
         if (!currentReviewData) return;
         const tbody = document.getElementById('revDeductionsTbody');
@@ -995,26 +1014,43 @@
             const origBal = parseFloat(cat.original_balance || 0);
             const dedAmt = parseFloat(cat.deducted_amount || 0);
             const remBal = Math.max(0, origBal - dedAmt);
+            const isFixed = isFixedDairyCharge(cat);
+
+            let inputHtml = '';
+            if (isFixed) {
+                inputHtml = `
+                    <div class="flex items-center justify-between px-2.5 py-1 text-xs font-mono font-bold text-slate-700 bg-slate-100 border border-slate-200 rounded-lg select-none" title="Dairy Fixed Charge (Non-Editable)">
+                        <span class="text-[9.5px] uppercase tracking-wider text-slate-400 font-bold">Fixed</span>
+                        <span>${dedAmt.toFixed(2)}</span>
+                    </div>
+                    <input type="hidden" id="input_ded_${key}" value="${dedAmt.toFixed(2)}" data-orig="${origBal}" data-key="${key}" data-fixed="true">
+                `;
+            } else {
+                inputHtml = `
+                    <input type="number" step="0.01" min="0" max="${origBal > 0 ? origBal : ''}"
+                           id="input_ded_${key}" 
+                           value="${dedAmt.toFixed(2)}"
+                           data-orig="${origBal}"
+                           data-key="${key}"
+                           oninput="onDeductAmountChanged('${key}')"
+                           placeholder="0.00"
+                           title="Enter amount to deduct in current invoice (original balance is preserved)"
+                           class="w-full text-right px-2 py-1 text-xs font-mono font-bold text-rose-700 bg-rose-50/50 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-rose-500">
+                    <div id="err_ded_${key}" class="text-[9.5px] text-rose-600 font-bold mt-0.5 hidden text-left leading-tight"></div>
+                `;
+            }
 
             html += `
                 <tr class="hover:bg-slate-50/70 transition-colors" data-key="${key}">
                     <td class="py-2 px-3 border-r border-slate-100 font-semibold text-slate-800">
                         ${cat.name}
+                        ${isFixed ? '<span class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-medium">Standard</span>' : ''}
                     </td>
                     <td class="py-2 px-2.5 border-r border-slate-100 text-right font-mono font-bold text-slate-600" id="orig_bal_${key}">
                         ${origBal.toFixed(2)}
                     </td>
                     <td class="py-1 px-2 border-r border-slate-100 text-right">
-                        <input type="number" step="0.01" min="0" max="${origBal > 0 ? origBal : ''}"
-                               id="input_ded_${key}" 
-                               value="${dedAmt.toFixed(2)}"
-                               data-orig="${origBal}"
-                               data-key="${key}"
-                               oninput="onDeductAmountChanged('${key}')"
-                               placeholder="0.00"
-                               title="Enter amount to deduct in current invoice (original balance is preserved)"
-                               class="w-full text-right px-2 py-1 text-xs font-mono font-bold text-rose-700 bg-rose-50/50 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-rose-500">
-                        <div id="err_ded_${key}" class="text-[9.5px] text-rose-600 font-bold mt-0.5 hidden text-left leading-tight"></div>
+                        ${inputHtml}
                     </td>
                     <td class="py-2 px-2.5 border-r border-slate-100 text-right font-mono font-bold text-amber-700" id="rem_bal_${key}">
                         ${remBal.toFixed(2)}
@@ -1183,24 +1219,34 @@
 
             inputsData.forEach(item => {
                 totalOrigBal += item.orig;
+                const isFixed = item.inp.dataset.fixed === "true";
 
-                // Sum valid deductions of all OTHER inputs
+                if (isFixed) {
+                    // Fixed dairy charges (Stationery, Management Charges) are always applied
+                    totalDeductions += item.val;
+                    const remBal = Math.max(0, item.orig - item.val);
+                    totalRemainingBal += remBal;
+                    const remCell = document.getElementById('rem_bal_' + item.key);
+                    if (remCell) remCell.textContent = remBal.toFixed(2);
+                    return;
+                }
+
+                // Sum deductions of all OTHER inputs
                 const otherSum = inputsData
                     .filter(o => o.key !== item.key)
                     .reduce((sum, o) => {
-                        const oMax = o.orig > 0 ? Math.min(o.orig, Math.max(0, totalAmount)) : 0;
-                        const oValid = (o.val <= oMax) ? o.val : 0;
-                        return sum + oValid;
+                        const oVal = (o.orig > 0 && o.val > o.orig) ? 0 : o.val;
+                        return sum + oVal;
                     }, 0);
 
                 const availablePayment = Math.max(0, totalAmount - otherSum);
                 const maxAllowed = item.orig > 0 ? Math.min(item.orig, availablePayment) : 0;
 
                 const errDiv = document.getElementById('err_ded_' + item.key);
-                if (item.val > maxAllowed) {
+                if (item.orig > 0 && item.val > item.orig) {
                     hasValidationError = true;
                     if (errDiv) {
-                        errDiv.textContent = `Deduction ${formatDeductNum(item.val)} must be less than or equal to ${formatDeductNum(maxAllowed)}`;
+                        errDiv.textContent = `Deduction ${formatDeductNum(item.val)} must be less than or equal to ${formatDeductNum(item.orig)}`;
                         errDiv.classList.remove('hidden');
                     }
                     item.inp.classList.add('border-rose-500', 'bg-rose-50');
@@ -1212,8 +1258,7 @@
                     item.inp.classList.remove('border-rose-500', 'bg-rose-50');
                 }
 
-                // If input is invalid, it is not applied to total deductions or payment (matches Mobile Dairy)
-                const appliedDed = item.val <= maxAllowed ? item.val : 0;
+                const appliedDed = (item.orig > 0 && item.val > item.orig) ? 0 : item.val;
                 const remBal = Math.max(0, item.orig - appliedDed);
 
                 totalDeductions += appliedDed;

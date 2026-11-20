@@ -2552,7 +2552,7 @@ class ProcurementApiController extends Controller
         $totalDeduction = round($stationaryDeduction + $feedDeduction + $advanceDeduction + $otherDeduction, 2);
         $totalAmount = round($totalCredit + $milkAmount, 2);
         $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);
-        $rawPayable = round($totalAmount - $totalDeduction, 2);
+        $rawPayable = round(max(0, $totalAmount - $totalDeduction), 2);
         $roundOff = 0.00;
         $netPayment = $rawPayable;
 

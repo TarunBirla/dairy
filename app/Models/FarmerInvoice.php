@@ -84,6 +84,13 @@ class FarmerInvoice extends Model
         return $this->hasMany(FarmerWalletTransaction::class, 'farmer_invoice_id');
     }
 
+    public function settlement()
+    {
+        return $this->hasOne(FarmerSettlement::class, 'farmer_id', 'farmer_id')
+            ->whereDate('period_start', $this->period_start)
+            ->whereDate('period_end', $this->period_end);
+    }
+
     /**
      * Get milk collection records linked directly or within invoice billing period
      */

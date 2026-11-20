@@ -862,6 +862,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/bulk', [FarmerSettlementController::class, 'bulk'])->name('bulk');
         Route::get('/create', [FarmerSettlementController::class, 'create'])->name('create');
         Route::post('/', [FarmerSettlementController::class, 'store'])->name('store');
+        Route::post('/settle-invoices', [FarmerSettlementController::class, 'settleInvoices'])->name('settle-invoices');
+        Route::delete('/{settlement}', [FarmerSettlementController::class, 'destroy'])->name('destroy');
         Route::get('/{settlement}', [FarmerSettlementController::class, 'show'])->name('show');
     });
 

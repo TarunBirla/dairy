@@ -250,6 +250,7 @@ class FarmerInvoiceController extends Controller
                 'deducted_amount' => $stationaryDeduction,
                 'remaining_balance' => 0.00,
                 'is_wallet' => false,
+                'is_editable' => false,
             ];
         }
         if ($feedDeduction > 0) {
@@ -261,6 +262,7 @@ class FarmerInvoiceController extends Controller
                 'deducted_amount' => $feedDeduction,
                 'remaining_balance' => 0.00,
                 'is_wallet' => false,
+                'is_editable' => true,
             ];
         }
         if ($advanceDeduction > 0 || $totalLoanPrincipal > 0) {
@@ -275,10 +277,11 @@ class FarmerInvoiceController extends Controller
                 'deducted_amount' => $dedAdv,
                 'remaining_balance' => $remAdv,
                 'is_wallet' => false,
+                'is_editable' => true,
             ];
         }
 
-        // Add per-invoice deductions to category-wise breakdown
+        // Add per-invoice deductions to category-wise breakdown (Fixed Dairy Charges like Management Charges)
         foreach ($invoiceDeductionItems as $idi) {
             $deductionsBreakdown[] = [
                 'key' => \Illuminate\Support\Str::slug($idi['name'], '_'),
@@ -288,6 +291,7 @@ class FarmerInvoiceController extends Controller
                 'deducted_amount' => $idi['deducted_amount'],
                 'remaining_balance' => $idi['remaining_balance'],
                 'is_wallet' => false,
+                'is_editable' => false,
             ];
         }
 
@@ -321,6 +325,7 @@ class FarmerInvoiceController extends Controller
                         'deducted_amount' => $catBal,
                         'remaining_balance' => 0.00,
                         'is_wallet' => true,
+                        'is_editable' => true,
                     ];
                     $walletOutstanding += $catBal;
                 }
@@ -338,8 +343,8 @@ class FarmerInvoiceController extends Controller
         // Balance = Remaining unpaid deduction if totalDeduction > totalAmount (carried into Deduction Wallet), else 0.00
         $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);
 
-        // Payment (B+C-A) = Net payable amount. If totalDeduction > totalAmount, show in negative
-        $rawPayable = round($totalAmount - $totalDeduction, 2);
+        // Payment (B+C-A) = Net payable amount. If totalDeduction >= totalAmount, Payment is ₹0.00 (cannot be negative cash)
+        $rawPayable = round(max(0, $totalAmount - $totalDeduction), 2);
         $roundOff = 0.00;
         $netPayment = $rawPayable;
 
@@ -552,6 +557,33 @@ class FarmerInvoiceController extends Controller
         $generatedCount = 0;
 
         foreach ($farmers as $farmer) {
+            // Check if farmer has an unsettled previous invoice (generated and net_payment > 0)
+            $hasUnsettled = FarmerInvoice::where('farmer_id', $farmer->id)
+                ->where('status', 'generated')
+                ->where('net_payment', '>', 0)
+                ->where('period_start', '<', $startDate)
+                ->exists();
+
+            if ($hasUnsettled) {
+                if (!empty($validated['farmer_id'])) {
+                    return back()->with('error', "किसान {$farmer->name} ({$farmer->farmer_code}) का पिछला जनरेटेड इनवॉइस अभी सेटल (Paid) नहीं हुआ है। नया इनवॉइस बनाने से पहले पिछला इनवॉइस सेटल करें।");
+                }
+                continue;
+            }
+
+            // Also check if an invoice for the exact same period is already settled
+            $alreadySettled = FarmerInvoice::where('farmer_id', $farmer->id)
+                ->whereDate('period_start', $startDate)
+                ->where('status', 'settled')
+                ->exists();
+
+            if ($alreadySettled) {
+                if (!empty($validated['farmer_id'])) {
+                    return back()->with('error', "किसान {$farmer->name} ({$farmer->farmer_code}) का इस अवधि का इनवॉइस पहले ही सेटल हो चुका है।");
+                }
+                continue;
+            }
+
             $metrics = $this->calculateInvoiceMetrics((int) $farmer->id, $startDate, $endDate);
 
             // Skip farmers with no milk collection (milk invoices are only generated for farmers who supplied milk)
@@ -888,8 +920,8 @@ class FarmerInvoiceController extends Controller
         $milkAmount = round((float) $invoice->milk_amount, 2);
         $totalAmount = round($milkAmount + $totalCredit, 2);
 
-        $rawPayable = round($totalAmount - $totalDeduction, 2);
-        $previousBalance = $rawPayable < 0 ? abs($rawPayable) : 0.00;
+        $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);
+        $rawPayable = round(max(0, $totalAmount - $totalDeduction), 2);
 
         if (isset($validated['round_off']) && $validated['round_off'] !== null && $validated['round_off'] !== '') {
             $roundOff = round((float) $validated['round_off'], 2);
@@ -897,7 +929,7 @@ class FarmerInvoiceController extends Controller
             $roundOff = round(round($rawPayable) - $rawPayable, 2);
         }
 
-        $netPayment = round($rawPayable + $roundOff, 2);
+        $netPayment = round(max(0, $rawPayable + $roundOff), 2);
 
         $invoice->update([
             'other_credit' => $otherCredit,
@@ -915,7 +947,7 @@ class FarmerInvoiceController extends Controller
             'round_off' => $roundOff,
             'previous_balance' => $previousBalance,
             'net_payment' => $netPayment,
-            'status' => 'generated',
+            'status' => ($netPayment <= 0) ? 'settled' : 'generated',
             'is_edited' => true,
         ]);
 
@@ -1143,6 +1175,11 @@ class FarmerInvoiceController extends Controller
     {
         $invNum = $invoice->invoice_number;
         $farmerName = $invoice->farmer->name ?? 'Farmer';
+
+        // Requirement 4: Settled invoice CANNOT be deleted or reverted. Must delete settlement first.
+        if ($invoice->status === 'settled') {
+            return back()->with('error', "यह इनवॉइस (#{$invNum}) सेटल (Paid) हो चुका है। इनवॉइस डिलीट या रिवर्ट करने से पहले कृपया इसका सेटलमेंट डिलीट करें।");
+        }
 
         if ($invoice->status !== 'pending') {
             // Revert Generated Invoice to Pending State (DO NOT DELETE RECORD)

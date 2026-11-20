@@ -50,4 +50,11 @@ class FarmerSettlement extends Model
     {
         return $this->belongsTo(User::class, 'settled_by');
     }
+
+    public function invoice()
+    {
+        return $this->hasOne(FarmerInvoice::class, 'farmer_id', 'farmer_id')
+            ->whereDate('period_start', $this->period_start)
+            ->whereDate('period_end', $this->period_end);
+    }
 }
