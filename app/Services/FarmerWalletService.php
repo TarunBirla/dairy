@@ -367,14 +367,14 @@ class FarmerWalletService
      */
     public static function applyInvoiceDeductions(
         FarmerInvoice $invoice,
-        array $categoryDeductions = [],
+        array $breakdownOrCategoryDeductions = [],
         ?int $createdBy = null
     ): array {
         self::ensureSchemaMigrated();
 
         $createdBy = $createdBy ?: Auth::id();
 
-        return DB::transaction(function () use ($invoice, $categoryDeductions, $createdBy) {
+        return DB::transaction(function () use ($invoice, $breakdownOrCategoryDeductions, $createdBy) {
             // First, if this invoice already had prior deductions recorded in this wallet, reverse them safely
             self::reverseInvoiceDeductions($invoice, 'Re-calculating invoice deductions', $createdBy);
 
@@ -382,14 +382,134 @@ class FarmerWalletService
             $lockedWallet = FarmerWallet::where('id', $wallet->id)->lockForUpdate()->first();
 
             $openingBalance = (float) $lockedWallet->balance;
-            $categoryBalances = $lockedWallet->getCategoryBalances();
-
-            $totalDeducted = 0.0;
             $runningBalance = $openingBalance;
+            $totalDeducted = 0.0;
             $breakdown = [];
 
-            // If specific category deductions were supplied from the UI / controller
-            if (!empty($categoryDeductions)) {
+            // A. Deduct from FarmerAdvance (Advance / Loan)
+            $advDeduction = (float) ($invoice->advance_deduction ?? 0);
+            if ($advDeduction > 0 && Schema::hasTable('farmer_advances')) {
+                $remAdv = $advDeduction;
+                $activeAdvances = FarmerAdvance::where('farmer_id', $invoice->farmer_id)
+                    ->where('status', '!=', 'recovered')
+                    ->orderBy('id', 'asc')
+                    ->get();
+
+                foreach ($activeAdvances as $adv) {
+                    if ($remAdv <= 0) break;
+                    $unpaid = (float) $adv->principal_balance;
+                    if ($unpaid <= 0) continue;
+
+                    $dedHere = round(min($remAdv, $unpaid), 2);
+                    $newDeducted = round((float) $adv->deducted_amount + $dedHere, 2);
+                    $adv->deducted_amount = $newDeducted;
+
+                    if (round((float) $adv->amount - $newDeducted, 2) <= 0.01) {
+                        $adv->status = 'recovered';
+                        $adv->paid_date = \Carbon\Carbon::now();
+                    }
+                    $adv->save();
+
+                    if (class_exists(\App\Models\FarmerAdvanceRepayment::class)) {
+                        try {
+                            \App\Models\FarmerAdvanceRepayment::create([
+                                'farmer_advance_id' => $adv->id,
+                                'farmer_id' => $invoice->farmer_id,
+                                'repayment_date' => \Carbon\Carbon::now(),
+                                'amount' => $dedHere,
+                                'payment_mode' => 'Invoice Deduction',
+                                'remark' => "Deducted in Invoice #{$invoice->invoice_number}",
+                                'recorded_by' => $createdBy,
+                            ]);
+                        } catch (\Throwable $e) {}
+                    }
+
+                    $remAdv -= $dedHere;
+                }
+            }
+
+            // B. Deduct from ProductSale (Cattle Feed / Food / Store Purchases)
+            $feedDeduction = (float) ($invoice->feed_deduction ?? 0);
+            if ($feedDeduction > 0 && Schema::hasTable('product_sales')) {
+                $remFeed = $feedDeduction;
+                $farmer = $invoice->farmer;
+                $farmerCode = $farmer ? $farmer->farmer_code : null;
+
+                $unpaidSales = ProductSale::where(function ($q) use ($invoice, $farmerCode) {
+                    $q->where('farmer_id', $invoice->farmer_id);
+                    if (!empty($farmerCode)) {
+                        $q->orWhere('farmer_code', $farmerCode);
+                    }
+                })
+                ->where('remaining_amount', '>', 0)
+                ->orderBy('id', 'asc')
+                ->get();
+
+                foreach ($unpaidSales as $sale) {
+                    if ($remFeed <= 0) break;
+                    $saleRem = (float) $sale->remaining_amount;
+                    if ($saleRem <= 0) continue;
+
+                    $dedHere = round(min($remFeed, $saleRem), 2);
+                    $sale->paid_amount = round((float) $sale->paid_amount + $dedHere, 2);
+                    $newRem = round(max(0, $saleRem - $dedHere), 2);
+                    $sale->remaining_amount = $newRem;
+                    $sale->is_paid = ($newRem <= 0.01);
+                    $sale->payment_mode = 'Invoice Deduction';
+                    $sale->remarks = trim(($sale->remarks ?? '') . " [Invoice #{$invoice->invoice_number} Paid: ₹{$dedHere}]");
+                    $sale->save();
+
+                    $remFeed -= $dedHere;
+                }
+            }
+
+            // C. Apply Wallet Category Debits & Recalculate Balance
+            $isStructuredList = !empty($breakdownOrCategoryDeductions) && isset($breakdownOrCategoryDeductions[0]) && is_array($breakdownOrCategoryDeductions[0]);
+            $totalOriginalFromBreakdown = 0.0;
+            $totalRemainingFromBreakdown = 0.0;
+
+            if ($isStructuredList) {
+                foreach ($breakdownOrCategoryDeductions as $item) {
+                    $catName = $item['name'] ?? ($item['category'] ?? 'Deduction');
+                    $origBal = (float) ($item['original_balance'] ?? 0);
+                    $dedAmt = (float) ($item['deducted_amount'] ?? 0);
+                    $remBal = (float) ($item['remaining_balance'] ?? max(0, $origBal - $dedAmt));
+
+                    $totalOriginalFromBreakdown += $origBal;
+                    $totalRemainingFromBreakdown += $remBal;
+
+                    if ($dedAmt > 0) {
+                        $balBefore = $runningBalance;
+                        $runningBalance = round(max(0, $runningBalance - $dedAmt), 2);
+
+                        FarmerWalletTransaction::create([
+                            'wallet_id' => $lockedWallet->id,
+                            'farmer_id' => $invoice->farmer_id,
+                            'farmer_invoice_id' => $invoice->id,
+                            'transaction_type' => FarmerWalletTransaction::TYPE_DEBIT,
+                            'category' => $catName,
+                            'amount' => $dedAmt,
+                            'balance_before' => $balBefore,
+                            'balance_after' => $runningBalance,
+                            'reference_type' => 'farmer_invoice',
+                            'reference_id' => (string) $invoice->id,
+                            'remarks' => "Deducted in Invoice #{$invoice->invoice_number} ({$invoice->period_start->format('d/m/Y')} - {$invoice->period_end->format('d/m/Y')})",
+                            'created_by' => $createdBy,
+                        ]);
+
+                        $totalDeducted += $dedAmt;
+                    }
+
+                    $breakdown[] = [
+                        'key' => $item['key'] ?? \Illuminate\Support\Str::slug($catName, '_'),
+                        'name' => $catName,
+                        'category' => $item['category'] ?? $catName,
+                        'original_balance' => $origBal,
+                        'deducted_amount' => $dedAmt,
+                        'remaining_balance' => $remBal,
+                    ];
+                }
+            } elseif (!empty($breakdownOrCategoryDeductions)) {
                 foreach ($categoryDeductions as $catName => $requestedAmt) {
                     $requestedAmt = round(max(0, (float) $requestedAmt), 2);
                     if ($requestedAmt <= 0) continue;
@@ -492,26 +612,29 @@ class FarmerWalletService
                 }
             }
 
-            $closingBalance = round(max(0, $openingBalance - $totalDeducted), 2);
+            // Determine accurate closing balance
+            if ($isStructuredList && $totalOriginalFromBreakdown > 0) {
+                $closingBalance = round(max(0, $totalRemainingFromBreakdown), 2);
+                $finalOpening = round($totalOriginalFromBreakdown, 2);
+            } else {
+                $closingBalance = round(max(0, $openingBalance - $totalDeducted), 2);
+                $finalOpening = round($openingBalance, 2);
+            }
+
+            // Update wallet balance in database
             $lockedWallet->update(['balance' => $closingBalance]);
 
             // Save wallet details onto the invoice record
             $invoice->update([
-                'opening_wallet_balance' => $openingBalance,
+                'opening_wallet_balance' => $finalOpening,
                 'wallet_deducted_amount' => round($totalDeducted, 2),
                 'closing_wallet_balance' => $closingBalance,
+                'previous_balance' => $closingBalance,
                 'wallet_deductions_breakdown' => $breakdown,
             ]);
 
-            // Clean up any historical sync in farmer_deductions to avoid circular additions
-            if (\Illuminate\Support\Facades\Schema::hasTable('farmer_deductions')) {
-                \App\Models\FarmerDeduction::where('farmer_id', $invoice->farmer_id)
-                    ->where('comments', 'like', "%Invoice #{$invoice->invoice_number}%")
-                    ->delete();
-            }
-
             return [
-                'opening_wallet_balance' => $openingBalance,
+                'opening_wallet_balance' => $finalOpening,
                 'wallet_deducted_amount' => round($totalDeducted, 2),
                 'closing_wallet_balance' => $closingBalance,
                 'breakdown' => $breakdown,
@@ -534,6 +657,78 @@ class FarmerWalletService
         $createdBy = $createdBy ?: Auth::id();
 
         DB::transaction(function () use ($invoice, $reason, $createdBy) {
+            // A. Revert FarmerAdvance repayments
+            if (Schema::hasTable('farmer_advances')) {
+                $advDeducted = (float) ($invoice->advance_deduction ?? 0);
+                if ($advDeducted > 0) {
+                    $advances = FarmerAdvance::where('farmer_id', $invoice->farmer_id)
+                        ->where('deducted_amount', '>', 0)
+                        ->orderBy('id', 'desc')
+                        ->get();
+
+                    $remToRestore = $advDeducted;
+                    foreach ($advances as $adv) {
+                        if ($remToRestore <= 0) break;
+                        $restore = round(min($remToRestore, (float) $adv->deducted_amount), 2);
+                        $adv->deducted_amount = round(max(0, (float) $adv->deducted_amount - $restore), 2);
+                        $adv->status = 'pending';
+                        $adv->save();
+                        $remToRestore -= $restore;
+                    }
+
+                    if (class_exists(\App\Models\FarmerAdvanceRepayment::class)) {
+                        try {
+                            \App\Models\FarmerAdvanceRepayment::where('farmer_id', $invoice->farmer_id)
+                                ->where('remark', 'like', "%Invoice #{$invoice->invoice_number}%")
+                                ->delete();
+                        } catch (\Throwable $e) {}
+                    }
+                }
+            }
+
+            // B. Revert ProductSale payments
+            if (Schema::hasTable('product_sales')) {
+                $feedDeducted = (float) ($invoice->feed_deduction ?? 0);
+                if ($feedDeducted > 0) {
+                    $farmer = $invoice->farmer;
+                    $farmerCode = $farmer ? $farmer->farmer_code : null;
+
+                    $sales = ProductSale::where(function ($q) use ($invoice, $farmerCode) {
+                        $q->where('farmer_id', $invoice->farmer_id);
+                        if (!empty($farmerCode)) {
+                            $q->orWhere('farmer_code', $farmerCode);
+                        }
+                    })
+                    ->where('remarks', 'like', "%Invoice #{$invoice->invoice_number}%")
+                    ->get();
+
+                    if ($sales->isEmpty()) {
+                        $sales = ProductSale::where(function ($q) use ($invoice, $farmerCode) {
+                            $q->where('farmer_id', $invoice->farmer_id);
+                            if (!empty($farmerCode)) {
+                                $q->orWhere('farmer_code', $farmerCode);
+                            }
+                        })
+                        ->where('paid_amount', '>', 0)
+                        ->orderBy('id', 'desc')
+                        ->get();
+                    }
+
+                    $remToRestore = $feedDeducted;
+                    foreach ($sales as $sale) {
+                        if ($remToRestore <= 0) break;
+                        $restore = round(min($remToRestore, (float) $sale->paid_amount), 2);
+                        $newPaid = round(max(0, (float) $sale->paid_amount - $restore), 2);
+                        $sale->paid_amount = $newPaid;
+                        $sale->remaining_amount = round(max(0, (float) $sale->total_amount - $newPaid), 2);
+                        $sale->is_paid = false;
+                        $sale->remarks = str_replace(" [Invoice #{$invoice->invoice_number} Paid: ₹{$restore}]", "", $sale->remarks ?? '');
+                        $sale->save();
+                        $remToRestore -= $restore;
+                    }
+                }
+            }
+
             $debits = FarmerWalletTransaction::where('farmer_invoice_id', $invoice->id)
                 ->where('transaction_type', FarmerWalletTransaction::TYPE_DEBIT)
                 ->get();

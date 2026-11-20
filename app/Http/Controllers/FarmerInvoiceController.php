@@ -479,6 +479,33 @@ class FarmerInvoiceController extends Controller
             // Ignore if table or columns unavailable
         }
 
+        // Auto-sync any generated invoice where deductions were not applied or wallet balance mismatch
+        try {
+            $genInvs = FarmerInvoice::with('farmer.wallet')
+                ->where('status', '!=', 'pending')
+                ->get();
+            foreach ($genInvs as $gInv) {
+                $hasWalletTx = \App\Models\FarmerWalletTransaction::where('farmer_invoice_id', $gInv->id)->exists();
+                $bList = $gInv->deductions_breakdown;
+
+                if (!$hasWalletTx && (float) $gInv->total_deduction > 0) {
+                    \App\Services\FarmerWalletService::applyInvoiceDeductions($gInv, is_array($bList) ? $bList : [], null);
+                } elseif (is_array($bList) && !empty($bList)) {
+                    $rem = round((float) collect($bList)->sum('remaining_balance'), 2);
+                    if ($rem >= 0 && abs((float) ($gInv->closing_wallet_balance ?? -1) - $rem) > 0.05) {
+                        $gInv->update([
+                            'closing_wallet_balance' => $rem,
+                            'previous_balance' => $rem,
+                        ]);
+                        $w = $gInv->farmer?->wallet;
+                        if ($w && abs((float) $w->balance - $rem) > 0.05) {
+                            $w->update(['balance' => $rem]);
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
+
         $pendingCount = (clone $baseQuery)->where('status', 'pending')->count();
         $generatedCount = (clone $baseQuery)->where('status', '!=', 'pending')->count();
 
@@ -510,12 +537,24 @@ class FarmerInvoiceController extends Controller
         $totalCredit = (float) $summaryQuery->sum('total_credit');
         $totalMilkAmount = (float) $summaryQuery->sum('milk_amount');
         $totalAmount = (float) $summaryQuery->sum('total_amount');
-        $totalBalance = (float) $invoices->sum(function ($inv) {
-            return (float) (
-                ($inv->farmer && $inv->farmer->wallet)
-                    ? $inv->farmer->wallet->balance
-                    : ($inv->closing_wallet_balance ?? 0)
-            );
+        $totalBalance = (float) $invoices->sum(function ($inv) use ($statusTab) {
+            if ($statusTab === 'pending') {
+                return (float) (
+                    ($inv->farmer && $inv->farmer->wallet)
+                        ? $inv->farmer->wallet->balance
+                        : ($inv->closing_wallet_balance ?? $inv->previous_balance ?? 0)
+                );
+            }
+            if ($inv->closing_wallet_balance !== null) {
+                return (float) $inv->closing_wallet_balance;
+            }
+            if ($inv->previous_balance !== null) {
+                return (float) $inv->previous_balance;
+            }
+            if (!empty($inv->deductions_breakdown) && is_array($inv->deductions_breakdown)) {
+                return (float) collect($inv->deductions_breakdown)->sum('remaining_balance');
+            }
+            return (float) ($inv->farmer?->wallet?->balance ?? 0);
         });
         $totalPayment = (float) $summaryQuery->sum('net_payment');
 
@@ -936,7 +975,11 @@ class FarmerInvoiceController extends Controller
         $milkAmount = round((float) $invoice->milk_amount, 2);
         $totalAmount = round($milkAmount + $totalCredit, 2);
 
-        $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);
+        $totalRemainingBalance = round((float) collect($breakdown)->sum('remaining_balance'), 2);
+        if ($totalRemainingBalance <= 0) {
+            $totalRemainingBalance = round(max(0, $totalDeduction - $totalAmount), 2);
+        }
+        $previousBalance = $totalRemainingBalance;
         $rawPayable = round(max(0, $totalAmount - $totalDeduction), 2);
 
         if (isset($validated['round_off']) && $validated['round_off'] !== null && $validated['round_off'] !== '') {
@@ -962,16 +1005,17 @@ class FarmerInvoiceController extends Controller
             'total_amount' => $totalAmount,
             'round_off' => $roundOff,
             'previous_balance' => $previousBalance,
+            'closing_wallet_balance' => $previousBalance,
             'net_payment' => $netPayment,
             'status' => ($netPayment <= 0) ? 'settled' : 'generated',
             'is_edited' => true,
         ]);
 
-        // Synchronize wallet deductions (record debits, handle partial deductions & carry-forward)
+        // Synchronize wallet deductions (applies to FarmerAdvance, ProductSale, and FarmerWallet)
         try {
             \App\Services\FarmerWalletService::applyInvoiceDeductions(
                 $invoice,
-                $walletDeductionsToApply,
+                $breakdown,
                 Auth::id()
             );
         } catch (\Throwable $e) {}

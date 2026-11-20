@@ -49,6 +49,15 @@ class FarmerWalletController extends Controller
         foreach ($farmers as $f) {
             if (!$f->wallet) {
                 $f->setRelation('wallet', FarmerWalletService::getOrCreateWallet($f));
+            } else {
+                $latestInv = \App\Models\FarmerInvoice::where('farmer_id', $f->id)
+                    ->where('status', '!=', 'pending')
+                    ->latest('period_end')
+                    ->latest('id')
+                    ->first();
+                if ($latestInv && $latestInv->closing_wallet_balance !== null && abs((float) $f->wallet->balance - (float) $latestInv->closing_wallet_balance) > 0.05) {
+                    $f->wallet->update(['balance' => (float) $latestInv->closing_wallet_balance]);
+                }
             }
         }
 

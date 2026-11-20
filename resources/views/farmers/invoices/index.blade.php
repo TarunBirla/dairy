@@ -308,11 +308,23 @@
                             </td>
                             <td class="py-3 px-3 border-r border-slate-100 text-right font-mono">
                                 @php
-                                    $displayWalletBal = (float) (
-                                        ($inv->farmer && $inv->farmer->wallet)
-                                            ? $inv->farmer->wallet->balance
-                                            : ($inv->closing_wallet_balance ?? 0)
-                                    );
+                                    if ($inv->status === 'pending') {
+                                        $displayWalletBal = (float) (
+                                            ($inv->farmer && $inv->farmer->wallet)
+                                                ? $inv->farmer->wallet->balance
+                                                : ($inv->closing_wallet_balance ?? $inv->previous_balance ?? 0)
+                                        );
+                                    } else {
+                                        if ($inv->closing_wallet_balance !== null) {
+                                            $displayWalletBal = (float) $inv->closing_wallet_balance;
+                                        } elseif ($inv->previous_balance !== null) {
+                                            $displayWalletBal = (float) $inv->previous_balance;
+                                        } elseif (!empty($inv->deductions_breakdown) && is_array($inv->deductions_breakdown)) {
+                                            $displayWalletBal = (float) collect($inv->deductions_breakdown)->sum('remaining_balance');
+                                        } else {
+                                            $displayWalletBal = (float) ($inv->farmer?->wallet?->balance ?? 0);
+                                        }
+                                    }
                                 @endphp
                                 @if($displayWalletBal > 0)
                                     <span class="px-2 py-0.5 rounded font-black text-rose-700 bg-rose-50 border border-rose-200 text-xs inline-block" title="बकाया डिडक्शन - डिडक्शन वॉलेट में शेष रहेगा">
