@@ -463,6 +463,22 @@ class FarmerInvoiceController extends Controller
             $this->syncInvoice($inv);
         }
 
+        // Auto-sync any invoices that already have matching paid settlements in farmer_settlements
+        try {
+            FarmerInvoice::where('status', 'generated')
+                ->whereExists(function ($sq) {
+                    $sq->select(DB::raw(1))
+                        ->from('farmer_settlements')
+                        ->whereColumn('farmer_settlements.farmer_id', 'farmer_invoices.farmer_id')
+                        ->whereColumn('farmer_settlements.period_start', 'farmer_invoices.period_start')
+                        ->whereColumn('farmer_settlements.period_end', 'farmer_invoices.period_end')
+                        ->where('farmer_settlements.status', 'paid');
+                })
+                ->update(['status' => 'settled']);
+        } catch (\Throwable $e) {
+            // Ignore if table or columns unavailable
+        }
+
         $pendingCount = (clone $baseQuery)->where('status', 'pending')->count();
         $generatedCount = (clone $baseQuery)->where('status', '!=', 'pending')->count();
 
@@ -1253,8 +1269,15 @@ class FarmerInvoiceController extends Controller
         $invoices = FarmerInvoice::whereIn('id', $validated['invoice_ids'])->get();
         $revertedCount = 0;
         $deletedCount = 0;
+        $settledSkipped = 0;
 
         foreach ($invoices as $inv) {
+            // Settled invoice CANNOT be deleted or reverted. Must delete settlement first!
+            if ($inv->status === 'settled') {
+                $settledSkipped++;
+                continue;
+            }
+
             if ($inv->status !== 'pending') {
                 // Revert generated invoice to pending
                 \App\Services\FarmerWalletService::reverseInvoiceDeductions(
@@ -1296,6 +1319,9 @@ class FarmerInvoiceController extends Controller
         }
         if ($deletedCount > 0) {
             $msg[] = "{$deletedCount} पेंडिंग इनवॉइस हटा दिए गए हैं।";
+        }
+        if ($settledSkipped > 0) {
+            $msg[] = "({$settledSkipped} सेटल्ड इनवॉइस को नहीं हटाया गया, क्योंकि उनका सेटलमेंट पूरा हो चुका है। रिवर्ट करने से पहले सेटलमेंट डिलीट करें।)";
         }
 
         return redirect()->route('farmer-invoices.index', [

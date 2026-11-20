@@ -24,6 +24,20 @@ class FarmerSettlementController extends Controller
         $search = $request->get('search');
         $paymentMode = $request->get('payment_mode');
 
+        // Auto-sync any invoices that already have matching paid settlements in farmer_settlements
+        try {
+            FarmerInvoice::where('status', 'generated')
+                ->whereExists(function ($sq) {
+                    $sq->select(DB::raw(1))
+                        ->from('farmer_settlements')
+                        ->whereColumn('farmer_settlements.farmer_id', 'farmer_invoices.farmer_id')
+                        ->whereColumn('farmer_settlements.period_start', 'farmer_invoices.period_start')
+                        ->whereColumn('farmer_settlements.period_end', 'farmer_invoices.period_end')
+                        ->where('farmer_settlements.status', 'paid');
+                })
+                ->update(['status' => 'settled']);
+        } catch (\Throwable $e) {}
+
         // Badge counts (total pending invoices waiting for payout vs total settled payouts)
         $pendingCount = FarmerInvoice::where('status', 'generated')
             ->where('net_payment', '>', 0)
@@ -300,6 +314,16 @@ class FarmerSettlementController extends Controller
 
         // Mark collections as settled
         MilkCollection::whereIn('id', $collections->pluck('id'))->update(['payment_status' => 'settled']);
+
+        // Update corresponding FarmerInvoice status to settled
+        FarmerInvoice::where('farmer_id', $farmer->id)
+            ->whereDate('period_start', $validated['period_start'])
+            ->whereDate('period_end', $validated['period_end'])
+            ->update([
+                'status' => 'settled',
+                'payment_mode' => $validated['payment_mode'],
+                'payment_reference' => $validated['payment_reference'] ?? $settlementNumber,
+            ]);
 
         // Mark advance deducted if applicable
         if ($advance > 0) {

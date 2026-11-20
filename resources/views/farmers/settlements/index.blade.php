@@ -584,5 +584,20 @@
             closeSettlementModal();
         }
     });
+
+    // Auto-open modal if auto_open query param is present
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const autoOpenId = urlParams.get('auto_open');
+        if (autoOpenId) {
+            const cb = document.querySelector(`.invoice-checkbox[value="${autoOpenId}"]`);
+            if (cb) {
+                cb.checked = true;
+                recalculateSelection();
+                const amt = parseFloat(cb.getAttribute('data-amount')) || 0;
+                openSettlementModal([autoOpenId], 1, amt);
+            }
+        }
+    });
 </script>
 @endsection

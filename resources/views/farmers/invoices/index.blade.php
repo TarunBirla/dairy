@@ -130,6 +130,14 @@
                     <span>Review & Verify All Pending (1 / {{ count($allTabIds) }})</span>
                 </button>
             </div>
+        @elseif($statusTab === 'generated')
+            <div class="flex items-center gap-2">
+                <a href="{{ route('settlements.index', ['tab' => 'pending', 'start_date' => $startDate, 'end_date' => $endDate]) }}"
+                   class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition">
+                    <i data-lucide="credit-card" class="w-3.5 h-3.5 text-white"></i>
+                    <span>Farmer Settlements (भुगतान सेटल करें) &rarr;</span>
+                </a>
+            </div>
         @endif
     </div>
 
@@ -238,7 +246,7 @@
                     @forelse($invoices as $index => $inv)
                         <tr class="hover:bg-slate-50/80 transition-colors group" id="row-{{ $inv->id }}">
                             <td class="py-3 px-3 text-center border-r border-slate-100">
-                                <input type="checkbox" value="{{ $inv->id }}" onchange="handleRowSelect()" class="row-checkbox w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer">
+                                <input type="checkbox" value="{{ $inv->id }}" data-settled="{{ $inv->status === 'settled' ? 'true' : 'false' }}" onchange="handleRowSelect()" class="row-checkbox w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer">
                             </td>
                             <td class="py-3 px-3 border-r border-slate-100 font-mono text-[11px] font-bold text-slate-800">
                                 {{ $inv->farmer->farmer_code ?? '-' }}
@@ -248,12 +256,20 @@
                                 @if(!empty($inv->farmer->phone))
                                     <div class="text-[10px] text-slate-400">{{ $inv->farmer->phone }}</div>
                                 @endif
-                                <div class="flex items-center gap-1.5 mt-0.5">
+                                <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
                                     <span class="text-[9px] text-slate-400 font-mono">{{ $inv->invoice_number }}</span>
                                     @if($inv->status === 'pending')
-                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800">Pending</span>
+                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-700 border border-slate-200">Pending</span>
+                                    @elseif($inv->status === 'settled')
+                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1" title="Invoice Settled (Paid)">
+                                            <i data-lucide="check-circle-2" class="w-2.5 h-2.5 text-emerald-700"></i>
+                                            <span>Settled</span>
+                                        </span>
                                     @else
-                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800">Generated</span>
+                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-300 inline-flex items-center gap-1" title="Generated - Awaiting Settlement">
+                                            <i data-lucide="clock" class="w-2.5 h-2.5 text-amber-700"></i>
+                                            <span>Not Settled</span>
+                                        </span>
                                     @endif
                                 </div>
                             </td>
@@ -321,27 +337,44 @@
                                             <i data-lucide="sliders-horizontal" class="w-3 h-3"></i>
                                             <span>Verify</span>
                                         </button>
+                                    @elseif($inv->status === 'generated')
+                                        <!-- Direct Settle Button (Takes directly to settlements page to settle payout) -->
+                                        <a href="{{ route('settlements.index', ['tab' => 'pending', 'search' => $inv->invoice_number, 'auto_open' => $inv->id]) }}"
+                                           title="Settle Payment (भुगतान सेटल करें)"
+                                           class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition">
+                                            <i data-lucide="credit-card" class="w-3 h-3"></i>
+                                            <span>Settle</span>
+                                        </a>
                                     @endif
 
-                                    <!-- In-page Quick Preview Modal button -->
+                                    <!-- In-page Quick Preview Modal button (Allowed for ALL) -->
                                     <button type="button" onclick="openInvoicePreviewModal({{ $inv->id }})" title="Quick Bill Preview" class="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition cursor-pointer">
                                         <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                                     </button>
-                                    <!-- Direct Print Bill -->
+
+                                    <!-- Direct Print Bill (Allowed for ALL) -->
                                     <a href="{{ route('farmer-invoices.print', $inv->id) }}" target="_blank" title="Print Bill" class="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition">
                                         <i data-lucide="printer" class="w-3.5 h-3.5"></i>
                                     </a>
-                                    <!-- Delete / Revert Button -->
-                                    <form method="POST" action="{{ route('farmer-invoices.destroy', $inv->id) }}" class="inline"
-                                          onsubmit="return confirmRevertInvoice('{{ $inv->invoice_number }}', '{{ $inv->status }}');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit"
-                                                title="{{ $inv->status === 'pending' ? 'Delete Pending Invoice' : 'Delete (Revert to Pending)' }}"
-                                                class="p-1.5 {{ $inv->status === 'pending' ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50' : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50' }} rounded-lg transition cursor-pointer">
-                                            <i data-lucide="{{ $inv->status === 'pending' ? 'trash-2' : 'undo-2' }}" class="w-3.5 h-3.5"></i>
-                                        </button>
-                                    </form>
+
+                                    @if($inv->status === 'settled')
+                                        <!-- Settled Lock Badge: Cannot delete or revert! Must delete settlement first! -->
+                                        <span class="p-1.5 text-emerald-600 cursor-default" title="सेटल हो चुकी इनवॉइस डिलीट या रिवर्ट नहीं की जा सकती। यदि बदलाव करना है तो पहले इसका सेटलमेंट डिलीट करें।">
+                                            <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+                                        </span>
+                                    @else
+                                        <!-- Delete / Revert Button (Only for Pending or Not Settled) -->
+                                        <form method="POST" action="{{ route('farmer-invoices.destroy', $inv->id) }}" class="inline"
+                                              onsubmit="return confirmRevertInvoice('{{ $inv->invoice_number }}', '{{ $inv->status }}');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit"
+                                                    title="{{ $inv->status === 'pending' ? 'Delete Pending Invoice' : 'Delete (Revert to Pending)' }}"
+                                                    class="p-1.5 {{ $inv->status === 'pending' ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50' : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50' }} rounded-lg transition cursor-pointer">
+                                                <i data-lucide="{{ $inv->status === 'pending' ? 'trash-2' : 'undo-2' }}" class="w-3.5 h-3.5"></i>
+                                            </button>
+                                        </form>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -1430,9 +1463,19 @@
 
     // Bulk Delete Action
     function submitBulkDelete() {
-        const selected = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
-        if (selected.length === 0) return;
+        const checkedBoxes = Array.from(document.querySelectorAll('.row-checkbox:checked'));
+        if (checkedBoxes.length === 0) return;
+
         const isGeneratedTab = '{{ $statusTab }}' === 'generated';
+        if (isGeneratedTab) {
+            const settledBoxes = checkedBoxes.filter(cb => cb.getAttribute('data-settled') === 'true');
+            if (settledBoxes.length > 0) {
+                alert('चुनी गई इनवॉइस में ' + settledBoxes.length + ' सेटल (Paid) इनवॉइस शामिल हैं। सेटल हो चुकी इनवॉइस को डिलीट या रिवर्ट नहीं किया जा सकता। कृपया पहले सेटलमेंट डिलीट करें या केवल अनसेटल इनवॉइस चुनें।');
+                return;
+            }
+        }
+
+        const selected = checkedBoxes.map(cb => cb.value);
         const confirmMsg = isGeneratedTab
             ? ('क्या आप चुने गए ' + selected.length + ' जनरेटेड इनवॉइस को Revert करके वापस Pending में भेजना चाहते हैं?\n\nRevert करने पर डिडक्शन वॉलेट का बैलेंस वापस रीस्टोर हो जाएगा।')
             : ('क्या आप चुने गए ' + selected.length + ' पेंडिंग इनवॉइस को हटाना चाहते हैं?');
