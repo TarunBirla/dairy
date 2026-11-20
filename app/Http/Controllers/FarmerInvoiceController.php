@@ -267,7 +267,16 @@ class FarmerInvoiceController extends Controller
         }
         if ($advanceDeduction > 0 || $totalLoanPrincipal > 0) {
             $origAdv = max($totalLoanPrincipal, $advanceDeduction);
-            $dedAdv = min($advanceDeduction, $origAdv);
+            $instType = method_exists($farmer, 'getInstallmentDeductionType') ? $farmer->getInstallmentDeductionType() : 'Auto';
+            $instAmt = method_exists($farmer, 'getInstallmentAmount') ? $farmer->getInstallmentAmount() : 0.0;
+            if ($instType === 'DeductionOff') {
+                $targetAdv = 0.00;
+            } elseif ($instType === 'Fixed' && $instAmt > 0) {
+                $targetAdv = min($instAmt, $origAdv);
+            } else {
+                $targetAdv = min($origAdv, $advanceDeduction ?: $origAdv);
+            }
+            $dedAdv = min($targetAdv, $origAdv);
             $remAdv = max(0, $origAdv - $dedAdv);
             $deductionsBreakdown[] = [
                 'key' => 'advance',
@@ -317,13 +326,25 @@ class FarmerInvoiceController extends Controller
                 }
 
                 if (!$alreadyCovered) {
+                    // Check if this category is Advance / Loan and farmer has installment preference
+                    $defaultDed = $catBal;
+                    if (str_contains($catLower, 'advance') || str_contains($catLower, 'loan')) {
+                        $instType = method_exists($farmer, 'getInstallmentDeductionType') ? $farmer->getInstallmentDeductionType() : 'Auto';
+                        $instAmt = method_exists($farmer, 'getInstallmentAmount') ? $farmer->getInstallmentAmount() : 0.0;
+                        if ($instType === 'DeductionOff') {
+                            $defaultDed = 0.00;
+                        } elseif ($instType === 'Fixed' && $instAmt > 0) {
+                            $defaultDed = min($instAmt, $catBal);
+                        }
+                    }
+
                     $deductionsBreakdown[] = [
                         'key' => 'wallet_' . \Illuminate\Support\Str::slug($catName, '_'),
                         'name' => $catName,
                         'category' => $catName,
                         'original_balance' => $catBal,
-                        'deducted_amount' => $catBal,
-                        'remaining_balance' => 0.00,
+                        'deducted_amount' => $defaultDed,
+                        'remaining_balance' => max(0, $catBal - $defaultDed),
                         'is_wallet' => true,
                         'is_editable' => true,
                     ];
@@ -360,9 +381,10 @@ class FarmerInvoiceController extends Controller
         // Pass 2: Variable/wallet deductions (Advance, Feed, Stationary, etc.)
         foreach ($deductionsBreakdown as &$item) {
             $origBal = (float) ($item['original_balance'] ?? 0);
+            $targetDed = (float) ($item['deducted_amount'] ?? $origBal);
             $isFixed = empty($item['is_editable']);
             if (!$isFixed) {
-                $ded = round(min($origBal, $availableDeductionPool), 2);
+                $ded = round(min($targetDed, $availableDeductionPool), 2);
                 $rem = round(max(0, $origBal - $ded), 2);
                 $item['deducted_amount'] = $ded;
                 $item['remaining_balance'] = $rem;

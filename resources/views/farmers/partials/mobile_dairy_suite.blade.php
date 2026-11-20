@@ -212,12 +212,20 @@
                 <span class="text-[10px] text-slate-400 block">All-Time Intake</span>
             </div>
 
-            <!-- 6. Current Payable Balance -->
-            <div class="bg-emerald-900/40 p-2.5 rounded-xl border border-emerald-500/40">
-                <span class="text-[10px] uppercase font-bold text-emerald-300 block tracking-wider">Payable Balance</span>
-                <span class="text-sm font-black text-emerald-300 mt-0.5 block">₹ {{ number_format($currentPayableBalance, 2) }}</span>
-                <span class="text-[10px] text-emerald-400 font-semibold block">Dairy Dues</span>
-            </div>
+            <!-- 6. Current Payable Balance / Net Ledger Balance -->
+            @if($currentPayableBalance < 0)
+                <div class="bg-amber-950/40 p-2.5 rounded-xl border border-amber-500/40">
+                    <span class="text-[10px] uppercase font-bold text-amber-300 block tracking-wider">Net Balance (बाकी)</span>
+                    <span class="text-sm font-black text-rose-300 mt-0.5 block">₹ {{ number_format(abs($currentPayableBalance), 2) }}</span>
+                    <span class="text-[10px] text-amber-400 font-semibold block">किसान से लेना है</span>
+                </div>
+            @else
+                <div class="bg-emerald-900/40 p-2.5 rounded-xl border border-emerald-500/40">
+                    <span class="text-[10px] uppercase font-bold text-emerald-300 block tracking-wider">Payable Balance</span>
+                    <span class="text-sm font-black text-emerald-300 mt-0.5 block">₹ {{ number_format($currentPayableBalance, 2) }}</span>
+                    <span class="text-[10px] text-emerald-400 font-semibold block">किसान को देना है</span>
+                </div>
+            @endif
 
             <!-- 7. Outstanding Loan -->
             <div class="bg-rose-950/40 p-2.5 rounded-xl border border-rose-500/30">

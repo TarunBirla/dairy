@@ -45,8 +45,9 @@ class FarmerWalletController extends Controller
 
         $farmers = $query->orderBy('farmer_code')->paginate($perPage)->withQueryString();
 
-        // Ensure wallet exists for displayed farmers
+        // Ensure wallet exists for displayed farmers & clean up any duplicates
         foreach ($farmers as $f) {
+            FarmerWalletService::cleanupDuplicateAdvanceTransactions($f);
             if (!$f->wallet) {
                 $f->setRelation('wallet', FarmerWalletService::getOrCreateWallet($f));
             } else {

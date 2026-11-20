@@ -113,30 +113,38 @@ class FarmerWalletService
             $totalOutstanding = 0.0;
             $currentBalance = 0.0;
 
-            // 1. Outstanding advances / loans
+            // 1. Outstanding advances / loans (Avoid double seeding if transactions already exist)
             if (Schema::hasTable('farmer_advances')) {
-                $advances = FarmerAdvance::where('farmer_id', $farmer->id)
-                    ->where('status', '!=', 'recovered')
-                    ->get();
+                $hasAdvanceTx = FarmerWalletTransaction::where('wallet_id', $wallet->id)
+                    ->where(function ($q) {
+                        $q->where('category', 'like', '%Advance%')
+                          ->orWhere('remarks', 'like', '%Advance%');
+                    })->exists();
 
-                $loanSum = round((float) $advances->sum(fn($a) => (float) $a->principal_balance), 2);
-                if ($loanSum > 0) {
-                    $before = $currentBalance;
-                    $currentBalance += $loanSum;
-                    FarmerWalletTransaction::create([
-                        'wallet_id' => $wallet->id,
-                        'farmer_id' => $farmer->id,
-                        'transaction_type' => FarmerWalletTransaction::TYPE_CREDIT,
-                        'category' => 'Advance / Loan',
-                        'amount' => $loanSum,
-                        'balance_before' => $before,
-                        'balance_after' => $currentBalance,
-                        'reference_type' => 'farmer_advances',
-                        'reference_id' => null,
-                        'remarks' => 'Opening Outstanding: Active advances / loan principal',
-                        'created_by' => Auth::id(),
-                    ]);
-                    $totalOutstanding += $loanSum;
+                if (!$hasAdvanceTx) {
+                    $advances = FarmerAdvance::where('farmer_id', $farmer->id)
+                        ->where('status', '!=', 'recovered')
+                        ->get();
+
+                    $loanSum = round((float) $advances->sum(fn($a) => (float) $a->principal_balance), 2);
+                    if ($loanSum > 0) {
+                        $before = $currentBalance;
+                        $currentBalance += $loanSum;
+                        FarmerWalletTransaction::create([
+                            'wallet_id' => $wallet->id,
+                            'farmer_id' => $farmer->id,
+                            'transaction_type' => FarmerWalletTransaction::TYPE_CREDIT,
+                            'category' => 'Advance / Loan',
+                            'amount' => $loanSum,
+                            'balance_before' => $before,
+                            'balance_after' => $currentBalance,
+                            'reference_type' => 'farmer_advances',
+                            'reference_id' => null,
+                            'remarks' => 'Opening Outstanding: Active advances / loan principal',
+                            'created_by' => Auth::id(),
+                        ]);
+                        $totalOutstanding += $loanSum;
+                    }
                 }
             }
 
@@ -204,12 +212,64 @@ class FarmerWalletService
     }
 
     /**
+     * Clean up any duplicate 'Opening Outstanding' transactions for advances
+     * when explicit 'Advance Issued' transactions already exist.
+     */
+    public static function cleanupDuplicateAdvanceTransactions(Farmer|int $farmer): void
+    {
+        $farmerId = $farmer instanceof Farmer ? $farmer->id : (int) $farmer;
+        $wallet = FarmerWallet::where('farmer_id', $farmerId)->first();
+        if (!$wallet) return;
+
+        try {
+            DB::transaction(function () use ($wallet, $farmerId) {
+                $hasExplicitAdvance = FarmerWalletTransaction::where('wallet_id', $wallet->id)
+                    ->where('transaction_type', FarmerWalletTransaction::TYPE_CREDIT)
+                    ->where(function ($q) {
+                        $q->where('remarks', 'like', '%Advance Issued%')
+                          ->orWhere('reference_type', 'farmer_advances');
+                    })
+                    ->exists();
+
+                if ($hasExplicitAdvance) {
+                    $openingAdvances = FarmerWalletTransaction::where('wallet_id', $wallet->id)
+                        ->where('transaction_type', FarmerWalletTransaction::TYPE_CREDIT)
+                        ->where('category', 'like', '%Advance%')
+                        ->where('remarks', 'like', '%Opening Outstanding%')
+                        ->get();
+
+                    if ($openingAdvances->count() > 0) {
+                        $actualLoanSum = round((float) FarmerAdvance::where('farmer_id', $farmerId)
+                            ->where('status', '!=', 'recovered')
+                            ->sum('amount'), 2);
+
+                        $explicitSum = round((float) FarmerWalletTransaction::where('wallet_id', $wallet->id)
+                            ->where('transaction_type', FarmerWalletTransaction::TYPE_CREDIT)
+                            ->where('category', 'like', '%Advance%')
+                            ->where('remarks', 'like', '%Advance Issued%')
+                            ->sum('amount'), 2);
+
+                        if ($explicitSum >= $actualLoanSum && $actualLoanSum > 0) {
+                            foreach ($openingAdvances as $op) {
+                                $op->delete();
+                            }
+                            $wallet->recalculateBalance();
+                        }
+                    }
+                }
+            });
+        } catch (\Throwable $e) {}
+    }
+
+    /**
      * Get comprehensive summary of a farmer's deduction wallet.
      */
     public static function getWalletSummary(Farmer|int $farmer): array
     {
+        $farmerId = $farmer instanceof Farmer ? $farmer->id : (int) $farmer;
+        self::cleanupDuplicateAdvanceTransactions($farmerId);
+
         $wallet = self::getOrCreateWallet($farmer);
-        $farmerId = $wallet->farmer_id;
         $farmerModel = $farmer instanceof Farmer ? $farmer : Farmer::find($farmerId);
 
         $categoryBalances = $wallet->getCategoryBalances();
@@ -248,7 +308,9 @@ class FarmerWalletService
         string $category,
         float $amount,
         string $remarks = '',
-        ?int $createdBy = null
+        ?int $createdBy = null,
+        ?string $referenceType = null,
+        ?string $referenceId = null
     ): FarmerWalletTransaction {
         self::ensureSchemaMigrated();
 
@@ -260,7 +322,7 @@ class FarmerWalletService
         $category = trim($category) ?: 'General';
         $createdBy = $createdBy ?: Auth::id();
 
-        return DB::transaction(function () use ($farmer, $category, $amount, $remarks, $createdBy) {
+        return DB::transaction(function () use ($farmer, $category, $amount, $remarks, $createdBy, $referenceType, $referenceId) {
             $wallet = self::getOrCreateWallet($farmer);
 
             // Row-level lock to prevent concurrency race conditions
@@ -276,8 +338,8 @@ class FarmerWalletService
                 'amount' => $amount,
                 'balance_before' => $balanceBefore,
                 'balance_after' => $balanceAfter,
-                'reference_type' => 'manual_addition',
-                'reference_id' => null,
+                'reference_type' => $referenceType ?: 'manual_addition',
+                'reference_id' => $referenceId,
                 'remarks' => $remarks ?: "Added {$category} deduction of ₹" . number_format($amount, 2),
                 'created_by' => $createdBy,
             ]);

@@ -239,6 +239,11 @@ class FarmerAdvanceController extends Controller
 
         $voucher = $validated['voucher_no'] ?: str_pad((FarmerAdvance::max('id') + 1), 3, '0', STR_PAD_LEFT);
 
+        // Pre-initialize wallet so seeding never captures this upcoming new advance
+        try {
+            \App\Services\FarmerWalletService::getOrCreateWallet($farmer);
+        } catch (\Throwable $e) {}
+
         $advance = FarmerAdvance::create([
             'farmer_id' => $farmer->id,
             'advance_date' => $validated['advance_date'],
@@ -276,7 +281,9 @@ class FarmerAdvanceController extends Controller
                 'Advance / Loan',
                 (float) $validated['amount'],
                 "Advance Issued (Voucher #{$voucher}): " . ($validated['remark'] ?? 'Cash Advance'),
-                Auth::id()
+                Auth::id(),
+                'farmer_advances',
+                (string) $advance->id
             );
             $farmer->recalculateBalance();
         } catch (\Throwable $e) {}
@@ -341,9 +348,32 @@ class FarmerAdvanceController extends Controller
         }
 
         $voucher = $advance->voucher_no;
-        $advance->delete();
+        $advId = $advance->id;
 
-        AuditLog::log('Deleted Farmer Advance', 'FarmerAdvance', $advance->id, ['voucher' => $voucher]);
+        // Clean up from Deduction Wallet
+        try {
+            $wallet = $farmer ? $farmer->wallet : null;
+            if ($wallet) {
+                \App\Models\FarmerWalletTransaction::where('wallet_id', $wallet->id)
+                    ->where(function ($q) use ($voucher, $advId) {
+                        $q->where('remarks', 'like', "%Voucher #{$voucher}%")
+                          ->orWhere('remarks', 'like', "%Voucher: #{$voucher}%")
+                          ->orWhere(function ($sq) use ($advId) {
+                              $sq->where('reference_type', 'farmer_advances')
+                                 ->where('reference_id', (string) $advId);
+                          });
+                    })->delete();
+
+                $wallet->recalculateBalance();
+            }
+        } catch (\Throwable $e) {}
+
+        $advance->delete();
+        if ($farmer) {
+            $farmer->recalculateBalance();
+        }
+
+        AuditLog::log('Deleted Farmer Advance', 'FarmerAdvance', $advId, ['voucher' => $voucher]);
 
         return redirect()->back()->with('success', "Advance record #{$voucher} deleted successfully.");
     }
