@@ -311,6 +311,15 @@ class FarmerDeductionController extends Controller
         $totalReceived = (float) $deductions->where('transaction_type', 'received')->sum('amount');
         $netTotal = $totalGiven - $totalReceived;
 
+        $wallet = $farmer->wallet;
+        $walletBal = (float) ($wallet ? $wallet->balance : 0);
+        $walletCategories = $wallet ? $wallet->getCategoryBalances() : [];
+
+        // Check active advances
+        $advances = \App\Models\FarmerAdvance::where('farmer_id', $farmer->id)
+            ->where('status', '!=', 'recovered')
+            ->get(['id', 'amount', 'balance', 'status', 'created_at']);
+
         return response()->json([
             'farmer' => [
                 'id' => $farmer->id,
@@ -322,6 +331,10 @@ class FarmerDeductionController extends Controller
             'total_given' => $totalGiven,
             'total_received' => $totalReceived,
             'net_total' => $netTotal,
+            'wallet_balance' => $walletBal,
+            'wallet_categories' => $walletCategories,
+            'advances_count' => $advances->count(),
+            'advances_total' => round((float) $advances->sum('balance'), 2),
             'deductions' => $deductions,
         ]);
     }

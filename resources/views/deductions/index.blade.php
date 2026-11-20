@@ -181,9 +181,16 @@
                             <!-- Total Amount Badge synchronized with wallet dues -->
                             <td class="py-3.5 px-4">
                                 @if($displayDues > 0)
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                                        ₹{{ number_format($displayDues, 2) }}
-                                    </span>
+                                    <div>
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                            ₹{{ number_format($displayDues, 2) }}
+                                        </span>
+                                        @if($walletBal > 0 && $netAmount == 0)
+                                            <span class="text-[10px] text-slate-500 font-semibold block mt-0.5">(Wallet / Advance Dues)</span>
+                                        @elseif($walletBal > 0 && $netAmount > 0)
+                                            <span class="text-[10px] text-slate-500 block mt-0.5">(Total Outstanding)</span>
+                                        @endif
+                                    </div>
                                 @else
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                         ₹0.00 (चुकता)
@@ -445,6 +452,9 @@
 
         <!-- Body -->
         <div class="flex-1 overflow-y-auto p-5 space-y-4">
+            <!-- Active Wallet Dues Banner (if balance exists from Advance / Cattle Feed / Loans) -->
+            <div id="viewModalWalletBanner" class="hidden"></div>
+
             <!-- Summary Stats -->
             <div class="grid grid-cols-3 gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 text-center">
                 <div>
@@ -586,6 +596,11 @@
     // View Details Modal Controls
     function viewFarmerDeductions(farmerId) {
         document.getElementById('viewModalTableBody').innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">Loading deduction records...</td></tr>';
+        const walletBanner = document.getElementById('viewModalWalletBanner');
+        if (walletBanner) {
+            walletBanner.className = 'hidden';
+            walletBanner.innerHTML = '';
+        }
         document.getElementById('viewDeductionsModal').classList.remove('hidden');
 
         fetch(`/deductions/farmer/${farmerId}`)
@@ -597,9 +612,53 @@
                 document.getElementById('viewModalTotalReceived').textContent = `₹${data.total_received.toFixed(2)}`;
                 document.getElementById('viewModalNetBalance').textContent = `₹${data.net_total.toFixed(2)}`;
 
+                // Wallet dues banner
+                if (walletBanner && (data.wallet_balance > 0 || data.advances_count > 0)) {
+                    let catPills = '';
+                    if (data.wallet_categories && Object.keys(data.wallet_categories).length > 0) {
+                        catPills = Object.entries(data.wallet_categories)
+                            .filter(([_, amt]) => parseFloat(amt) > 0)
+                            .map(([cat, amt]) => `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-200"><b>${cat}:</b>&nbsp;₹${parseFloat(amt).toFixed(2)}</span>`)
+                            .join(' ');
+                    }
+                    if (!catPills && data.wallet_balance > 0) {
+                        catPills = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-200">Advance / Loan: ₹${data.wallet_balance.toFixed(2)}</span>`;
+                    }
+
+                    walletBanner.className = 'p-3.5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs';
+                    walletBanner.innerHTML = `
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-200 text-amber-900">Wallet Dues / बक़ाया</span>
+                                <span class="font-mono font-bold text-amber-950 text-sm">₹${(data.wallet_balance || 0).toFixed(2)}</span>
+                            </div>
+                            <div class="text-[11px] text-amber-900/80 flex flex-wrap items-center gap-1.5">
+                                <span>स्रोत (Source):</span>
+                                ${catPills || '<span class="italic">Advance & Loan Account</span>'}
+                            </div>
+                        </div>
+                        <a href="/wallets/${data.farmer.id}" target="_blank" class="shrink-0 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-xs transition flex items-center gap-1.5">
+                            <span>वॉलेट लेजर देखें</span>
+                            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                        </a>
+                    `;
+                }
+
                 const tbody = document.getElementById('viewModalTableBody');
                 if (data.deductions.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">No deduction records found for this farmer.</td></tr>';
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="p-6 text-center text-slate-500">
+                                <p class="font-bold text-xs text-slate-700">Deduction (कटौती) टेबल में कोई अलग से रिकॉर्ड नहीं मिला।</p>
+                                ${data.wallet_balance > 0 ? `
+                                    <p class="text-[11px] text-amber-800 mt-1.5 font-medium">
+                                        👉 कुल बकाया <b>₹${data.wallet_balance.toFixed(2)}</b> किसान के <b>Advance / Loan (अग्रिम/लोन)</b> या <b>Cattle Feed/स्टोर</b> से आ रहा है।
+                                    </p>
+                                ` : ''}
+                            </td>
+                        </tr>
+                    `;
+                    if (window.lucide) lucide.createIcons();
                     return;
                 }
 
@@ -626,12 +685,12 @@
                         </td>
                     </tr>
                 `).join('');
+
+                if (window.lucide) lucide.createIcons();
             })
             .catch(err => {
                 document.getElementById('viewModalTableBody').innerHTML = '<tr><td colspan="6" class="p-4 text-center text-rose-500">Failed to load deduction records.</td></tr>';
             });
-
-        if (window.lucide) lucide.createIcons();
     }
 
     function closeViewModal() {
