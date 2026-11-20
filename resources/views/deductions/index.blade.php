@@ -151,6 +151,8 @@
                             $given = (float) $farmer->deductions->where('transaction_type', 'given')->sum('amount');
                             $received = (float) $farmer->deductions->where('transaction_type', 'received')->sum('amount');
                             $netAmount = $given - $received;
+                            $walletBal = (float) ($farmer->wallet ? $farmer->wallet->balance : 0);
+                            $displayDues = $walletBal > 0 ? $walletBal : max(0, $netAmount);
                             $latestDeduction = $farmer->deductions->first();
                         @endphp
                         <tr class="hover:bg-slate-50/80 transition-colors">
@@ -176,19 +178,15 @@
                                 {{ $farmer->phone ?: '-' }}
                             </td>
 
-                            <!-- Total Amount Badge matching reference (e.g. -3080.00 in green/badge) -->
+                            <!-- Total Amount Badge synchronized with wallet dues -->
                             <td class="py-3.5 px-4">
-                                @if($netAmount > 0)
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-700 text-white">
-                                        -{{ number_format($netAmount, 2) }}
-                                    </span>
-                                @elseif($netAmount < 0)
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-600 text-white">
-                                        +{{ number_format(abs($netAmount), 2) }}
+                                @if($displayDues > 0)
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                        ₹{{ number_format($displayDues, 2) }}
                                     </span>
                                 @else
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-slate-200 text-slate-700">
-                                        0.00
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        ₹0.00 (चुकता)
                                     </span>
                                 @endif
                             </td>

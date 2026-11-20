@@ -319,7 +319,7 @@ class FarmerInvoiceController extends Controller
                 if (!$alreadyCovered) {
                     $deductionsBreakdown[] = [
                         'key' => 'wallet_' . \Illuminate\Support\Str::slug($catName, '_'),
-                        'name' => "{$catName} (Wallet)",
+                        'name' => $catName,
                         'category' => $catName,
                         'original_balance' => $catBal,
                         'deducted_amount' => $catBal,
@@ -333,17 +333,50 @@ class FarmerInvoiceController extends Controller
         } catch (\Throwable $e) {}
 
         $totalCredit = round($otherCredit + $transportCredit + $subsidyCredit + $incentiveCredit, 2);
-
-        // Total Deductions = Stationary + Feed + Advance + Other Deductions + Wallet Outstanding
-        $totalDeduction = round($stationaryDeduction + $feedDeduction + $advanceDeduction + $otherDeduction + $walletOutstanding, 2);
-
         // Total Amount = Total Credit (B) + Milk Amount (C)
         $totalAmount = round($totalCredit + $milkAmount, 2);
 
-        // Balance = Remaining unpaid deduction if totalDeduction > totalAmount (carried into Deduction Wallet), else 0.00
-        $previousBalance = round(max(0, $totalDeduction - $totalAmount), 2);
+        // Cap deductions: a farmer's deductions in an invoice cannot exceed total earnings ($totalAmount)
+        $availableDeductionPool = $totalAmount;
+        $totalDeductionApplied = 0.0;
+        $totalRemainingBalance = 0.0;
 
-        // Payment (B+C-A) = Net payable amount. If totalDeduction >= totalAmount, Payment is ₹0.00 (cannot be negative cash)
+        // Pass 1: Fixed dairy charges (non-editable, e.g. Management Charges)
+        foreach ($deductionsBreakdown as &$item) {
+            $origBal = (float) ($item['original_balance'] ?? 0);
+            $isFixed = empty($item['is_editable']);
+            if ($isFixed) {
+                $ded = round(min($origBal, $availableDeductionPool), 2);
+                $rem = round(max(0, $origBal - $ded), 2);
+                $item['deducted_amount'] = $ded;
+                $item['remaining_balance'] = $rem;
+                $availableDeductionPool = max(0, $availableDeductionPool - $ded);
+                $totalDeductionApplied += $ded;
+                $totalRemainingBalance += $rem;
+            }
+        }
+        unset($item);
+
+        // Pass 2: Variable/wallet deductions (Advance, Feed, Stationary, etc.)
+        foreach ($deductionsBreakdown as &$item) {
+            $origBal = (float) ($item['original_balance'] ?? 0);
+            $isFixed = empty($item['is_editable']);
+            if (!$isFixed) {
+                $ded = round(min($origBal, $availableDeductionPool), 2);
+                $rem = round(max(0, $origBal - $ded), 2);
+                $item['deducted_amount'] = $ded;
+                $item['remaining_balance'] = $rem;
+                $availableDeductionPool = max(0, $availableDeductionPool - $ded);
+                $totalDeductionApplied += $ded;
+                $totalRemainingBalance += $rem;
+            }
+        }
+        unset($item);
+
+        $totalDeduction = round($totalDeductionApplied, 2);
+        $previousBalance = round($totalRemainingBalance, 2);
+
+        // Payment (B+C-A) = Net payable amount
         $rawPayable = round(max(0, $totalAmount - $totalDeduction), 2);
         $roundOff = 0.00;
         $netPayment = $rawPayable;
@@ -365,6 +398,7 @@ class FarmerInvoiceController extends Controller
             'total_amount' => $totalAmount,
             'round_off' => $roundOff,
             'previous_balance' => $previousBalance,
+            'closing_wallet_balance' => $previousBalance,
             'net_payment' => $netPayment,
         ];
     }
@@ -975,10 +1009,23 @@ class FarmerInvoiceController extends Controller
         $milkAmount = round((float) $invoice->milk_amount, 2);
         $totalAmount = round($milkAmount + $totalCredit, 2);
 
-        $totalRemainingBalance = round((float) collect($breakdown)->sum('remaining_balance'), 2);
-        if ($totalRemainingBalance <= 0) {
-            $totalRemainingBalance = round(max(0, $totalDeduction - $totalAmount), 2);
+        // Deductions CANNOT exceed total earnings ($totalAmount)
+        if ($totalDeduction > $totalAmount) {
+            $excess = round($totalDeduction - $totalAmount, 2);
+            for ($i = count($breakdown) - 1; $i >= 0; $i--) {
+                if ($excess <= 0) break;
+                if (!empty($breakdown[$i]['is_editable']) || !empty($breakdown[$i]['is_wallet'])) {
+                    $curDed = (float) $breakdown[$i]['deducted_amount'];
+                    $reduceBy = min($curDed, $excess);
+                    $breakdown[$i]['deducted_amount'] = round($curDed - $reduceBy, 2);
+                    $breakdown[$i]['remaining_balance'] = round((float)$breakdown[$i]['original_balance'] - $breakdown[$i]['deducted_amount'], 2);
+                    $excess -= $reduceBy;
+                }
+            }
+            $totalDeduction = round(collect($breakdown)->sum('deducted_amount'), 2);
         }
+
+        $totalRemainingBalance = round((float) collect($breakdown)->sum('remaining_balance'), 2);
         $previousBalance = $totalRemainingBalance;
         $rawPayable = round(max(0, $totalAmount - $totalDeduction), 2);
 
@@ -1007,7 +1054,7 @@ class FarmerInvoiceController extends Controller
             'previous_balance' => $previousBalance,
             'closing_wallet_balance' => $previousBalance,
             'net_payment' => $netPayment,
-            'status' => ($netPayment <= 0) ? 'settled' : 'generated',
+            'status' => 'generated',
             'is_edited' => true,
         ]);
 

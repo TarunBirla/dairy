@@ -34,6 +34,7 @@ class FarmerWallet extends Model
     /**
      * Get category-wise outstanding balance breakdown.
      * Credits increase outstanding; Debits decrease outstanding.
+     * Cleans and unifies category names (strips legacy '(Wallet)', '(Standard)').
      */
     public function getCategoryBalances(): array
     {
@@ -41,16 +42,17 @@ class FarmerWallet extends Model
 
         $raw = FarmerWalletTransaction::where('wallet_id', $this->id)
             ->select(
-                'category',
+                DB::raw("TRIM(REPLACE(REPLACE(REPLACE(category, ' (Wallet)', ''), ' (Standard)', ''), ' (Fixed)', '')) as clean_category"),
                 DB::raw("SUM(CASE WHEN transaction_type = 'credit' THEN amount WHEN transaction_type = 'debit' THEN -amount WHEN transaction_type = 'reversal' THEN amount ELSE 0 END) as net_balance")
             )
-            ->groupBy('category')
-            ->having('net_balance', '>', 0)
+            ->groupBy(DB::raw("TRIM(REPLACE(REPLACE(REPLACE(category, ' (Wallet)', ''), ' (Standard)', ''), ' (Fixed)', ''))"))
+            ->having('net_balance', '>', 0.009)
             ->orderBy('net_balance', 'desc')
             ->get();
 
         foreach ($raw as $row) {
-            $breakdown[$row->category] = round((float) $row->net_balance, 2);
+            $cat = trim($row->clean_category ?: 'General');
+            $breakdown[$cat] = round((float) $row->net_balance, 2);
         }
 
         return $breakdown;
@@ -61,10 +63,17 @@ class FarmerWallet extends Model
      */
     public function recalculateBalance(): float
     {
-        $net = (float) FarmerWalletTransaction::where('wallet_id', $this->id)
-            ->sum(DB::raw("CASE WHEN transaction_type = 'credit' THEN amount WHEN transaction_type = 'debit' THEN -amount WHEN transaction_type = 'reversal' THEN amount ELSE 0 END"));
+        $breakdown = $this->getCategoryBalances();
+        $net = array_sum($breakdown);
 
-        $net = max(0, round($net, 2));
+        if ($net <= 0) {
+            $rawNet = (float) FarmerWalletTransaction::where('wallet_id', $this->id)
+                ->sum(DB::raw("CASE WHEN transaction_type = 'credit' THEN amount WHEN transaction_type = 'debit' THEN -amount WHEN transaction_type = 'reversal' THEN amount ELSE 0 END"));
+            $net = max(0, round($rawNet, 2));
+        } else {
+            $net = round($net, 2);
+        }
+
         $this->update(['balance' => $net]);
 
         return $net;

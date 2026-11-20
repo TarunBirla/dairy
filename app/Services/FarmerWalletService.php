@@ -375,8 +375,8 @@ class FarmerWalletService
         $createdBy = $createdBy ?: Auth::id();
 
         return DB::transaction(function () use ($invoice, $breakdownOrCategoryDeductions, $createdBy) {
-            // First, if this invoice already had prior deductions recorded in this wallet, reverse them safely
-            self::reverseInvoiceDeductions($invoice, 'Re-calculating invoice deductions', $createdBy);
+            // Remove any previous transactions for this specific invoice so ledger stays clean and non-spammy
+            FarmerWalletTransaction::where('farmer_invoice_id', $invoice->id)->delete();
 
             $wallet = self::getOrCreateWallet($invoice->farmer_id);
             $lockedWallet = FarmerWallet::where('id', $wallet->id)->lockForUpdate()->first();
@@ -470,7 +470,9 @@ class FarmerWalletService
 
             if ($isStructuredList) {
                 foreach ($breakdownOrCategoryDeductions as $item) {
-                    $catName = $item['name'] ?? ($item['category'] ?? 'Deduction');
+                    $rawCat = $item['category'] ?? ($item['name'] ?? 'Deduction');
+                    $catName = trim(str_ireplace(['(Wallet)', '(Standard)', '(Fixed)'], '', $rawCat));
+                    if (empty($catName)) $catName = 'General';
                     $origBal = (float) ($item['original_balance'] ?? 0);
                     $dedAmt = (float) ($item['deducted_amount'] ?? 0);
                     $remBal = (float) ($item['remaining_balance'] ?? max(0, $origBal - $dedAmt));
@@ -503,7 +505,7 @@ class FarmerWalletService
                     $breakdown[] = [
                         'key' => $item['key'] ?? \Illuminate\Support\Str::slug($catName, '_'),
                         'name' => $catName,
-                        'category' => $item['category'] ?? $catName,
+                        'category' => $catName,
                         'original_balance' => $origBal,
                         'deducted_amount' => $dedAmt,
                         'remaining_balance' => $remBal,

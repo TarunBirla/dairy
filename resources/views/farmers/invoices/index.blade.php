@@ -1291,7 +1291,14 @@
                 if (item.orig > 0 && item.val > item.orig) {
                     hasValidationError = true;
                     if (errDiv) {
-                        errDiv.textContent = `Deduction ${formatDeductNum(item.val)} must be less than or equal to ${formatDeductNum(item.orig)}`;
+                        errDiv.textContent = `Deduction ${formatDeductNum(item.val)} must be <= ${formatDeductNum(item.orig)}`;
+                        errDiv.classList.remove('hidden');
+                    }
+                    item.inp.classList.add('border-rose-500', 'bg-rose-50');
+                } else if (item.val > maxAllowed && totalAmount > 0) {
+                    hasValidationError = true;
+                    if (errDiv) {
+                        errDiv.textContent = `Cannot exceed total bill amount. Max allowed: ${formatDeductNum(maxAllowed)}`;
                         errDiv.classList.remove('hidden');
                     }
                     item.inp.classList.add('border-rose-500', 'bg-rose-50');

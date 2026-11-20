@@ -70,7 +70,7 @@ class FarmerDeductionController extends Controller
         }
 
         // Include relations
-        $farmersQuery->with(['deductions' => function ($q) use ($deductionType) {
+        $farmersQuery->with(['wallet', 'deductions' => function ($q) use ($deductionType) {
             if ($deductionType && $deductionType !== 'all') {
                 $q->where('deduction_type', $deductionType);
             }

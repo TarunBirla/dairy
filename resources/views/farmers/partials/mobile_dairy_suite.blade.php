@@ -656,6 +656,49 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Invoice Deductions History (Deductions Applied in Milk Invoices) -->
+            @php
+                $farmerInvoicesWithDeductions = \App\Models\FarmerInvoice::where('farmer_id', $farmer->id)
+                    ->where('status', '!=', 'pending')
+                    ->where('total_deduction', '>', 0)
+                    ->latest('period_end')
+                    ->take(5)
+                    ->get();
+            @endphp
+            @if($farmerInvoicesWithDeductions->isNotEmpty())
+                <div class="space-y-2 pt-2">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Invoice Deductions History (बिल में काटी गई राशि का विवरण):</span>
+                    <div class="overflow-x-auto border border-slate-200/80 rounded-xl">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-50 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-200">
+                                <tr>
+                                    <th class="py-2 px-3">Bill / Invoice #</th>
+                                    <th class="py-2 px-3">Period</th>
+                                    <th class="py-2 px-3 text-right">Milk Total (B+C)</th>
+                                    <th class="py-2 px-3 text-right">Deducted in Bill (A)</th>
+                                    <th class="py-2 px-3 text-right">Remaining Wallet Dues</th>
+                                    <th class="py-2 px-3 text-right">Net Payout</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @foreach($farmerInvoicesWithDeductions as $iDed)
+                                    <tr class="hover:bg-slate-50/60">
+                                        <td class="py-2.5 px-3 font-mono font-bold text-slate-900">#{{ $iDed->invoice_number }}</td>
+                                        <td class="py-2.5 px-3 font-mono text-[11px]">{{ $iDed->period_start ? $iDed->period_start->format('d M') : '—' }} - {{ $iDed->period_end ? $iDed->period_end->format('d M Y') : '—' }}</td>
+                                        <td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-700">₹{{ number_format($iDed->total_amount, 2) }}</td>
+                                        <td class="py-2.5 px-3 text-right font-mono font-bold text-rose-600">-₹{{ number_format($iDed->total_deduction, 2) }}</td>
+                                        <td class="py-2.5 px-3 text-right font-mono font-bold {{ (float)($iDed->closing_wallet_balance ?? 0) > 0 ? 'text-amber-700' : 'text-emerald-700' }}">
+                                            ₹{{ number_format($iDed->closing_wallet_balance ?? 0, 2) }}
+                                        </td>
+                                        <td class="py-2.5 px-3 text-right font-mono font-black text-emerald-600">₹{{ number_format($iDed->net_payment, 2) }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
         </div>
 
         <!-- ========================================== -->

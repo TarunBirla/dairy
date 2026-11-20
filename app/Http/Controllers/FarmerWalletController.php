@@ -55,8 +55,12 @@ class FarmerWalletController extends Controller
                     ->latest('period_end')
                     ->latest('id')
                     ->first();
-                if ($latestInv && $latestInv->closing_wallet_balance !== null && abs((float) $f->wallet->balance - (float) $latestInv->closing_wallet_balance) > 0.05) {
-                    $f->wallet->update(['balance' => (float) $latestInv->closing_wallet_balance]);
+                if ($latestInv && $latestInv->closing_wallet_balance !== null && (float) $latestInv->closing_wallet_balance > 0) {
+                    if (abs((float) $f->wallet->balance - (float) $latestInv->closing_wallet_balance) > 0.05) {
+                        $f->wallet->update(['balance' => (float) $latestInv->closing_wallet_balance]);
+                    }
+                } else {
+                    $f->wallet->recalculateBalance();
                 }
             }
         }
