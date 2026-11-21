@@ -96,8 +96,23 @@ class FarmerAccountingService
             }
         } catch (\Throwable $e) {}
 
-        // 5. Deduction Wallet Balance (वॉलेट लेजर)
-        FarmerWalletService::cleanupDuplicateAdvanceTransactions($farmerId);
+        // 5. Outstanding Farmer Deductions (पशु आहार, दवाई, स्टेशनरी आदि)
+        $deductionsDue = 0.0;
+        try {
+            if (Schema::hasTable('farmer_deductions')) {
+                $givenDeds = (float) FarmerDeduction::where('farmer_id', $farmerId)
+                    ->where('transaction_type', 'given')
+                    ->where('deduction_type', '!=', 'advance_recovery')
+                    ->sum('amount');
+                $receivedDeds = (float) FarmerDeduction::where('farmer_id', $farmerId)
+                    ->where('transaction_type', 'received')
+                    ->sum('amount');
+                $deductionsDue = max(0.0, round($givenDeds - $receivedDeds, 2));
+            }
+        } catch (\Throwable $e) {}
+
+        // 6. Deduction Wallet Balance (वॉलेट लेजर)
+        FarmerWalletService::syncWalletFromAllSources($farmerModel);
         $wallet = FarmerWalletService::getOrCreateWallet($farmerModel);
 
         // Keep wallet synced with finalized invoice closing wallet balance if available
@@ -114,10 +129,10 @@ class FarmerAccountingService
         $walletBalance = round((float) ($wallet ? $wallet->balance : 0), 2);
         $categoryBalances = $wallet ? $wallet->getCategoryBalances() : [];
 
-        // Canonical total dues farmer owes to dairy (Loan + Feed + Other Dues)
-        $totalDues = ($walletBalance > 0 && abs($walletBalance - $activeLoanBalance) <= $walletBalance)
-            ? $walletBalance
-            : max($walletBalance, round($activeLoanBalance + $feedDues, 2));
+        // Canonical total dues farmer owes to dairy (Loan + Feed + Deductions)
+        // Direct sum of active loan + feed + standalone deductions
+        $directDues = round($activeLoanBalance + $feedDues + $deductionsDue, 2);
+        $totalDues = max($walletBalance, $directDues);
 
         // Net Balance Position
         $netBalance = round($milkPayable - $totalDues, 2);

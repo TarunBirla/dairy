@@ -40,19 +40,41 @@ class FarmerWallet extends Model
     {
         $breakdown = [];
 
-        $raw = FarmerWalletTransaction::where('wallet_id', $this->id)
-            ->select(
-                DB::raw("TRIM(REPLACE(REPLACE(REPLACE(category, ' (Wallet)', ''), ' (Standard)', ''), ' (Fixed)', '')) as clean_category"),
-                DB::raw("SUM(CASE WHEN transaction_type = 'credit' THEN amount WHEN transaction_type = 'debit' THEN -amount WHEN transaction_type = 'reversal' THEN amount ELSE 0 END) as net_balance")
-            )
-            ->groupBy(DB::raw("TRIM(REPLACE(REPLACE(REPLACE(category, ' (Wallet)', ''), ' (Standard)', ''), ' (Fixed)', ''))"))
-            ->having('net_balance', '>', 0.009)
-            ->orderBy('net_balance', 'desc')
-            ->get();
+        try {
+            $raw = FarmerWalletTransaction::where('wallet_id', $this->id)
+                ->select(
+                    DB::raw("TRIM(REPLACE(REPLACE(REPLACE(category, ' (Wallet)', ''), ' (Standard)', ''), ' (Fixed)', '')) as clean_category"),
+                    DB::raw("SUM(CASE WHEN transaction_type = 'credit' THEN amount WHEN transaction_type = 'debit' THEN -amount WHEN transaction_type = 'reversal' THEN amount ELSE 0 END) as net_balance")
+                )
+                ->groupBy(DB::raw("TRIM(REPLACE(REPLACE(REPLACE(category, ' (Wallet)', ''), ' (Standard)', ''), ' (Fixed)', ''))"))
+                ->get();
 
-        foreach ($raw as $row) {
-            $cat = trim($row->clean_category ?: 'General');
-            $breakdown[$cat] = round((float) $row->net_balance, 2);
+            foreach ($raw as $row) {
+                $bal = round((float) $row->net_balance, 2);
+                if ($bal > 0.009) {
+                    $cat = trim($row->clean_category ?: 'General');
+                    $breakdown[$cat] = $bal;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Bulletproof in-memory fallback
+            $txs = FarmerWalletTransaction::where('wallet_id', $this->id)->get();
+            $running = [];
+            foreach ($txs as $tx) {
+                $cleanCat = trim(str_replace([' (Wallet)', ' (Standard)', ' (Fixed)'], '', $tx->category ?: 'General'));
+                if (!isset($running[$cleanCat])) $running[$cleanCat] = 0.0;
+                if ($tx->transaction_type === 'credit' || $tx->transaction_type === 'reversal') {
+                    $running[$cleanCat] += (float) $tx->amount;
+                } elseif ($tx->transaction_type === 'debit') {
+                    $running[$cleanCat] -= (float) $tx->amount;
+                }
+            }
+            foreach ($running as $cat => $amt) {
+                $amt = round($amt, 2);
+                if ($amt > 0.009) {
+                    $breakdown[$cat] = $amt;
+                }
+            }
         }
 
         return $breakdown;

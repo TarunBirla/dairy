@@ -150,9 +150,14 @@
                         @php
                             $given = (float) $farmer->deductions->where('transaction_type', 'given')->sum('amount');
                             $received = (float) $farmer->deductions->where('transaction_type', 'received')->sum('amount');
-                            $netAmount = $given - $received;
+                            $netAmount = max(0, $given - $received);
+
+                            $advancesSum = (float) \App\Models\FarmerAdvance::where('farmer_id', $farmer->id)
+                                ->where('status', '!=', 'recovered')
+                                ->sum('principal_balance');
+
                             $walletBal = (float) ($farmer->wallet ? $farmer->wallet->balance : 0);
-                            $displayDues = $walletBal > 0 ? $walletBal : max(0, $netAmount);
+                            $totalFarmerDues = max($walletBal, round($advancesSum + $netAmount, 2));
                             $latestDeduction = $farmer->deductions->first();
                         @endphp
                         <tr class="hover:bg-slate-50/80 transition-colors">
@@ -180,14 +185,20 @@
 
                             <!-- Total Amount Badge synchronized with wallet dues -->
                             <td class="py-3.5 px-4">
-                                @if($displayDues > 0)
+                                @if($totalFarmerDues > 0)
                                     <div>
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                                            ₹{{ number_format($displayDues, 2) }}
+                                            ₹{{ number_format($totalFarmerDues, 2) }}
                                         </span>
-                                        @if($walletBal > 0 && $netAmount == 0)
-                                            <span class="text-[10px] text-slate-500 font-semibold block mt-0.5">(Wallet / Advance Dues)</span>
-                                        @elseif($walletBal > 0 && $netAmount > 0)
+                                        @if($advancesSum > 0 && $netAmount > 0)
+                                            <span class="text-[10px] text-slate-500 block mt-0.5 font-medium">
+                                                (₹{{ number_format($advancesSum, 2) }} लोन + ₹{{ number_format($netAmount, 2) }} कटौती)
+                                            </span>
+                                        @elseif($advancesSum > 0 && $netAmount == 0)
+                                            <span class="text-[10px] text-slate-500 font-semibold block mt-0.5">(Advance / Loan Dues)</span>
+                                        @elseif($netAmount > 0)
+                                            <span class="text-[10px] text-slate-500 block mt-0.5">(Deduction Balance)</span>
+                                        @else
                                             <span class="text-[10px] text-slate-500 block mt-0.5">(Total Outstanding)</span>
                                         @endif
                                     </div>
@@ -603,14 +614,23 @@
         }
         document.getElementById('viewDeductionsModal').classList.remove('hidden');
 
-        fetch(`/deductions/farmer/${farmerId}`)
-            .then(res => res.json())
+        fetch(`/deductions/farmer/${farmerId}`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(res => {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            })
             .then(data => {
+                if (!data || !data.farmer) throw new Error('Invalid data');
                 document.getElementById('viewModalFarmerTitle').textContent = `Deductions - ${data.farmer.code} ${data.farmer.name}`;
                 document.getElementById('viewModalFarmerSubtitle').textContent = `Phone: ${data.farmer.phone || 'N/A'}`;
-                document.getElementById('viewModalTotalGiven').textContent = `₹${data.total_given.toFixed(2)}`;
-                document.getElementById('viewModalTotalReceived').textContent = `₹${data.total_received.toFixed(2)}`;
-                document.getElementById('viewModalNetBalance').textContent = `₹${data.net_total.toFixed(2)}`;
+                document.getElementById('viewModalTotalGiven').textContent = `₹${(data.total_given || 0).toFixed(2)}`;
+                document.getElementById('viewModalTotalReceived').textContent = `₹${(data.total_received || 0).toFixed(2)}`;
+                document.getElementById('viewModalNetBalance').textContent = `₹${(data.net_total || 0).toFixed(2)}`;
 
                 // Wallet dues banner
                 if (walletBanner && (data.wallet_balance > 0 || data.advances_count > 0)) {

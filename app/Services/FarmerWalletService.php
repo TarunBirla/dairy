@@ -181,34 +181,167 @@ class FarmerWalletService
 
             // 3. Outstanding given deductions in farmer_deductions
             if (Schema::hasTable('farmer_deductions')) {
+                // Only exclude cattle_feed if product_sales already provided cattle feed salesDue
+                $excludedTypes = ['advance_recovery'];
+                if ($salesDue > 0) {
+                    $excludedTypes[] = 'cattle_feed';
+                }
+
                 $deds = FarmerDeduction::where('farmer_id', $farmer->id)
                     ->where('transaction_type', 'given')
-                    ->whereNotIn('deduction_type', ['cattle_feed', 'advance_recovery'])
+                    ->whereNotIn('deduction_type', $excludedTypes)
                     ->get();
 
-                $dedsSum = round((float) $deds->sum('amount'), 2);
-                if ($dedsSum > 0) {
+                foreach ($deds as $d) {
+                    $dedAmt = round((float) $d->amount, 2);
+                    if ($dedAmt <= 0) continue;
+                    $cat = ucfirst(str_replace('_', ' ', $d->deduction_type));
                     $before = $currentBalance;
-                    $currentBalance += $dedsSum;
+                    $currentBalance += $dedAmt;
                     FarmerWalletTransaction::create([
                         'wallet_id' => $wallet->id,
                         'farmer_id' => $farmer->id,
                         'transaction_type' => FarmerWalletTransaction::TYPE_CREDIT,
-                        'category' => 'Stationary',
-                        'amount' => $dedsSum,
+                        'category' => $cat,
+                        'amount' => $dedAmt,
                         'balance_before' => $before,
                         'balance_after' => $currentBalance,
                         'reference_type' => 'farmer_deductions',
-                        'reference_id' => null,
-                        'remarks' => 'Opening Outstanding: Stationary & other deductions',
+                        'reference_id' => $d->id,
+                        'remarks' => "Opening Outstanding: {$cat}" . ($d->comments ? " - {$d->comments}" : ''),
                         'created_by' => Auth::id(),
                     ]);
-                    $totalOutstanding += $dedsSum;
+                    $totalOutstanding += $dedAmt;
                 }
             }
 
             $wallet->update(['balance' => round($totalOutstanding, 2)]);
         });
+    }
+
+    /**
+     * Self-healing synchronization of a farmer's wallet with all sources:
+     * - Active advances from farmer_advances
+     * - Unpaid cattle feed & store purchases from product_sales
+     * - Outstanding given deductions from farmer_deductions (e.g. cattle_feed, medicine, etc.)
+     */
+    public static function syncWalletFromAllSources(Farmer|int $farmer): FarmerWallet
+    {
+        self::ensureSchemaMigrated();
+        $farmerId = $farmer instanceof Farmer ? $farmer->id : (int) $farmer;
+        $farmerModel = $farmer instanceof Farmer ? $farmer : Farmer::find($farmerId);
+        if (!$farmerModel) {
+            return self::getOrCreateWallet($farmer);
+        }
+
+        self::cleanupDuplicateAdvanceTransactions($farmerModel);
+        $wallet = self::getOrCreateWallet($farmerModel);
+
+        try {
+            DB::transaction(function () use ($farmerModel, $wallet) {
+                $lockedWallet = FarmerWallet::where('id', $wallet->id)->lockForUpdate()->first();
+                $currentBalance = (float) $lockedWallet->balance;
+
+                // 1. Sync Active Advances/Loans
+                if (Schema::hasTable('farmer_advances')) {
+                    $hasAdvanceTx = FarmerWalletTransaction::where('wallet_id', $lockedWallet->id)
+                        ->where(function ($q) {
+                            $q->where('category', 'like', '%Advance%')
+                              ->orWhere('remarks', 'like', '%Advance%');
+                        })->exists();
+
+                    if (!$hasAdvanceTx) {
+                        $advances = FarmerAdvance::where('farmer_id', $farmerModel->id)
+                            ->where('status', '!=', 'recovered')
+                            ->get();
+                        $loanSum = round((float) $advances->sum(fn($a) => (float) $a->principal_balance), 2);
+                        if ($loanSum > 0) {
+                            $before = $currentBalance;
+                            $currentBalance += $loanSum;
+                            FarmerWalletTransaction::create([
+                                'wallet_id' => $lockedWallet->id,
+                                'farmer_id' => $farmerModel->id,
+                                'transaction_type' => FarmerWalletTransaction::TYPE_CREDIT,
+                                'category' => 'Advance / Loan',
+                                'amount' => $loanSum,
+                                'balance_before' => $before,
+                                'balance_after' => $currentBalance,
+                                'reference_type' => 'farmer_advances',
+                                'reference_id' => null,
+                                'remarks' => 'Opening Outstanding: Active advances / loan principal',
+                                'created_by' => Auth::id(),
+                            ]);
+                        }
+                    }
+                }
+
+                // 2. Sync Standalone Farmer Deductions (Cattle feed, medicines, stationary, etc.)
+                if (Schema::hasTable('farmer_deductions')) {
+                    $deds = FarmerDeduction::where('farmer_id', $farmerModel->id)
+                        ->where('deduction_type', '!=', 'advance_recovery')
+                        ->get();
+
+                    foreach ($deds as $d) {
+                        $dedAmt = round((float) $d->amount, 2);
+                        if ($dedAmt <= 0) continue;
+
+                        $cat = ucfirst(str_replace('_', ' ', $d->deduction_type));
+                        $isGiven = ($d->transaction_type === 'given');
+
+                        // Check if already represented in wallet transactions
+                        $exists = FarmerWalletTransaction::where('wallet_id', $lockedWallet->id)
+                            ->where(function ($q) use ($d, $cat, $dedAmt) {
+                                $q->where(function ($sq) use ($d) {
+                                    $sq->where('reference_type', 'farmer_deductions')
+                                       ->where('reference_id', $d->id);
+                                })->orWhere(function ($sq) use ($d, $cat, $dedAmt) {
+                                    $sq->where('category', $cat)
+                                       ->where('amount', $dedAmt);
+                                });
+                            })->exists();
+
+                        if (!$exists) {
+                            $before = $currentBalance;
+                            if ($isGiven) {
+                                $currentBalance += $dedAmt;
+                                FarmerWalletTransaction::create([
+                                    'wallet_id' => $lockedWallet->id,
+                                    'farmer_id' => $farmerModel->id,
+                                    'transaction_type' => FarmerWalletTransaction::TYPE_CREDIT,
+                                    'category' => $cat,
+                                    'amount' => $dedAmt,
+                                    'balance_before' => $before,
+                                    'balance_after' => $currentBalance,
+                                    'reference_type' => 'farmer_deductions',
+                                    'reference_id' => $d->id,
+                                    'remarks' => "Opening Deduction: {$cat}" . ($d->comments ? " - {$d->comments}" : ''),
+                                    'created_by' => Auth::id(),
+                                ]);
+                            } else {
+                                $currentBalance = max(0, $currentBalance - $dedAmt);
+                                FarmerWalletTransaction::create([
+                                    'wallet_id' => $lockedWallet->id,
+                                    'farmer_id' => $farmerModel->id,
+                                    'transaction_type' => FarmerWalletTransaction::TYPE_DEBIT,
+                                    'category' => $cat,
+                                    'amount' => $dedAmt,
+                                    'balance_before' => $before,
+                                    'balance_after' => $currentBalance,
+                                    'reference_type' => 'farmer_deductions',
+                                    'reference_id' => $d->id,
+                                    'remarks' => "Deduction Repayment: {$cat}" . ($d->comments ? " - {$d->comments}" : ''),
+                                    'created_by' => Auth::id(),
+                                ]);
+                            }
+                        }
+                    }
+                }
+
+                $lockedWallet->recalculateBalance();
+            });
+        } catch (\Throwable $e) {}
+
+        return $wallet->fresh();
     }
 
     /**

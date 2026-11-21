@@ -79,9 +79,9 @@ class FarmerDeductionController extends Controller
 
         $farmers = $farmersQuery->orderBy('name')->paginate($perPage)->withQueryString();
 
-        // Ensure each farmer's wallet balance reflects live invoice deductions
+        // Ensure each farmer's wallet balance reflects live invoice deductions and all dues
         foreach ($farmers as $f) {
-            \App\Services\FarmerWalletService::cleanupDuplicateAdvanceTransactions($f);
+            \App\Services\FarmerWalletService::syncWalletFromAllSources($f);
             if ($f->wallet) {
                 $latestInv = \App\Models\FarmerInvoice::where('farmer_id', $f->id)
                     ->where('status', '!=', 'pending')
@@ -320,40 +320,67 @@ class FarmerDeductionController extends Controller
      */
     public function farmerDeductions(Farmer $farmer)
     {
-        $deductions = FarmerDeduction::where('farmer_id', $farmer->id)
-            ->latest('entry_date')
-            ->get();
+        try {
+            \App\Services\FarmerWalletService::syncWalletFromAllSources($farmer);
 
-        $totalGiven = (float) $deductions->where('transaction_type', 'given')->sum('amount');
-        $totalReceived = (float) $deductions->where('transaction_type', 'received')->sum('amount');
-        $netTotal = $totalGiven - $totalReceived;
+            $deductions = FarmerDeduction::where('farmer_id', $farmer->id)
+                ->latest('entry_date')
+                ->latest('id')
+                ->get();
 
-        $wallet = $farmer->wallet;
-        $walletBal = (float) ($wallet ? $wallet->balance : 0);
-        $walletCategories = $wallet ? $wallet->getCategoryBalances() : [];
+            $totalGiven = (float) $deductions->where('transaction_type', 'given')->sum('amount');
+            $totalReceived = (float) $deductions->where('transaction_type', 'received')->sum('amount');
+            $netTotal = max(0, $totalGiven - $totalReceived);
 
-        // Check active advances
-        $advances = \App\Models\FarmerAdvance::where('farmer_id', $farmer->id)
-            ->where('status', '!=', 'recovered')
-            ->get();
+            $wallet = $farmer->wallet ?: \App\Models\FarmerWallet::where('farmer_id', $farmer->id)->first();
+            $walletBal = (float) ($wallet ? $wallet->balance : 0);
+            $walletCategories = $wallet ? $wallet->getCategoryBalances() : [];
 
-        return response()->json([
-            'farmer' => [
-                'id' => $farmer->id,
-                'name' => $farmer->name,
-                'name_hi' => $farmer->name_hi ?? '',
-                'code' => $farmer->farmer_code,
-                'phone' => $farmer->phone ?? '',
-            ],
-            'total_given' => $totalGiven,
-            'total_received' => $totalReceived,
-            'net_total' => $netTotal,
-            'wallet_balance' => $walletBal,
-            'wallet_categories' => $walletCategories,
-            'advances_count' => $advances->count(),
-            'advances_total' => round((float) $advances->sum(fn($a) => (float) ($a->principal_balance ?? $a->amount)), 2),
-            'deductions' => $deductions,
-        ]);
+            // Check active advances
+            $advances = \App\Models\FarmerAdvance::where('farmer_id', $farmer->id)
+                ->where('status', '!=', 'recovered')
+                ->get();
+            $advancesTotal = round((float) $advances->sum(fn($a) => (float) ($a->principal_balance ?? $a->amount)), 2);
+
+            return response()->json([
+                'success' => true,
+                'farmer' => [
+                    'id' => $farmer->id,
+                    'name' => $farmer->name,
+                    'name_hi' => $farmer->name_hi ?? '',
+                    'code' => $farmer->farmer_code,
+                    'phone' => $farmer->phone ?? '',
+                ],
+                'total_given' => $totalGiven,
+                'total_received' => $totalReceived,
+                'net_total' => $netTotal,
+                'wallet_balance' => $walletBal,
+                'wallet_categories' => $walletCategories,
+                'advances_count' => $advances->count(),
+                'advances_total' => $advancesTotal,
+                'deductions' => $deductions,
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("farmerDeductions error for farmer #{$farmer->id}: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'farmer' => [
+                    'id' => $farmer->id,
+                    'name' => $farmer->name,
+                    'code' => $farmer->farmer_code,
+                    'phone' => $farmer->phone ?? '',
+                ],
+                'total_given' => 0,
+                'total_received' => 0,
+                'net_total' => 0,
+                'wallet_balance' => 0,
+                'wallet_categories' => [],
+                'advances_count' => 0,
+                'advances_total' => 0,
+                'deductions' => [],
+                'error' => $e->getMessage(),
+            ], 200);
+        }
     }
 
     /**
