@@ -79,31 +79,104 @@ class FarmerDeductionController extends Controller
 
         $farmers = $farmersQuery->orderBy('name')->paginate($perPage)->withQueryString();
 
-        // Ensure each farmer's wallet balance reflects live invoice deductions and all dues
-        foreach ($farmers as $f) {
-            \App\Services\FarmerWalletService::syncWalletFromAllSources($f);
-            if ($f->wallet) {
-                $latestInv = \App\Models\FarmerInvoice::where('farmer_id', $f->id)
-                    ->where('status', '!=', 'pending')
-                    ->latest('period_end')
-                    ->latest('id')
-                    ->first();
-                if ($latestInv && $latestInv->closing_wallet_balance !== null && (float) $latestInv->closing_wallet_balance >= 0) {
-                    if (abs((float) $f->wallet->balance - (float) $latestInv->closing_wallet_balance) > 0.05) {
-                        $f->wallet->update(['balance' => (float) $latestInv->closing_wallet_balance]);
+        // Ensure each farmer's invoice deduction recoveries are synchronized into farmer_deductions
+        try {
+            $finalizedInvoices = \App\Models\FarmerInvoice::whereIn('status', ['generated', 'settled', 'paid'])
+                ->where('total_deduction', '>', 0)
+                ->get();
+
+            foreach ($finalizedInvoices as $inv) {
+                $invNum = $inv->invoice_number;
+                $invDate = $inv->period_end ? (\Carbon\Carbon::parse($inv->period_end)->format('Y-m-d')) : \Carbon\Carbon::today()->format('Y-m-d');
+
+                // 1. Cattle feed deduction recovered in invoice
+                $feedDed = (float) ($inv->feed_deduction ?? 0);
+                if ($feedDed > 0) {
+                    $hasFeedRec = FarmerDeduction::where('farmer_id', $inv->farmer_id)
+                        ->where('deduction_type', 'cattle_feed')
+                        ->where('transaction_type', 'received')
+                        ->where('comments', 'like', "%Invoice #{$invNum}%")
+                        ->exists();
+
+                    if (!$hasFeedRec) {
+                        $unrecFeed = (float) FarmerDeduction::where('farmer_id', $inv->farmer_id)
+                            ->where('deduction_type', 'cattle_feed')
+                            ->where('transaction_type', 'given')
+                            ->sum('amount');
+                        $alreadyRec = (float) FarmerDeduction::where('farmer_id', $inv->farmer_id)
+                            ->where('deduction_type', 'cattle_feed')
+                            ->where('transaction_type', 'received')
+                            ->sum('amount');
+                        $dueFeed = max(0, $unrecFeed - $alreadyRec);
+
+                        if ($dueFeed > 0) {
+                            $recAmt = min($feedDed, $dueFeed);
+                            FarmerDeduction::create([
+                                'farmer_id' => $inv->farmer_id,
+                                'entry_date' => $invDate,
+                                'deduction_type' => 'cattle_feed',
+                                'transaction_type' => 'received',
+                                'amount' => $recAmt,
+                                'comments' => "Recovered in Invoice #{$invNum}",
+                                'created_by' => $inv->created_by,
+                            ]);
+                        }
+                    }
+                }
+
+                // 2. Stationary or other non-loan deductions recovered in invoice
+                $stationaryDed = (float) ($inv->stationary_deduction ?? 0);
+                if ($stationaryDed > 0) {
+                    $hasStatRec = FarmerDeduction::where('farmer_id', $inv->farmer_id)
+                        ->whereNotIn('deduction_type', ['cattle_feed', 'advance_recovery'])
+                        ->where('transaction_type', 'received')
+                        ->where('comments', 'like', "%Invoice #{$invNum}%")
+                        ->exists();
+
+                    if (!$hasStatRec) {
+                        $unrecStat = (float) FarmerDeduction::where('farmer_id', $inv->farmer_id)
+                            ->whereNotIn('deduction_type', ['cattle_feed', 'advance_recovery'])
+                            ->where('transaction_type', 'given')
+                            ->sum('amount');
+                        $alreadyRecStat = (float) FarmerDeduction::where('farmer_id', $inv->farmer_id)
+                            ->whereNotIn('deduction_type', ['cattle_feed', 'advance_recovery'])
+                            ->where('transaction_type', 'received')
+                            ->sum('amount');
+                        $dueStat = max(0, $unrecStat - $alreadyRecStat);
+
+                        if ($dueStat > 0) {
+                            $rAmt = min($stationaryDed, $dueStat);
+                            FarmerDeduction::create([
+                                'farmer_id' => $inv->farmer_id,
+                                'entry_date' => $invDate,
+                                'deduction_type' => 'stationary',
+                                'transaction_type' => 'received',
+                                'amount' => $rAmt,
+                                'comments' => "Recovered in Invoice #{$invNum}",
+                                'created_by' => $inv->created_by,
+                            ]);
+                        }
                     }
                 }
             }
-        }
+        } catch (\Throwable $e) {}
 
-        // Calculate totals across system
+        // Calculate totals across system (Deductions & Store purchases only - loans excluded)
         $totalGiven = 0;
         $totalReceived = 0;
+        $totalUnpaidProductSales = 0;
         if (Schema::hasTable('farmer_deductions')) {
-            $totalGiven = (float) FarmerDeduction::where('transaction_type', 'given')->sum('amount');
-            $totalReceived = (float) FarmerDeduction::where('transaction_type', 'received')->sum('amount');
+            $totalGiven = (float) FarmerDeduction::where('transaction_type', 'given')
+                ->where('deduction_type', '!=', 'advance_recovery')
+                ->sum('amount');
+            $totalReceived = (float) FarmerDeduction::where('transaction_type', 'received')
+                ->where('deduction_type', '!=', 'advance_recovery')
+                ->sum('amount');
         }
-        $netDeductionBalance = $totalGiven - $totalReceived;
+        if (Schema::hasTable('product_sales')) {
+            $totalUnpaidProductSales = (float) \App\Models\ProductSale::where('remaining_amount', '>', 0)->sum('remaining_amount');
+        }
+        $netDeductionBalance = max(0, round(($totalGiven - $totalReceived) + $totalUnpaidProductSales, 2));
 
         // All active farmers for dropdown modal
         $farmerColumns = ['id', 'farmer_code', 'name', 'phone'];
@@ -321,26 +394,57 @@ class FarmerDeductionController extends Controller
     public function farmerDeductions(Farmer $farmer)
     {
         try {
-            \App\Services\FarmerWalletService::syncWalletFromAllSources($farmer);
+            // Sync settled invoice deduction recoveries
+            if (Schema::hasTable('farmer_invoices')) {
+                $settledInvs = \App\Models\FarmerInvoice::where('farmer_id', $farmer->id)
+                    ->whereIn('status', ['generated', 'settled', 'paid'])
+                    ->where('feed_deduction', '>', 0)
+                    ->get();
+
+                foreach ($settledInvs as $sInv) {
+                    $hasRec = FarmerDeduction::where('farmer_id', $farmer->id)
+                        ->where('deduction_type', 'cattle_feed')
+                        ->where('transaction_type', 'received')
+                        ->where('comments', 'like', "%Invoice #{$sInv->invoice_number}%")
+                        ->exists();
+
+                    if (!$hasRec) {
+                        FarmerDeduction::create([
+                            'farmer_id' => $farmer->id,
+                            'entry_date' => $sInv->period_end ? (\Carbon\Carbon::parse($sInv->period_end)->format('Y-m-d')) : \Carbon\Carbon::today()->format('Y-m-d'),
+                            'deduction_type' => 'cattle_feed',
+                            'transaction_type' => 'received',
+                            'amount' => (float) $sInv->feed_deduction,
+                            'comments' => "Recovered in Invoice #{$sInv->invoice_number}",
+                            'created_by' => $sInv->created_by,
+                        ]);
+                    }
+                }
+            }
 
             $deductions = FarmerDeduction::where('farmer_id', $farmer->id)
+                ->where('deduction_type', '!=', 'advance_recovery')
                 ->latest('entry_date')
                 ->latest('id')
                 ->get();
 
             $totalGiven = (float) $deductions->where('transaction_type', 'given')->sum('amount');
             $totalReceived = (float) $deductions->where('transaction_type', 'received')->sum('amount');
-            $netTotal = max(0, $totalGiven - $totalReceived);
 
-            $wallet = $farmer->wallet ?: \App\Models\FarmerWallet::where('farmer_id', $farmer->id)->first();
-            $walletBal = (float) ($wallet ? $wallet->balance : 0);
-            $walletCategories = $wallet ? $wallet->getCategoryBalances() : [];
+            // Product store sales
+            $unpaidSales = 0.0;
+            $productSales = [];
+            if (Schema::hasTable('product_sales')) {
+                $farmerCode = $farmer->farmer_code;
+                $salesQuery = \App\Models\ProductSale::where(function ($q) use ($farmer, $farmerCode) {
+                    $q->where('farmer_id', $farmer->id);
+                    if (!empty($farmerCode)) $q->orWhere('farmer_code', $farmerCode);
+                });
+                $unpaidSales = (float) (clone $salesQuery)->where('remaining_amount', '>', 0)->sum('remaining_amount');
+                $productSales = (clone $salesQuery)->latest('sale_date')->limit(20)->get();
+            }
 
-            // Check active advances
-            $advances = \App\Models\FarmerAdvance::where('farmer_id', $farmer->id)
-                ->where('status', '!=', 'recovered')
-                ->get();
-            $advancesTotal = round((float) $advances->sum(fn($a) => (float) ($a->principal_balance ?? $a->amount)), 2);
+            $netTotal = max(0, round(($totalGiven - $totalReceived) + $unpaidSales, 2));
 
             return response()->json([
                 'success' => true,
@@ -353,12 +457,10 @@ class FarmerDeductionController extends Controller
                 ],
                 'total_given' => $totalGiven,
                 'total_received' => $totalReceived,
+                'unpaid_product_sales' => $unpaidSales,
                 'net_total' => $netTotal,
-                'wallet_balance' => $walletBal,
-                'wallet_categories' => $walletCategories,
-                'advances_count' => $advances->count(),
-                'advances_total' => $advancesTotal,
                 'deductions' => $deductions,
+                'product_sales' => $productSales,
             ]);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error("farmerDeductions error for farmer #{$farmer->id}: " . $e->getMessage());
@@ -372,12 +474,10 @@ class FarmerDeductionController extends Controller
                 ],
                 'total_given' => 0,
                 'total_received' => 0,
+                'unpaid_product_sales' => 0,
                 'net_total' => 0,
-                'wallet_balance' => 0,
-                'wallet_categories' => [],
-                'advances_count' => 0,
-                'advances_total' => 0,
                 'deductions' => [],
+                'product_sales' => [],
                 'error' => $e->getMessage(),
             ], 200);
         }

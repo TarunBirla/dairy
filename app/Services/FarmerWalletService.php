@@ -658,6 +658,33 @@ class FarmerWalletService
                 }
             }
 
+            // B2. Deduct & Record Recovery in farmer_deductions (Cattle Feed / Medicine / Store deductions)
+            if ($feedDeduction > 0 && Schema::hasTable('farmer_deductions')) {
+                $unrecFeed = (float) FarmerDeduction::where('farmer_id', $invoice->farmer_id)
+                    ->where('deduction_type', 'cattle_feed')
+                    ->where('transaction_type', 'given')
+                    ->sum('amount');
+                $alreadyRec = (float) FarmerDeduction::where('farmer_id', $invoice->farmer_id)
+                    ->where('deduction_type', 'cattle_feed')
+                    ->where('transaction_type', 'received')
+                    ->sum('amount');
+                $dueFeed = max(0, $unrecFeed - $alreadyRec);
+
+                if ($dueFeed > 0) {
+                    $recAmt = min($feedDeduction, $dueFeed);
+                    FarmerDeduction::firstOrCreate([
+                        'farmer_id' => $invoice->farmer_id,
+                        'entry_date' => $invoice->period_end ? (\Carbon\Carbon::parse($invoice->period_end)->format('Y-m-d')) : \Carbon\Carbon::today()->format('Y-m-d'),
+                        'deduction_type' => 'cattle_feed',
+                        'transaction_type' => 'received',
+                        'amount' => $recAmt,
+                        'comments' => "Recovered in Invoice #{$invoice->invoice_number}",
+                    ], [
+                        'created_by' => $createdBy,
+                    ]);
+                }
+            }
+
             // C. Apply Wallet Category Debits & Recalculate Balance
             $isStructuredList = !empty($breakdownOrCategoryDeductions) && isset($breakdownOrCategoryDeductions[0]) && is_array($breakdownOrCategoryDeductions[0]);
             $totalOriginalFromBreakdown = 0.0;

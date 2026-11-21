@@ -148,17 +148,21 @@
                 <tbody class="divide-y divide-slate-100 text-xs text-slate-700">
                     @forelse($farmers as $farmer)
                         @php
-                            $given = (float) $farmer->deductions->where('transaction_type', 'given')->sum('amount');
-                            $received = (float) $farmer->deductions->where('transaction_type', 'received')->sum('amount');
-                            $netAmount = max(0, $given - $received);
+                            $given = (float) $farmer->deductions->where('transaction_type', 'given')->where('deduction_type', '!=', 'advance_recovery')->sum('amount');
+                            $received = (float) $farmer->deductions->where('transaction_type', 'received')->where('deduction_type', '!=', 'advance_recovery')->sum('amount');
+                            $netDeduction = max(0, $given - $received);
 
-                            $advances = \App\Models\FarmerAdvance::where('farmer_id', $farmer->id)
-                                ->where('status', '!=', 'recovered')
-                                ->get();
-                            $advancesSum = (float) $advances->sum(fn($adv) => (float) ($adv->principal_balance ?? ($adv->amount - $adv->paid_amount - $adv->deducted_amount)));
+                            $unpaidProductSales = 0.0;
+                            if (\Illuminate\Support\Facades\Schema::hasTable('product_sales')) {
+                                $farmerCode = $farmer->farmer_code;
+                                $unpaidProductSales = (float) \App\Models\ProductSale::where(function($q) use ($farmer, $farmerCode) {
+                                    $q->where('farmer_id', $farmer->id);
+                                    if (!empty($farmerCode)) $q->orWhere('farmer_code', $farmerCode);
+                                })->where('remaining_amount', '>', 0)->sum('remaining_amount');
+                            }
 
-                            $walletBal = (float) ($farmer->wallet ? $farmer->wallet->balance : 0);
-                            $totalFarmerDues = max($walletBal, round($advancesSum + $netAmount, 2));
+                            // Only Store Purchases & Deductions (Advance & Loans completely excluded)
+                            $totalDeductionsDues = round($netDeduction + $unpaidProductSales, 2);
                             $latestDeduction = $farmer->deductions->first();
                         @endphp
                         <tr class="hover:bg-slate-50/80 transition-colors">
@@ -184,23 +188,21 @@
                                 {{ $farmer->phone ?: '-' }}
                             </td>
 
-                            <!-- Total Amount Badge synchronized with wallet dues -->
+                            <!-- Total Amount Badge (Only Deductions & Store Purchases) -->
                             <td class="py-3.5 px-4">
-                                @if($totalFarmerDues > 0)
+                                @if($totalDeductionsDues > 0)
                                     <div>
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                                            ₹{{ number_format($totalFarmerDues, 2) }}
+                                            ₹{{ number_format($totalDeductionsDues, 2) }}
                                         </span>
-                                        @if($advancesSum > 0 && $netAmount > 0)
+                                        @if($unpaidProductSales > 0 && $netDeduction > 0)
                                             <span class="text-[10px] text-slate-500 block mt-0.5 font-medium">
-                                                (₹{{ number_format($advancesSum, 2) }} लोन + ₹{{ number_format($netAmount, 2) }} कटौती)
+                                                (₹{{ number_format($netDeduction, 2) }} कटौती + ₹{{ number_format($unpaidProductSales, 2) }} स्टोर)
                                             </span>
-                                        @elseif($advancesSum > 0 && $netAmount == 0)
-                                            <span class="text-[10px] text-slate-500 font-semibold block mt-0.5">(Advance / Loan Dues)</span>
-                                        @elseif($netAmount > 0)
-                                            <span class="text-[10px] text-slate-500 block mt-0.5">(Deduction Balance)</span>
+                                        @elseif($unpaidProductSales > 0)
+                                            <span class="text-[10px] text-slate-500 font-semibold block mt-0.5">(Product Store Dues)</span>
                                         @else
-                                            <span class="text-[10px] text-slate-500 block mt-0.5">(Total Outstanding)</span>
+                                            <span class="text-[10px] text-slate-500 block mt-0.5">(Deduction Balance)</span>
                                         @endif
                                     </div>
                                 @else
@@ -633,79 +635,69 @@
                 document.getElementById('viewModalTotalReceived').textContent = `₹${(data.total_received || 0).toFixed(2)}`;
                 document.getElementById('viewModalNetBalance').textContent = `₹${(data.net_total || 0).toFixed(2)}`;
 
-                // Wallet dues banner
-                if (walletBanner && (data.wallet_balance > 0 || data.advances_count > 0)) {
-                    let catPills = '';
-                    if (data.wallet_categories && Object.keys(data.wallet_categories).length > 0) {
-                        catPills = Object.entries(data.wallet_categories)
-                            .filter(([_, amt]) => parseFloat(amt) > 0)
-                            .map(([cat, amt]) => `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-200"><b>${cat}:</b>&nbsp;₹${parseFloat(amt).toFixed(2)}</span>`)
-                            .join(' ');
-                    }
-                    if (!catPills && data.wallet_balance > 0) {
-                        catPills = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-200">Advance / Loan: ₹${data.wallet_balance.toFixed(2)}</span>`;
-                    }
-
-                    walletBanner.className = 'p-3.5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs';
-                    walletBanner.innerHTML = `
-                        <div class="space-y-1">
-                            <div class="flex items-center gap-2">
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-200 text-amber-900">Wallet Dues / बक़ाया</span>
-                                <span class="font-mono font-bold text-amber-950 text-sm">₹${(data.wallet_balance || 0).toFixed(2)}</span>
-                            </div>
-                            <div class="text-[11px] text-amber-900/80 flex flex-wrap items-center gap-1.5">
-                                <span>स्रोत (Source):</span>
-                                ${catPills || '<span class="italic">Advance & Loan Account</span>'}
-                            </div>
-                        </div>
-                        <a href="/wallets/${data.farmer.id}" target="_blank" class="shrink-0 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-xs transition flex items-center gap-1.5">
-                            <span>वॉलेट लेजर देखें</span>
-                            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
-                        </a>
-                    `;
+                // Pure deduction modal - no loan advance banner per user requirement
+                if (walletBanner) {
+                    walletBanner.className = 'hidden';
+                    walletBanner.innerHTML = '';
                 }
 
                 const tbody = document.getElementById('viewModalTableBody');
-                if (data.deductions.length === 0) {
+                let html = '';
+
+                if (data.deductions && data.deductions.length > 0) {
+                    html += data.deductions.map(item => `
+                        <tr class="hover:bg-slate-50">
+                            <td class="py-2 px-3 font-mono text-slate-600">${(item.entry_date || '').split('T')[0]}</td>
+                            <td class="py-2 px-3 capitalize font-semibold text-slate-800">${(item.deduction_type || '').replace('_', ' ')}</td>
+                            <td class="py-2 px-3">
+                                <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase ${item.transaction_type === 'given' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}">
+                                    ${item.transaction_type}
+                                </span>
+                            </td>
+                            <td class="py-2 px-3 font-mono font-bold text-slate-900">₹${parseFloat(item.amount || 0).toFixed(2)}</td>
+                            <td class="py-2 px-3 text-slate-500">${item.comments || '-'}</td>
+                            <td class="py-2 px-3 text-center">
+                                <div class="inline-flex items-center gap-2">
+                                    <button type="button" onclick="closeViewModal(); openEditDeductionModal(${item.id}, ${item.farmer_id}, '${(item.entry_date || '').split('T')[0]}', '${item.deduction_type}', '${item.transaction_type}', '${item.amount}', '${escape(item.comments || '')}')" class="text-blue-600 hover:underline font-bold text-[11px]">Edit</button>
+                                    <form action="/deductions/${item.id}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this deduction entry?');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="_method" value="DELETE">
+                                        <button type="submit" class="text-rose-600 hover:underline font-bold text-[11px]">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+
+                if (data.product_sales && data.product_sales.length > 0) {
+                    html += data.product_sales.map(ps => `
+                        <tr class="hover:bg-slate-50 bg-amber-50/20">
+                            <td class="py-2 px-3 font-mono text-slate-600">${(ps.sale_date || '').split('T')[0]}</td>
+                            <td class="py-2 px-3 font-semibold text-slate-800">स्टोर: ${ps.product_name || 'Product'}</td>
+                            <td class="py-2 px-3">
+                                <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase ${ps.remaining_amount > 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">
+                                    ${ps.remaining_amount > 0 ? 'Unpaid Store Sale' : 'Paid Store Sale'}
+                                </span>
+                            </td>
+                            <td class="py-2 px-3 font-mono font-bold text-slate-900">₹${parseFloat(ps.total_amount || 0).toFixed(2)}</td>
+                            <td class="py-2 px-3 text-slate-500">${ps.remarks || ps.sale_number || '-'}</td>
+                            <td class="py-2 px-3 text-center text-slate-400 text-[10px]">Product Store</td>
+                        </tr>
+                    `).join('');
+                }
+
+                if (!html) {
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="6" class="p-6 text-center text-slate-500">
-                                <p class="font-bold text-xs text-slate-700">Deduction (कटौती) टेबल में कोई अलग से रिकॉर्ड नहीं मिला।</p>
-                                ${data.wallet_balance > 0 ? `
-                                    <p class="text-[11px] text-amber-800 mt-1.5 font-medium">
-                                        👉 कुल बकाया <b>₹${data.wallet_balance.toFixed(2)}</b> किसान के <b>Advance / Loan (अग्रिम/लोन)</b> या <b>Cattle Feed/स्टोर</b> से आ रहा है।
-                                    </p>
-                                ` : ''}
+                            <td colspan="6" class="p-6 text-center text-slate-500 font-bold text-xs">
+                                कोई कटौती या स्टोर खरीदारी रिकॉर्ड नहीं मिला।
                             </td>
                         </tr>
                     `;
-                    if (window.lucide) lucide.createIcons();
-                    return;
+                } else {
+                    tbody.innerHTML = html;
                 }
-
-                tbody.innerHTML = data.deductions.map(item => `
-                    <tr class="hover:bg-slate-50">
-                        <td class="py-2 px-3 font-mono text-slate-600">${item.entry_date.split('T')[0]}</td>
-                        <td class="py-2 px-3 capitalize font-semibold text-slate-800">${item.deduction_type.replace('_', ' ')}</td>
-                        <td class="py-2 px-3">
-                            <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase ${item.transaction_type === 'given' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}">
-                                ${item.transaction_type}
-                            </span>
-                        </td>
-                        <td class="py-2 px-3 font-mono font-bold text-slate-900">₹${parseFloat(item.amount).toFixed(2)}</td>
-                        <td class="py-2 px-3 text-slate-500">${item.comments || '-'}</td>
-                        <td class="py-2 px-3 text-center">
-                            <div class="inline-flex items-center gap-2">
-                                <button type="button" onclick="closeViewModal(); openEditDeductionModal(${item.id}, ${item.farmer_id}, '${(item.entry_date || '').split('T')[0]}', '${item.deduction_type}', '${item.transaction_type}', '${item.amount}', '${escape(item.comments || '')}')" class="text-blue-600 hover:underline font-bold text-[11px]">Edit</button>
-                                <form action="/deductions/${item.id}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this deduction entry?');">
-                                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                                    <input type="hidden" name="_method" value="DELETE">
-                                    <button type="submit" class="text-rose-600 hover:underline font-bold text-[11px]">Delete</button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                `).join('');
 
                 if (window.lucide) lucide.createIcons();
             })
