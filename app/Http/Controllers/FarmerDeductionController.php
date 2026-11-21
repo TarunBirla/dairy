@@ -79,6 +79,23 @@ class FarmerDeductionController extends Controller
 
         $farmers = $farmersQuery->orderBy('name')->paginate($perPage)->withQueryString();
 
+        // Ensure each farmer's wallet balance reflects live invoice deductions
+        foreach ($farmers as $f) {
+            \App\Services\FarmerWalletService::cleanupDuplicateAdvanceTransactions($f);
+            if ($f->wallet) {
+                $latestInv = \App\Models\FarmerInvoice::where('farmer_id', $f->id)
+                    ->where('status', '!=', 'pending')
+                    ->latest('period_end')
+                    ->latest('id')
+                    ->first();
+                if ($latestInv && $latestInv->closing_wallet_balance !== null && (float) $latestInv->closing_wallet_balance >= 0) {
+                    if (abs((float) $f->wallet->balance - (float) $latestInv->closing_wallet_balance) > 0.05) {
+                        $f->wallet->update(['balance' => (float) $latestInv->closing_wallet_balance]);
+                    }
+                }
+            }
+        }
+
         // Calculate totals across system
         $totalGiven = 0;
         $totalReceived = 0;

@@ -37,14 +37,15 @@ class FarmerSettlementController extends Controller
                 })
                 ->update(['status' => 'settled']);
 
-            // Auto-fix any settlement where deduction_amount + advance_recovered exceeds actual (gross + bonus - paid)
+            // Auto-fix any settlement where deduction_amount + advance_recovered does not match actual (gross_amount - paid_amount)
             $misalignedSettlements = FarmerSettlement::all();
             foreach ($misalignedSettlements as $st) {
-                $actualDed = round((float) $st->gross_amount + (float) $st->bonus_amount - (float) $st->paid_amount, 2);
-                $sumDed = round((float) $st->deduction_amount + (float) $st->advance_recovered, 2);
-                if (abs($sumDed - $actualDed) > 0.05 && (float) $st->advance_recovered > 0) {
+                $actualDed = round(max(0, (float) $st->gross_amount - (float) $st->paid_amount), 2);
+                $advRec = (float) $st->advance_recovered;
+                $otherDed = max(0, round($actualDed - $advRec, 2));
+                if (abs((float) $st->deduction_amount - $otherDed) > 0.05) {
                     $st->update([
-                        'deduction_amount' => max(0, round($actualDed - (float) $st->advance_recovered, 2))
+                        'deduction_amount' => $otherDed,
                     ]);
                 }
             }

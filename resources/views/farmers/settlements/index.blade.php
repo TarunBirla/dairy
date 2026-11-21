@@ -321,10 +321,7 @@
                                 <td class="py-3.5 px-4 font-bold">{{ number_format($s->total_liters, 2) }} L</td>
                                 <td class="py-3.5 px-4">₹ {{ number_format($s->gross_amount, 2) }}</td>
                                 @php
-                                    $effectiveDeduction = round((float)$s->gross_amount + (float)$s->bonus_amount - (float)$s->paid_amount, 2);
-                                    if ($effectiveDeduction <= 0 && ($s->deduction_amount > 0 || $s->advance_recovered > 0)) {
-                                        $effectiveDeduction = (float)$s->deduction_amount + (float)$s->advance_recovered;
-                                    }
+                                    $effectiveDeduction = round(max(0, (float)$s->gross_amount - (float)$s->paid_amount), 2);
                                 @endphp
                                 <td class="py-3.5 px-4 text-rose-600 font-semibold">
                                     {{ $effectiveDeduction > 0 ? '- ₹ ' . number_format($effectiveDeduction, 2) : '—' }}
