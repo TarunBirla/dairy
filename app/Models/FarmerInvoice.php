@@ -305,38 +305,51 @@ class FarmerInvoice extends Model
 
         $breakdown = [];
 
-        // Advance / Loan row
-        $breakdown[] = [
-            'key' => 'advance',
-            'name' => 'Advance / Loan (ऋण / अग्रिम)',
-            'category' => 'Advance',
-            'original_balance' => $loanOutstanding,
-            'deducted_amount' => $advDeductible,
-            'remaining_balance' => $advRemaining,
-        ];
+        // 1. Product row (Combined Cattle feed, Store purchases, supplies)
+        if ($feedOutstanding > 0) {
+            $breakdown[] = [
+                'key' => 'product',
+                'name' => 'Product',
+                'category' => 'Product',
+                'original_balance' => $feedOutstanding,
+                'deducted_amount' => $feedDeductible,
+                'remaining_balance' => $feedRemaining,
+                'is_wallet' => false,
+                'is_editable' => true,
+            ];
+        }
 
-        // Food / Feed row
-        $breakdown[] = [
-            'key' => 'feed',
-            'name' => 'Food / Cattle Feed (पशु आहार)',
-            'category' => 'Feed',
-            'original_balance' => $feedOutstanding,
-            'deducted_amount' => $feedDeductible,
-            'remaining_balance' => $feedRemaining,
-        ];
+        // 2. Stationary row
+        if ($statOutstanding > 0) {
+            $breakdown[] = [
+                'key' => 'stationary',
+                'name' => 'Stationary',
+                'category' => 'Stationary',
+                'original_balance' => $statOutstanding,
+                'deducted_amount' => $statDeductible,
+                'remaining_balance' => $statRemaining,
+                'is_wallet' => false,
+                'is_editable' => true,
+            ];
+        }
 
-        // Stationary row
-        $breakdown[] = [
-            'key' => 'stationary',
-            'name' => 'Stationary (स्टेशनरी)',
-            'category' => 'Stationary',
-            'original_balance' => $statOutstanding,
-            'deducted_amount' => $statDeductible,
-            'remaining_balance' => $statRemaining,
-        ];
+        // 3. Advance / Loan row
+        if ($loanOutstanding > 0 || $advDeductible > 0) {
+            $breakdown[] = [
+                'key' => 'advance',
+                'name' => 'Advance / Loan',
+                'category' => 'Advance',
+                'original_balance' => $loanOutstanding,
+                'deducted_amount' => $advDeductible,
+                'remaining_balance' => $advRemaining,
+                'is_wallet' => false,
+                'is_editable' => true,
+            ];
+        }
 
-        // Add any other dynamic categories
+        // 4. Add any other dynamic categories (Management Charges C, etc.)
         foreach ($extraCategories as $ec) {
+            $ec['is_editable'] = false;
             $breakdown[] = $ec;
         }
 

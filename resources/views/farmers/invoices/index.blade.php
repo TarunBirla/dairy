@@ -663,6 +663,42 @@
                     </div>
                 </div>
 
+                <!-- 3. All Deductions & Purchases Detailed Table (Left-Side Detailed Breakdown matching User Request) -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+                    <div class="px-4 py-2.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-extrabold text-slate-800">Deductions Breakdown</span>
+                            <span class="text-[10px] text-slate-500 font-medium">(कटौती एवं खरीदारी विवरण)</span>
+                        </div>
+                        <span class="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md" id="revDetailedDeductionsCount">0 Records</span>
+                    </div>
+                    <div class="overflow-x-auto max-h-[300px]">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 text-[11px] sticky top-0">
+                                <tr>
+                                    <th class="py-2 px-3 border-r border-slate-100">Date</th>
+                                    <th class="py-2 px-3 border-r border-slate-100">Type / Category</th>
+                                    <th class="py-2 px-3 border-r border-slate-100">Particulars / Remarks</th>
+                                    <th class="py-2 px-3 border-r border-slate-100 text-right">Amount (₹)</th>
+                                    <th class="py-2 px-3 border-r border-slate-100 text-right">Deducted in Bill (₹)</th>
+                                    <th class="py-2 px-3 text-right">Balance Due (₹)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="revDetailedDeductionsTbody" class="divide-y divide-slate-100 text-slate-700 font-medium">
+                                <tr><td colspan="6" class="py-6 text-center text-slate-400">Loading deductions breakdown...</td></tr>
+                            </tbody>
+                            <tfoot id="revDetailedDeductionsTfoot" class="bg-slate-50 font-extrabold text-slate-900 border-t border-slate-200 text-xs sticky bottom-0">
+                                <tr>
+                                    <td colspan="3" class="py-2 px-3 border-r border-slate-100 text-right text-slate-700 font-bold">Total Deductions Details:</td>
+                                    <td class="py-2 px-3 border-r border-slate-100 text-right font-mono font-bold" id="revDetailedTotalOrig">₹0.00</td>
+                                    <td class="py-2 px-3 border-r border-slate-100 text-right font-mono font-bold text-rose-600" id="revDetailedTotalDeducted">₹0.00</td>
+                                    <td class="py-2 px-3 text-right font-mono font-bold text-amber-600" id="revDetailedTotalBalance">₹0.00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
             </div>
 
             <!-- RIGHT 5 COLUMNS: Additions, Deductions & Invoice Summary with Save Invoice Button -->
@@ -1006,6 +1042,9 @@
                 // Render Cattle Feeds Table
                 renderReviewCattleFeedsTable();
 
+                // Render Detailed Deductions Table (Left Side)
+                renderReviewDetailedDeductionsTable();
+
                 // Render Dynamic Category-Wise Deductions Table (Requirement 1, 2, 3, 4)
                 renderReviewDeductionsTable();
 
@@ -1031,8 +1070,7 @@
         const catLower = (cat.category || '').toLowerCase();
         const full = `${nameLower} ${keyLower} ${catLower}`;
 
-        if (full.includes('stationary') || full.includes('stationery') || 
-            full.includes('management') || full.includes('mgmt') ||
+        if (full.includes('management') || full.includes('mgmt') ||
             full.includes('dpmcu') || full.includes('doctor') ||
             full.includes('diesel') || full.includes('contribution') ||
             full.includes('building fund') || full.includes('grant') ||
@@ -1040,6 +1078,58 @@
             return true;
         }
         return false;
+    }
+
+    function renderReviewDetailedDeductionsTable() {
+        if (!currentReviewData) return;
+        const tbody = document.getElementById('revDetailedDeductionsTbody');
+        const countBadge = document.getElementById('revDetailedDeductionsCount');
+        if (!tbody) return;
+
+        const items = currentReviewData.detailed_deductions || [];
+        if (countBadge) countBadge.textContent = `${items.length} Records`;
+
+        if (items.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-400 text-xs font-semibold">कोई कटौती या खरीदारी रिकॉर्ड नहीं मिला।</td></tr>`;
+            document.getElementById('revDetailedTotalOrig').textContent = '₹0.00';
+            document.getElementById('revDetailedTotalDeducted').textContent = '₹0.00';
+            document.getElementById('revDetailedTotalBalance').textContent = '₹0.00';
+            return;
+        }
+
+        let totOrig = 0, totDed = 0, totBal = 0;
+        let html = '';
+
+        items.forEach(item => {
+            const orig = parseFloat(item.original_amount || 0);
+            const ded = parseFloat(item.deducted_amount || 0);
+            const bal = parseFloat(item.remaining_balance || 0);
+            totOrig += orig;
+            totDed += ded;
+            totBal += bal;
+
+            const badgeCls = item.type_badge || 'bg-slate-100 text-slate-800';
+
+            html += `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="py-2 px-3 border-r border-slate-100 font-mono text-slate-600">${item.date || '-'}</td>
+                    <td class="py-2 px-3 border-r border-slate-100">
+                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold ${badgeCls}">
+                            ${item.category}
+                        </span>
+                    </td>
+                    <td class="py-2 px-3 border-r border-slate-100 font-semibold text-slate-800">${item.particulars || '-'}</td>
+                    <td class="py-2 px-3 border-r border-slate-100 text-right font-mono font-bold text-slate-900">₹${orig.toFixed(2)}</td>
+                    <td class="py-2 px-3 border-r border-slate-100 text-right font-mono font-bold text-rose-600">₹${ded.toFixed(2)}</td>
+                    <td class="py-2 px-3 text-right font-mono font-bold text-amber-600">₹${bal.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+        document.getElementById('revDetailedTotalOrig').textContent = '₹' + totOrig.toFixed(2);
+        document.getElementById('revDetailedTotalDeducted').textContent = '₹' + totDed.toFixed(2);
+        document.getElementById('revDetailedTotalBalance').textContent = '₹' + totBal.toFixed(2);
     }
 
     function renderReviewDeductionsTable() {
@@ -1391,7 +1481,7 @@
                 const kLower = key.toLowerCase();
                 if (kLower.includes('advance') || kLower.includes('loan')) {
                     advDed += val;
-                } else if (kLower.includes('feed') || kLower.includes('food')) {
+                } else if (kLower.includes('feed') || kLower.includes('food') || kLower.includes('product')) {
                     feedDed += val;
                 } else if (kLower.includes('stationary')) {
                     statDed += val;

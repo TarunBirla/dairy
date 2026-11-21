@@ -274,8 +274,35 @@ class FarmerInvoiceController extends Controller
 
         $otherDeduction = round($invoiceDeductionsTotal, 2);
 
-        // Compile category-wise deductions breakdown
+        // 1. Total Product Deductions (Combine cattle feed, store sales, medicines, equipment)
+        $totalProductDue = (float) $feedDeduction;
+        if (!empty($otherDedsByType)) {
+            foreach ($otherDedsByType as $dType => $dItems) {
+                $totalProductDue += (float) $dItems->sum('amount');
+            }
+        }
+        $totalProductDue = round($totalProductDue, 2);
+        $feedDeduction = $totalProductDue;
+
+        // Compile category-wise deductions breakdown matching User Request:
+        // 1. Product  2. Stationary  3. Advance / Loan  4. Management Charges C
         $deductionsBreakdown = [];
+
+        // 1. Product (Store purchases, feeds, medicines, equipment)
+        if ($totalProductDue > 0) {
+            $deductionsBreakdown[] = [
+                'key' => 'product',
+                'name' => 'Product',
+                'category' => 'Product',
+                'original_balance' => $totalProductDue,
+                'deducted_amount' => $totalProductDue,
+                'remaining_balance' => 0.00,
+                'is_wallet' => false,
+                'is_editable' => true,
+            ];
+        }
+
+        // 2. Stationary
         if ($stationaryDeduction > 0) {
             $deductionsBreakdown[] = [
                 'key' => 'stationary',
@@ -289,36 +316,7 @@ class FarmerInvoiceController extends Controller
             ];
         }
 
-        // Add any other specific deduction types from farmer_deductions
-        if (!empty($otherDedsByType)) {
-            foreach ($otherDedsByType as $dType => $dItems) {
-                $dSum = round((float) $dItems->sum('amount'), 2);
-                if ($dSum <= 0) continue;
-                $label = ucfirst(str_replace('_', ' ', $dType));
-                $deductionsBreakdown[] = [
-                    'key' => 'ded_' . $dType,
-                    'name' => $label,
-                    'category' => $label,
-                    'original_balance' => $dSum,
-                    'deducted_amount' => $dSum,
-                    'remaining_balance' => 0.00,
-                    'is_wallet' => false,
-                    'is_editable' => true,
-                ];
-            }
-        }
-        if ($feedDeduction > 0) {
-            $deductionsBreakdown[] = [
-                'key' => 'feed',
-                'name' => 'Food / Feed',
-                'category' => 'Feed',
-                'original_balance' => $feedDeduction,
-                'deducted_amount' => $feedDeduction,
-                'remaining_balance' => 0.00,
-                'is_wallet' => false,
-                'is_editable' => true,
-            ];
-        }
+        // 3. Advance / Loan
         if ($advanceDeduction > 0 || $totalLoanPrincipal > 0) {
             $origAdv = max($totalLoanPrincipal, $advanceDeduction);
             $instType = method_exists($farmer, 'getInstallmentDeductionType') ? $farmer->getInstallmentDeductionType() : 'Auto';
@@ -344,7 +342,7 @@ class FarmerInvoiceController extends Controller
             ];
         }
 
-        // Add per-invoice deductions to category-wise breakdown (Fixed Dairy Charges like Management Charges)
+        // 4. Management Charges C & Per-Invoice Fixed Dairy Charges
         foreach ($invoiceDeductionItems as $idi) {
             $deductionsBreakdown[] = [
                 'key' => \Illuminate\Support\Str::slug($idi['name'], '_'),
@@ -970,6 +968,107 @@ class FarmerInvoiceController extends Controller
             $walletSummary = \App\Services\FarmerWalletService::getWalletSummary($farmer);
         } catch (\Throwable $e) {}
 
+        // Prepare comprehensive line-by-line deduction breakdown for Left-Side Table
+        $detailedDeductions = [];
+
+        // 1. Product Sales (Store Purchases / Feed)
+        if (Schema::hasTable('product_sales')) {
+            $farmerCode = $farmer ? $farmer->farmer_code : null;
+            $sales = \App\Models\ProductSale::where(function ($q) use ($farmer, $farmerCode) {
+                    $q->where('farmer_id', $farmer->id);
+                    if (!empty($farmerCode)) $q->orWhere('farmer_code', $farmerCode);
+                })
+                ->whereBetween('sale_date', [$invoice->period_start, $invoice->period_end])
+                ->latest('sale_date')
+                ->get();
+
+            foreach ($sales as $s) {
+                $rem = (float) $s->remaining_amount;
+                $tot = (float) $s->total_amount;
+                $detailedDeductions[] = [
+                    'date' => $s->sale_date ? $s->sale_date->format('Y-m-d') : $invoice->period_start->format('Y-m-d'),
+                    'category' => 'Product',
+                    'type_badge' => 'bg-emerald-100 text-emerald-800',
+                    'particulars' => "Store Sale #{$s->sale_number} — {$s->product_name} (" . (float)$s->quantity . " " . ($s->unit ?: 'Bag') . ")",
+                    'original_amount' => $tot,
+                    'deducted_amount' => $rem,
+                    'remaining_balance' => 0.00,
+                ];
+            }
+        }
+
+        // 2. Farmer Deductions (Deduction table records: cattle feed, medicine, stationary, etc.)
+        if (Schema::hasTable('farmer_deductions')) {
+            $fDeds = \App\Models\FarmerDeduction::where('farmer_id', $farmer->id)
+                ->where('transaction_type', 'given')
+                ->where('deduction_type', '!=', 'advance_recovery')
+                ->whereBetween('entry_date', [$invoice->period_start, $invoice->period_end])
+                ->latest('entry_date')
+                ->get();
+
+            foreach ($fDeds as $fd) {
+                $isStat = ($fd->deduction_type === 'stationary');
+                $catName = $isStat ? 'Stationary' : 'Product';
+                $badge = $isStat ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800';
+                $amt = (float) $fd->amount;
+                $detailedDeductions[] = [
+                    'date' => $fd->entry_date ? $fd->entry_date->format('Y-m-d') : $invoice->period_start->format('Y-m-d'),
+                    'category' => $catName,
+                    'type_badge' => $badge,
+                    'particulars' => ($fd->type_label ?? ucfirst(str_replace('_', ' ', $fd->deduction_type))) . ($fd->comments ? " — {$fd->comments}" : ''),
+                    'original_amount' => $amt,
+                    'deducted_amount' => $amt,
+                    'remaining_balance' => 0.00,
+                ];
+            }
+        }
+
+        // 3. Farmer Advances / Loans
+        if (Schema::hasTable('farmer_advances')) {
+            $fAdvs = \App\Models\FarmerAdvance::where('farmer_id', $farmer->id)
+                ->where('status', '!=', 'recovered')
+                ->get();
+
+            $instType = method_exists($farmer, 'getInstallmentDeductionType') ? $farmer->getInstallmentDeductionType() : 'Auto';
+            $instAmount = method_exists($farmer, 'getInstallmentAmount') ? (float) $farmer->getInstallmentAmount() : 0.0;
+
+            foreach ($fAdvs as $adv) {
+                $bal = (float) $adv->principal_balance;
+                if ($bal <= 0) continue;
+                $dedAmt = $bal;
+                if ($instType === 'DeductionOff') {
+                    $dedAmt = 0.00;
+                } elseif ($instType === 'Fixed' && $instAmount > 0) {
+                    $dedAmt = min($instAmount, $bal);
+                }
+                $detailedDeductions[] = [
+                    'date' => $adv->advance_date ? $adv->advance_date->format('Y-m-d') : $invoice->period_start->format('Y-m-d'),
+                    'category' => 'Advance / Loan',
+                    'type_badge' => 'bg-violet-100 text-violet-800',
+                    'particulars' => ($adv->voucher_no ? "Voucher #{$adv->voucher_no} — " : '') . ($adv->purpose ?: ($adv->notes ?: 'Farmer Advance Loan')),
+                    'original_amount' => $bal,
+                    'deducted_amount' => $dedAmt,
+                    'remaining_balance' => max(0, $bal - $dedAmt),
+                ];
+            }
+        }
+
+        // 4. Center Charges (Management Charges C, etc.)
+        foreach ($categoriesBreakdown as $cat) {
+            $kLower = strtolower($cat['name'] ?? $cat['key'] ?? '');
+            if (!str_contains($kLower, 'product') && !str_contains($kLower, 'feed') && !str_contains($kLower, 'advance') && !str_contains($kLower, 'stationary')) {
+                $detailedDeductions[] = [
+                    'date' => $invoice->period_end ? $invoice->period_end->format('Y-m-d') : date('Y-m-d'),
+                    'category' => $cat['name'] ?? 'Management Charges C',
+                    'type_badge' => 'bg-sky-100 text-sky-800',
+                    'particulars' => ($cat['name'] ?? 'Charge') . ' (Center Information Fixed Dairy Charge)',
+                    'original_amount' => (float) ($cat['original_balance'] ?? 0),
+                    'deducted_amount' => (float) ($cat['deducted_amount'] ?? 0),
+                    'remaining_balance' => (float) ($cat['remaining_balance'] ?? 0),
+                ];
+            }
+        }
+
         return response()->json([
             'id' => $invoice->id,
             'invoice_number' => $invoice->invoice_number,
@@ -999,6 +1098,7 @@ class FarmerInvoiceController extends Controller
             'feed_remaining_balance' => $feedRemainingBalance,
             'deductions' => $deductions->values(),
             'categories_breakdown' => $categoriesBreakdown,
+            'detailed_deductions' => $detailedDeductions,
             'additions' => [
                 'other_credit' => (float) ($invoice->other_credit ?? 0),
                 'transport_credit' => (float) ($invoice->transport_credit ?? 0),
