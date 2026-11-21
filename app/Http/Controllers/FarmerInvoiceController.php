@@ -520,6 +520,45 @@ class FarmerInvoiceController extends Controller
             ->where('total_quantity', '<=', 0)
             ->delete();
 
+        // Consolidate duplicate pending draft invoices for the same farmer into ONE master invoice
+        try {
+            $pendingFarmerIds = FarmerInvoice::where('status', 'pending')
+                ->distinct()
+                ->pluck('farmer_id');
+
+            foreach ($pendingFarmerIds as $fId) {
+                $farmerPendingInvs = FarmerInvoice::where('farmer_id', $fId)
+                    ->where('status', 'pending')
+                    ->orderBy('id', 'desc')
+                    ->get();
+
+                if ($farmerPendingInvs->count() > 1) {
+                    $masterInv = $farmerPendingInvs->first();
+                    $extraInvs = $farmerPendingInvs->slice(1);
+
+                    // Reassign all collections attached to any pending draft to the master invoice
+                    if (Schema::hasColumn('milk_collections', 'farmer_invoice_id')) {
+                        MilkCollection::whereIn('farmer_invoice_id', $farmerPendingInvs->pluck('id'))
+                            ->update(['farmer_invoice_id' => $masterInv->id, 'payment_status' => 'invoiced']);
+                    }
+
+                    // Delete extra pending invoices
+                    FarmerInvoice::whereIn('id', $extraInvs->pluck('id'))->delete();
+
+                    // Expand master invoice date range to encompass all collections
+                    $earliestStart = $farmerPendingInvs->min('period_start');
+                    $latestEnd = $farmerPendingInvs->max('period_end');
+                    $masterInv->update([
+                        'period_start' => $earliestStart,
+                        'period_end' => $latestEnd,
+                    ]);
+
+                    // Re-sync master invoice metrics with all combined collections
+                    $this->syncInvoice($masterInv);
+                }
+            }
+        } catch (\Throwable $e) {}
+
         $baseQuery = FarmerInvoice::with('farmer');
 
         if ($startDate && $endDate) {
@@ -738,12 +777,22 @@ class FarmerInvoiceController extends Controller
                 continue;
             }
 
-            // Find existing invoice for same farmer & period_start to avoid duplicate overlapping bills
+            // Find existing pending invoice for same farmer to avoid duplicate pending bills
             $existing = FarmerInvoice::where('farmer_id', $farmer->id)
-                ->whereDate('period_start', $effStartDate)
                 ->where('status', 'pending')
                 ->orderBy('id', 'desc')
                 ->first();
+
+            // Release any pending invoice collection links so all eligible collections are freshly evaluated together
+            if (Schema::hasColumn('milk_collections', 'farmer_invoice_id')) {
+                $pendingIds = FarmerInvoice::where('farmer_id', $farmer->id)
+                    ->where('status', 'pending')
+                    ->pluck('id');
+                if ($pendingIds->isNotEmpty()) {
+                    MilkCollection::whereIn('farmer_invoice_id', $pendingIds)
+                        ->update(['farmer_invoice_id' => null, 'payment_status' => 'pending']);
+                }
+            }
 
             $metrics = $this->calculateInvoiceMetrics((int) $farmer->id, $effStartDate, $endDate, $existing?->id);
 
@@ -762,7 +811,7 @@ class FarmerInvoiceController extends Controller
                     'created_by' => Auth::id(),
                 ]));
                 FarmerInvoice::where('farmer_id', $farmer->id)
-                    ->whereDate('period_start', $effStartDate)
+                    ->where('status', 'pending')
                     ->where('id', '!=', $existing->id)
                     ->delete();
                 $targetInvoice = $existing;
