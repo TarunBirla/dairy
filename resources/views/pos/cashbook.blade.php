@@ -12,7 +12,20 @@
         if (!empty($cashbook->denominations)) {
             $savedDenoms = is_array($cashbook->denominations) ? $cashbook->denominations : (json_decode($cashbook->denominations, true) ?: []);
         }
-        $defaultCashSales = $cashbook ? $cashbook->cash_sales : ($todayCashSales ?? 0);
+
+        // Auto-fill logic:
+        // If cashbook is closed with saved > 0, respect it; otherwise auto-fill from live today's sales
+        if ($cashbook && $cashbook->status === 'closed' && (float) $cashbook->cash_sales > 0) {
+            $defaultCashSales = (float) $cashbook->cash_sales;
+        } else {
+            $defaultCashSales = (float) (($todayCashSales ?? 0) > 0 ? $todayCashSales : ($cashbook ? $cashbook->cash_sales : 0));
+        }
+
+        if ($cashbook && $cashbook->status === 'closed' && (float) $cashbook->cash_expenses > 0) {
+            $defaultCashExpenses = (float) $cashbook->cash_expenses;
+        } else {
+            $defaultCashExpenses = (float) (($todayCashExpenses ?? 0) > 0 ? $todayCashExpenses : ($cashbook ? $cashbook->cash_expenses : 0));
+        }
     @endphp
 
     <!-- Today's Cashbook Form -->
@@ -37,12 +50,36 @@
                     <input type="number" step="any" name="opening_cash" x-model.number="openingCash" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg font-bold">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">Today Cash Counter Sales (₹)</label>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-semibold text-slate-700">Today Cash Counter Sales (₹)</label>
+                        @if(($todayCashSales ?? 0) > 0)
+                            <button type="button" @click="cashSales = {{ (float) $todayCashSales }}" class="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 transition" title="Auto-fill today's total cash sales">
+                                ↻ Auto-fill: ₹{{ number_format($todayCashSales, 2) }}
+                            </button>
+                        @endif
+                    </div>
                     <input type="number" step="any" name="cash_sales" x-model.number="cashSales" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg font-bold text-emerald-700">
+                    @if(($todayCashSales ?? 0) > 0)
+                        <p class="text-[10px] text-slate-500 mt-1">
+                            स्वतः भरा गया: <b>₹{{ number_format($todayCashSales, 2) }}</b> (बिक्री/भुगतान लेजर से)
+                        </p>
+                    @endif
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">Cash Paid Expenses (₹)</label>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-semibold text-slate-700">Cash Paid Expenses (₹)</label>
+                        @if(($todayCashExpenses ?? 0) > 0)
+                            <button type="button" @click="cashExpenses = {{ (float) $todayCashExpenses }}" class="text-[10px] text-rose-700 hover:text-rose-900 font-bold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 transition" title="Auto-fill today's cash expenses">
+                                ↻ Auto-fill: ₹{{ number_format($todayCashExpenses, 2) }}
+                            </button>
+                        @endif
+                    </div>
                     <input type="number" step="any" name="cash_expenses" x-model.number="cashExpenses" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg font-bold text-rose-600">
+                    @if(($todayCashExpenses ?? 0) > 0)
+                        <p class="text-[10px] text-slate-500 mt-1">
+                            स्वतः भरा गया: <b>₹{{ number_format($todayCashExpenses, 2) }}</b> (दैनिक खर्च लेजर से)
+                        </p>
+                    @endif
                 </div>
             </div>
 
@@ -364,7 +401,7 @@
         return {
             openingCash: {{ old('opening_cash', $cashbook ? $cashbook->opening_cash : 2000) }},
             cashSales: {{ old('cash_sales', $defaultCashSales) }},
-            cashExpenses: {{ old('cash_expenses', $cashbook ? $cashbook->cash_expenses : 0) }},
+            cashExpenses: {{ old('cash_expenses', $defaultCashExpenses) }},
             actualCountedCash: initialCounted,
 
             notes: {

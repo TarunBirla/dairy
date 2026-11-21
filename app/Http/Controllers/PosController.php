@@ -461,11 +461,99 @@ class PosController extends Controller
     {
         $today = Carbon::today();
         $cashbook = CounterCashbook::whereDate('entry_date', $today)->first();
-        $todayCashSales = PosOrder::whereDate('created_at', $today)->where('payment_mode', 'cash')->sum('grand_total');
+
+        // 1. Calculate all today's cash sales and cash receipts across dairy operations
+        // A. POS Orders (Counter retail / product billing)
+        $posCashSales = 0.0;
+        if (Schema::hasTable('pos_orders')) {
+            $posCashSales = (float) PosOrder::whereDate('created_at', $today)
+                ->where(function ($q) {
+                    $q->where('payment_mode', 'cash')
+                      ->orWhere('payment_mode', 'Cash')
+                      ->orWhereNull('payment_mode');
+                })
+                ->where('payment_status', '!=', 'failed')
+                ->sum('grand_total');
+        }
+
+        // B. Milk Sales (Direct / counter milk sale cash)
+        $milkCashSales = 0.0;
+        if (Schema::hasTable('milk_sales')) {
+            $milkCashSales = (float) \App\Models\MilkSale::whereDate('sale_date', $today)
+                ->where(function ($q) {
+                    $q->where('payment_mode', 'cash')
+                      ->orWhere('payment_mode', 'Cash')
+                      ->orWhereNull('payment_mode');
+                })
+                ->sum('paid_amount');
+        }
+
+        // C. Buyer Khata Cash Payments
+        $buyerCashPayments = 0.0;
+        if (Schema::hasTable('buyer_payments')) {
+            $buyerCashPayments = (float) \App\Models\BuyerPayment::whereDate('payment_date', $today)
+                ->where('type', 'received')
+                ->where(function ($q) {
+                    $q->where('payment_mode', 'cash')
+                      ->orWhere('payment_mode', 'Cash')
+                      ->orWhereNull('payment_mode');
+                })
+                ->sum('amount');
+        }
+
+        // D. Customer Bill Cash Receipts
+        $customerCashPayments = 0.0;
+        if (Schema::hasTable('payments')) {
+            $customerCashPayments = (float) \App\Models\Payment::whereDate('payment_date', $today)
+                ->where(function ($q) {
+                    $q->where('payment_mode', 'cash')
+                      ->orWhere('payment_mode', 'Cash')
+                      ->orWhereNull('payment_mode');
+                })
+                ->sum('amount');
+        }
+
+        // E. Product / Cattle Feed Cash Sales
+        $productCashSales = 0.0;
+        if (Schema::hasTable('product_sales')) {
+            $productCashSales = (float) \App\Models\ProductSale::whereDate('sale_date', $today)
+                ->where(function ($q) {
+                    $q->where('payment_mode', 'cash')
+                      ->orWhere('payment_mode', 'Cash');
+                })
+                ->sum('paid_amount');
+        }
+
+        $todayCashSales = round($posCashSales + $milkCashSales + $buyerCashPayments + $customerCashPayments + $productCashSales, 2);
+
+        // 2. Today's Cash Paid Expenses
+        $todayCashExpenses = 0.0;
+        if (Schema::hasTable('expenses')) {
+            $todayCashExpenses = (float) \App\Models\Expense::whereDate('expense_date', $today)
+                ->where(function ($q) {
+                    $q->where('payment_mode', 'cash')
+                      ->orWhere('payment_mode', 'Cash')
+                      ->orWhereNull('payment_mode');
+                })
+                ->sum('amount');
+        }
+
         $counters = PosCounter::all();
         $recentCashbooks = CounterCashbook::latest()->paginate(15);
 
-        return view('pos.cashbook', compact('cashbook', 'counters', 'recentCashbooks', 'today', 'todayCashSales'));
+        return view('pos.cashbook', compact(
+            'cashbook',
+            'counters',
+            'recentCashbooks',
+            'today',
+            'todayCashSales',
+            'todayCashExpenses',
+            'posCashSales',
+            'milkCashSales',
+            'buyerCashPayments',
+            'customerCashPayments',
+            'productCashSales'
+        ));
     }
 
     public function updateCashbook(Request $request)
