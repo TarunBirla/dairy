@@ -226,7 +226,7 @@ Route::match(['get', 'post'], '/migrate', function (\Illuminate\Http\Request $re
                     $table->softDeletes();
                     $table->foreign('farmer_id')->references('id')->on('farmers')->onDelete('cascade');
                 });
-                $logs[] = "✅ Created `farmer_emergency_funds` table for Mobile Dairy suite.";
+                $logs[] = "✅ Created `farmer_emergency_funds` table for Smart Dairy suite.";
             }
 
             // Step 2.1: Defensive verification for Farmer Pricing Type & Rate Chart Assignment

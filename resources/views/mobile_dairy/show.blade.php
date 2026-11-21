@@ -1,8 +1,8 @@
 @extends('layouts.app')
 
-@section('title', 'Mobile Dairy Software - ' . $farmer->name . ' (' . $farmer->farmer_code . ')')
+@section('title', 'Smart Dairy Software - ' . $farmer->name . ' (' . $farmer->farmer_code . ')')
 @section('breadcrumb', 'Mobile Dairy Software')
-@section('header_title', 'Mobile Dairy Suite: ' . $farmer->name)
+@section('header_title', 'Smart Dairy Suite: ' . $farmer->name)
 
 @section('header_action')
     <div class="flex items-center gap-2">
@@ -38,7 +38,7 @@
         </div>
     </div>
 
-    <!-- The 8-in-1 Mobile Dairy Suite Partial -->
+    <!-- The 8-in-1 Smart Dairy Suite Partial -->
     @include('farmers.partials.mobile_dairy_suite', [
         'farmer' => $farmer,
         'suite' => $mobileDairyData ?? []

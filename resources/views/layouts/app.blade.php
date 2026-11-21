@@ -507,7 +507,7 @@
                     <a href="{{ route('mobile-dairy.index') }}" class="flex items-center justify-between px-3 py-2 rounded-lg transition {{ request()->routeIs('mobile-dairy.*') ? 'bg-emerald-50 text-emerald-700 font-bold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                         <div class="flex items-center gap-2.5">
                             <i data-lucide="smartphone" class="w-4 h-4 {{ request()->routeIs('mobile-dairy.*') ? 'text-emerald-600' : 'text-slate-400' }}"></i>
-                            <span>Mobile Dairy Suite</span>
+                            <span>Smart Dairy Suite</span>
                         </div>
                         <span class="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold uppercase bg-emerald-600 text-white tracking-wider">8-in-1</span>
                     </a>

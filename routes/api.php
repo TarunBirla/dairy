@@ -48,7 +48,7 @@ $registerProcurementRoutes = function () {
         Route::put('/farmers/{farmer}', [ProcurementApiController::class, 'farmersUpdate']);
         Route::delete('/farmers/{farmer}', [ProcurementApiController::class, 'farmersDestroy']);
 
-        // 3. Mobile Dairy Suite (8-IN-1 Dedicated Software)
+        // 3. Smart Dairy Suite (8-IN-1 Dedicated Software)
         Route::prefix('mobile-dairy')->group(function () {
             Route::get('/farmers', [MobileDairyApiController::class, 'farmersHub']);
             Route::get('/farmer/{farmer}', [MobileDairyApiController::class, 'farmerSuite']);

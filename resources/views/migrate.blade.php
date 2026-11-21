@@ -143,7 +143,7 @@
 
                     <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
                         <a href="{{ route('mobile-dairy.index') }}" class="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-md transition text-center">
-                            📱 Open Mobile Dairy Suite
+                            📱 Open Smart Dairy Suite
                         </a>
                         <a href="{{ route('dashboard') }}" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition">
                             Dashboard →

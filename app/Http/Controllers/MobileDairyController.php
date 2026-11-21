@@ -103,7 +103,7 @@ class MobileDairyController extends Controller
     }
 
     /**
-     * Complete 8-Tab Mobile Dairy Suite for a single Farmer
+     * Complete 8-Tab Smart Dairy Suite for a single Farmer
      */
     public function show(Farmer $farmer, Request $request)
     {

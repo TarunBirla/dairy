@@ -91,7 +91,7 @@ class MobileDairyApiController extends Controller
 
     /**
      * 2. GET /api/v1/procurement/mobile-dairy/farmer/{farmer}
-     * Complete 8-Tab Mobile Dairy Suite data for a single farmer
+     * Complete 8-Tab Smart Dairy Suite data for a single farmer
      */
     public function farmerSuite(Request $request, $farmerId)
     {
@@ -108,7 +108,7 @@ class MobileDairyApiController extends Controller
         // Map collections and objects to clean arrays for mobile JSON
         return response()->json([
             'status' => 'success',
-            'message' => 'Mobile Dairy Suite data loaded successfully',
+            'message' => 'Smart Dairy Suite data loaded successfully',
             'data' => [
                 'farmer' => $farmer,
                 'banner' => [
