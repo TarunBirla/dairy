@@ -189,7 +189,7 @@
                             </td>
 
                             <!-- Total Amount Badge (Only Deductions & Store Purchases) -->
-                            <td class="py-3.5 px-4">
+                            <td class="py-3.5 px-4" id="farmer-deduction-cell-{{ $farmer->id }}">
                                 @if($totalDeductionsDues > 0)
                                     <div>
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200">
@@ -634,6 +634,17 @@
                 document.getElementById('viewModalTotalGiven').textContent = `₹${(data.total_given || 0).toFixed(2)}`;
                 document.getElementById('viewModalTotalReceived').textContent = `₹${(data.total_received || 0).toFixed(2)}`;
                 document.getElementById('viewModalNetBalance').textContent = `₹${(data.net_total || 0).toFixed(2)}`;
+
+                // Real-time synchronize background table row badge if present
+                const rowCell = document.getElementById(`farmer-deduction-cell-${farmerId}`);
+                if (rowCell) {
+                    const net = Number(data.net_total || 0);
+                    if (net <= 0.001) {
+                        rowCell.innerHTML = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">₹0.00 (चुकता)</span>`;
+                    } else {
+                        rowCell.innerHTML = `<div><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200">₹${net.toFixed(2)}</span><span class="text-[10px] text-slate-500 block mt-0.5">(Deduction Balance)</span></div>`;
+                    }
+                }
 
                 // Pure deduction modal - no loan advance banner per user requirement
                 if (walletBanner) {

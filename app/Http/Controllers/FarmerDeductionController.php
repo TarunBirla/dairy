@@ -52,34 +52,7 @@ class FarmerDeductionController extends Controller
         $search = $request->get('search');
         $perPage = (int) $request->get('per_page', 15);
 
-        // Fetch farmers with their deductions
-        $farmersQuery = Farmer::where('status', 'active');
-
-        if (!empty($search)) {
-            $farmersQuery->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('farmer_code', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
-            });
-        }
-
-        if ($deductionType && $deductionType !== 'all') {
-            $farmersQuery->whereHas('deductions', function ($q) use ($deductionType) {
-                $q->where('deduction_type', $deductionType);
-            });
-        }
-
-        // Include relations
-        $farmersQuery->with(['wallet', 'deductions' => function ($q) use ($deductionType) {
-            if ($deductionType && $deductionType !== 'all') {
-                $q->where('deduction_type', $deductionType);
-            }
-            $q->latest('entry_date');
-        }]);
-
-        $farmers = $farmersQuery->orderBy('name')->paginate($perPage)->withQueryString();
-
-        // Ensure each farmer's invoice deduction recoveries are synchronized into farmer_deductions
+        // Ensure each farmer's invoice deduction recoveries are synchronized into farmer_deductions FIRST
         try {
             $finalizedInvoices = \App\Models\FarmerInvoice::whereIn('status', ['generated', 'settled', 'paid'])
                 ->where('total_deduction', '>', 0)
@@ -160,6 +133,33 @@ class FarmerDeductionController extends Controller
                 }
             }
         } catch (\Throwable $e) {}
+
+        // Fetch farmers with their deductions (NOW includes all synchronized received deductions)
+        $farmersQuery = Farmer::where('status', 'active');
+
+        if (!empty($search)) {
+            $farmersQuery->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('farmer_code', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
+            });
+        }
+
+        if ($deductionType && $deductionType !== 'all') {
+            $farmersQuery->whereHas('deductions', function ($q) use ($deductionType) {
+                $q->where('deduction_type', $deductionType);
+            });
+        }
+
+        // Include relations
+        $farmersQuery->with(['wallet', 'deductions' => function ($q) use ($deductionType) {
+            if ($deductionType && $deductionType !== 'all') {
+                $q->where('deduction_type', $deductionType);
+            }
+            $q->latest('entry_date');
+        }]);
+
+        $farmers = $farmersQuery->orderBy('name')->paginate($perPage)->withQueryString();
 
         // Calculate totals across system (Deductions & Store purchases only - loans excluded)
         $totalGiven = 0;
