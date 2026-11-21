@@ -1049,16 +1049,27 @@ class FarmerController extends Controller
             'notes' => $validated['notes'] ?? null,
         ]);
 
-        // Adjust farmer ledger
-        $newBalance = $farmer->current_balance - $validated['amount'];
-        $farmer->update(['current_balance' => $newBalance]);
+        // Synchronize with Farmer Deduction Wallet & Recalculate Live Balance
+        try {
+            \App\Services\FarmerWalletService::addDeduction(
+                $farmer,
+                'Advance / Loan',
+                (float) $validated['amount'],
+                "Advance Issued: " . ($validated['purpose'] ?? 'Cash Advance'),
+                \Illuminate\Support\Facades\Auth::id(),
+                'farmer_advances',
+                (string) $advance->id
+            );
+        } catch (\Throwable $e) {}
+
+        $farmer->recalculateBalance();
 
         FarmerLedger::create([
             'farmer_id' => $farmer->id,
             'transaction_date' => $validated['advance_date'],
             'type' => 'debit',
             'amount' => $validated['amount'],
-            'balance' => $newBalance,
+            'balance' => $farmer->current_balance,
             'reference_type' => 'advance',
             'reference_id' => $advance->id,
             'description' => "Advance Issued: " . ($validated['purpose'] ?? 'Cash Advance'),

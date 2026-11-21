@@ -1822,19 +1822,29 @@ class ProcurementApiController extends Controller
             'issued_by' => Auth::id(),
         ]);
 
+        try {
+            \App\Services\FarmerWalletService::addDeduction(
+                $farmer,
+                'Advance / Loan',
+                $amount,
+                "Advance Voucher #{$voucherNo} ({$paymentMode}) - {$notes}",
+                Auth::id(),
+                'farmer_advances',
+                (string) $advance->id
+            );
+        } catch (\Throwable $e) {}
+
+        $farmer->recalculateBalance();
+
         FarmerLedger::create([
             'farmer_id' => $farmer->id,
             'transaction_date' => $validated['advance_date'],
             'type' => 'debit',
             'amount' => $amount,
-            'balance' => $farmer->current_balance - $amount,
+            'balance' => $farmer->current_balance,
             'reference_type' => 'advance',
             'reference_id' => $advance->id,
             'description' => "Advance Voucher #{$voucherNo} ({$paymentMode}) - {$notes}",
-        ]);
-
-        $farmer->update([
-            'current_balance' => $farmer->current_balance - $amount,
         ]);
 
         AuditLog::log('Issued Farmer Advance (API)', 'FarmerAdvance', $advance->id, [

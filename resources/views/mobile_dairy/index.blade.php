@@ -94,11 +94,23 @@
                         </div>
                     </div>
 
-                    <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
-                        <span class="text-[10px] uppercase font-bold text-slate-400">Ledger Balance:</span>
-                        <span class="text-xs font-black {{ (float)$fmr->current_balance >= 0 ? 'text-emerald-600' : 'text-rose-600' }}">
-                            ₹ {{ number_format($fmr->current_balance, 2) }}
-                        </span>
+                    @php
+                        $mDue = (float) ($fmr->current_balance ?? 0);
+                        $lDue = (float) ($fmr->total_dues ?? (\App\Services\FarmerAccountingService::getFinancialSummary($fmr)['total_dues'] ?? 0));
+                    @endphp
+                    <div class="pt-2 border-t border-slate-100 space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] uppercase font-bold text-slate-400">दूध देय (Milk Due):</span>
+                            <span class="text-xs font-black {{ $mDue > 0 ? 'text-emerald-600' : 'text-slate-700' }}">
+                                {{ $mDue > 0 ? '₹ ' . number_format($mDue, 2) : '₹0.00 (चुकता)' }}
+                            </span>
+                        </div>
+                        @if($lDue > 0)
+                            <div class="flex items-center justify-between text-[11px] font-bold text-rose-600">
+                                <span class="text-[10px] uppercase font-bold text-slate-400">लोन बक़ाया:</span>
+                                <span>₹ {{ number_format($lDue, 2) }}</span>
+                            </div>
+                        @endif
                     </div>
                 </div>
 

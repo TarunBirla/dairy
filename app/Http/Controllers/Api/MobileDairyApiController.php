@@ -484,15 +484,27 @@ class MobileDairyApiController extends Controller
                 'notes' => $validated['notes'] ?? null,
             ]);
 
-            $newBalance = round((float) $farmer->current_balance - $amount, 2);
-            $farmer->update(['current_balance' => $newBalance]);
+            // Synchronize with Farmer Deduction Wallet & Recalculate Live Balance
+            try {
+                \App\Services\FarmerWalletService::addDeduction(
+                    $farmer,
+                    'Advance / Loan',
+                    $amount,
+                    "Loan/Advance Issued [Voucher #{$voucher}]: {$validated['purpose']}",
+                    \Illuminate\Support\Facades\Auth::id(),
+                    'farmer_advances',
+                    (string) $loan->id
+                );
+            } catch (\Throwable $e) {}
+
+            $farmer->recalculateBalance();
 
             FarmerLedger::create([
                 'farmer_id' => $farmer->id,
                 'transaction_date' => $validated['advance_date'],
                 'type' => 'debit',
                 'amount' => $amount,
-                'balance' => $newBalance,
+                'balance' => $farmer->current_balance,
                 'reference_type' => 'advance',
                 'reference_id' => $loan->id,
                 'description' => "Loan/Advance Issued [Voucher #{$voucher}]: {$validated['purpose']}",

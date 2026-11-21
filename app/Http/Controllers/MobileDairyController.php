@@ -88,11 +88,10 @@ class MobileDairyController extends Controller
         $farmers = $query->orderBy('name')->paginate(24)->withQueryString();
         foreach ($farmers as $fmr) {
             try {
-                if (method_exists($fmr, 'recalculateBalance')) {
-                    $fmr->recalculateBalance();
-                } else {
-                    $this->recalculateFarmerBalanceDirect($fmr);
-                }
+                $summary = \App\Services\FarmerAccountingService::getFinancialSummary($fmr);
+                $fmr->current_balance = round((float) ($summary['milk_payable'] ?? 0), 2);
+                $fmr->total_dues = round((float) ($summary['total_dues'] ?? 0), 2);
+                $fmr->update(['current_balance' => $fmr->current_balance]);
             } catch (\Throwable $e) {
                 // Failsafe: avoid crashing view on transient recalculate issues
             }
@@ -126,23 +125,16 @@ class MobileDairyController extends Controller
         $farmer->load(['collectionCenter', 'rateChart', 'route']);
 
         // 1. BANNER METRICS & LIVE SYNCHRONIZATION
-        $farmer->recalculateBalance();
+        $financialSummary = \App\Services\FarmerAccountingService::getFinancialSummary($farmer);
         $totalMilkQuantity = (float) MilkCollection::where('farmer_id', $farmer->id)->sum('quantity_liters');
-        $currentPayableBalance = (float) $farmer->current_balance;
-
-        // Synchronized Deduction Wallet
-        $walletSummary = \App\Services\FarmerWalletService::getWalletSummary($farmer);
-        $walletBalance = (float) ($walletSummary['total_balance'] ?? 0);
-        $walletCategoryBalances = $walletSummary['category_balances'] ?? [];
-
-        // Outstanding loans
-        $outstandingLoan = 0.00;
-        if (Schema::hasTable('farmer_advances')) {
-            $advances = FarmerAdvance::where('farmer_id', $farmer->id)->where('status', '!=', 'recovered')->get();
-            $outstandingLoan = (float) $advances->sum(function ($a) {
-                return (float) $a->principal_balance;
-            });
-        }
+        $currentPayableBalance = (float) ($financialSummary['milk_payable'] ?? 0);
+        $outstandingLoan = (float) ($financialSummary['active_loan_balance'] ?? 0);
+        $walletBalance = (float) ($financialSummary['wallet_balance'] ?? 0);
+        $walletCategoryBalances = $financialSummary['category_balances'] ?? [];
+        $walletSummary = [
+            'total_balance' => $walletBalance,
+            'category_balances' => $walletCategoryBalances,
+        ];
 
         // Product Credit Balance (Unpaid product purchases)
         $productCreditBalance = 0.00;
@@ -677,16 +669,27 @@ class MobileDairyController extends Controller
                 'notes' => $validated['notes'] ?? null,
             ]);
 
-            // Adjust ledger balance
-            $newBalance = round((float) $farmer->current_balance - $amount, 2);
-            $farmer->update(['current_balance' => $newBalance]);
+            // Synchronize with Farmer Deduction Wallet & Recalculate Live Balance
+            try {
+                \App\Services\FarmerWalletService::addDeduction(
+                    $farmer,
+                    'Advance / Loan',
+                    $amount,
+                    "Loan/Advance Issued [Voucher #{$voucher}]: {$validated['purpose']}",
+                    Auth::id(),
+                    'farmer_advances',
+                    (string) $loan->id
+                );
+            } catch (\Throwable $e) {}
+
+            $farmer->recalculateBalance();
 
             FarmerLedger::create([
                 'farmer_id' => $farmer->id,
                 'transaction_date' => $validated['advance_date'],
                 'type' => 'debit',
                 'amount' => $amount,
-                'balance' => $newBalance,
+                'balance' => $farmer->current_balance,
                 'reference_type' => 'advance',
                 'reference_id' => $loan->id,
                 'description' => "Loan/Advance Issued [Voucher #{$voucher}]: {$validated['purpose']}",
@@ -748,22 +751,25 @@ class MobileDairyController extends Controller
                 'status' => $newStatus,
             ]);
 
-            // Adjust ledger balance if repaid via Cash/Bank
-            if ($validated['payment_mode'] !== 'Milk Deduction') {
-                $newBalance = round((float) $farmer->current_balance + $repayAmount, 2);
-                $farmer->update(['current_balance' => $newBalance]);
+            // Adjust wallet & recalculate
+            try {
+                if ($wallet = $farmer->wallet) {
+                    $wallet->recalculateBalance();
+                }
+            } catch (\Throwable $e) {}
 
-                FarmerLedger::create([
-                    'farmer_id' => $farmer->id,
-                    'transaction_date' => $validated['repayment_date'],
-                    'type' => 'credit',
-                    'amount' => $repayAmount,
-                    'balance' => $newBalance,
-                    'reference_type' => 'advance_repayment',
-                    'reference_id' => $repayment->id,
-                    'description' => "Loan Repayment Received for Voucher #{$loan->voucher_no} ({$validated['payment_mode']})",
-                ]);
-            }
+            $farmer->recalculateBalance();
+
+            FarmerLedger::create([
+                'farmer_id' => $farmer->id,
+                'transaction_date' => $validated['repayment_date'],
+                'type' => 'credit',
+                'amount' => $repayAmount,
+                'balance' => $farmer->current_balance,
+                'reference_type' => 'advance_repayment',
+                'reference_id' => $repayment->id,
+                'description' => "Loan Repayment Received for Voucher #{$loan->voucher_no} ({$validated['payment_mode']})",
+            ]);
 
             AuditLog::log('Recorded Loan Repayment', 'FarmerAdvanceRepayment', $repayment->id, [
                 'farmer' => $farmer->name,
@@ -1310,262 +1316,7 @@ class MobileDairyController extends Controller
      */
     protected function buildReconciledPassbook(Farmer $farmer, string $fromDate, string $toDate, string $filterType = 'all'): array
     {
-        $rawEntries = [];
-        $seq = 0;
-
-        // 1. Milk Collections (Credit)
-        try {
-            $milkCols = MilkCollection::where('farmer_id', $farmer->id)
-                ->orderBy('collection_date')
-                ->orderBy('id')
-                ->get();
-            foreach ($milkCols as $c) {
-                $dt = $c->collection_date ? $c->collection_date->format('Y-m-d') : $c->created_at->format('Y-m-d');
-                $rawEntries[] = [
-                    'date' => $dt,
-                    'seq' => ++$seq,
-                    'ref' => $c->receipt_number,
-                    'type' => 'milk',
-                    'type_label' => 'Milk Supply',
-                    'description' => "Milk Supply (" . ucfirst($c->shift) . ") — {$c->quantity_liters} Ltr (" . ucfirst($c->milk_type) . ", FAT {$c->fat}% / SNF {$c->snf}%) @ ₹" . number_format((float) $c->applied_rate, 2),
-                    'status' => ucfirst($c->payment_status ?: 'settled'),
-                    'credit' => round((float) $c->net_amount, 2),
-                    'debit' => 0.00,
-                ];
-            }
-        } catch (\Throwable $e) {}
-
-        // 2. Loans / Advances (Debit for issue, Credit for repayment)
-        try {
-            if (Schema::hasTable('farmer_advances')) {
-                $advs = FarmerAdvance::where('farmer_id', $farmer->id)->orderBy('advance_date')->get();
-                foreach ($advs as $a) {
-                    $dt = $a->advance_date ? $a->advance_date->format('Y-m-d') : $a->created_at->format('Y-m-d');
-                    $rawEntries[] = [
-                        'date' => $dt,
-                        'seq' => ++$seq,
-                        'ref' => $a->voucher_no ?: "ADV-{$a->id}",
-                        'type' => 'loan',
-                        'type_label' => 'Loan / Advance',
-                        'description' => "Loan/Advance Issued: {$a->purpose}",
-                        'status' => ucfirst($a->status),
-                        'credit' => 0.00,
-                        'debit' => round((float) $a->amount, 2),
-                    ];
-
-                    // Repayments (both direct cash repayment and invoice deductions)
-                    $totalRepaid = round((float) $a->paid_amount + (float) $a->deducted_amount, 2);
-                    if ($totalRepaid > 0) {
-                        $pDate = $a->paid_date ? $a->paid_date->format('Y-m-d') : ($a->updated_at ? $a->updated_at->format('Y-m-d') : $dt);
-                        $rawEntries[] = [
-                            'date' => $pDate,
-                            'seq' => ++$seq,
-                            'ref' => "REP-{$a->voucher_no}",
-                            'type' => 'loan',
-                            'type_label' => 'Loan Repayment',
-                            'description' => "Loan Repayment / Installment Deducted for Voucher #{$a->voucher_no}",
-                            'status' => 'Recovered',
-                            'credit' => $totalRepaid,
-                            'debit' => 0.00,
-                        ];
-                    }
-                }
-            }
-        } catch (\Throwable $e) {}
-
-        // 3. Deductions (Debit)
-        try {
-            if (Schema::hasTable('farmer_deductions')) {
-                $deds = FarmerDeduction::where('farmer_id', $farmer->id)->orderBy('entry_date')->get();
-                foreach ($deds as $d) {
-                    $dt = $d->entry_date ? $d->entry_date->format('Y-m-d') : $d->created_at->format('Y-m-d');
-                    $isCred = strtolower($d->transaction_type ?? '') === 'received';
-                    $rawEntries[] = [
-                        'date' => $dt,
-                        'seq' => ++$seq,
-                        'ref' => $d->reference_no ?: "DED-{$d->id}",
-                        'type' => 'deduction',
-                        'type_label' => 'Deduction',
-                        'description' => "Deduction: " . ($d->type_label ?? $d->deduction_type) . ($d->comments ? " — {$d->comments}" : ""),
-                        'status' => ucfirst($d->status ?: 'applied'),
-                        'credit' => $isCred ? round((float) $d->amount, 2) : 0.00,
-                        'debit' => $isCred ? 0.00 : round((float) $d->amount, 2),
-                    ];
-                }
-            }
-        } catch (\Throwable $e) {}
-
-        // 4. Product Sales (Debit for sale, Credit for payment)
-        try {
-            if (Schema::hasTable('product_sales')) {
-                $sales = ProductSale::where(function ($q) use ($farmer) {
-                    $q->where('farmer_id', $farmer->id);
-                    if (!empty($farmer->farmer_code)) $q->orWhere('farmer_code', $farmer->farmer_code);
-                })->orderBy('sale_date')->get();
-
-                foreach ($sales as $s) {
-                    $dt = $s->sale_date ? $s->sale_date->format('Y-m-d') : $s->created_at->format('Y-m-d');
-                    $rawEntries[] = [
-                        'date' => $dt,
-                        'seq' => ++$seq,
-                        'ref' => $s->sale_number,
-                        'type' => 'product',
-                        'type_label' => 'Product Purchase',
-                        'description' => "Product Purchase: {$s->product_name} ({$s->quantity} {$s->unit} @ ₹{$s->rate})",
-                        'status' => $s->is_paid ? 'Paid' : 'Unpaid',
-                        'credit' => 0.00,
-                        'debit' => round((float) $s->total_amount, 2),
-                    ];
-
-                    if ((float) $s->paid_amount > 0) {
-                        $rawEntries[] = [
-                            'date' => $dt,
-                            'seq' => ++$seq,
-                            'ref' => "RCPT-{$s->sale_number}",
-                            'type' => 'product',
-                            'type_label' => 'Product Payment',
-                            'description' => "Payment for Product #{$s->sale_number} ({$s->payment_mode})",
-                            'status' => 'Received',
-                            'credit' => round((float) $s->paid_amount, 2),
-                            'debit' => 0.00,
-                        ];
-                    }
-                }
-            }
-        } catch (\Throwable $e) {}
-
-        // 5. Emergency Funds
-        try {
-            if (Schema::hasTable('farmer_emergency_funds')) {
-                $efs = FarmerEmergencyFund::where('farmer_id', $farmer->id)->orderBy('request_date')->get();
-                foreach ($efs as $ef) {
-                    $dt = $ef->request_date ? $ef->request_date->format('Y-m-d') : $ef->created_at->format('Y-m-d');
-                    $rawEntries[] = [
-                        'date' => $dt,
-                        'seq' => ++$seq,
-                        'ref' => $ef->request_no,
-                        'type' => 'emergency',
-                        'type_label' => 'Emergency Assistance',
-                        'description' => "Emergency Assistance: {$ef->reason}",
-                        'status' => ucfirst($ef->status),
-                        'credit' => 0.00,
-                        'debit' => round((float) $ef->amount, 2),
-                    ];
-                    if ((float) $ef->recovered_amount > 0) {
-                        $rawEntries[] = [
-                            'date' => $dt,
-                            'seq' => ++$seq,
-                            'ref' => "REC-{$ef->request_no}",
-                            'type' => 'emergency',
-                            'type_label' => 'Emergency Recovery',
-                            'description' => "Emergency Assistance Recovery for #{$ef->request_no}",
-                            'status' => 'Recovered',
-                            'credit' => round((float) $ef->recovered_amount, 2),
-                            'debit' => 0.00,
-                        ];
-                    }
-                }
-            }
-        } catch (\Throwable $e) {}
-
-        // 6. Settlements (Debit for payout)
-        try {
-            if (Schema::hasTable('farmer_settlements')) {
-                $stls = FarmerSettlement::where('farmer_id', $farmer->id)->orderBy('period_end')->get();
-                foreach ($stls as $st) {
-                    $dt = $st->settled_at ? $st->settled_at->format('Y-m-d') : ($st->period_end ? $st->period_end->format('Y-m-d') : $st->created_at->format('Y-m-d'));
-                    $rawEntries[] = [
-                        'date' => $dt,
-                        'seq' => ++$seq,
-                        'ref' => $st->settlement_number,
-                        'type' => 'settlement',
-                        'type_label' => 'Settlement Payout',
-                        'description' => "Settlement Payout via " . ucfirst($st->payment_mode ?? 'Bank'),
-                        'status' => 'Settled',
-                        'credit' => 0.00,
-                        'debit' => round((float) ($st->paid_amount ?: $st->net_payable), 2),
-                    ];
-                }
-            }
-        } catch (\Throwable $e) {}
-
-        // 7. Period Invoices (Debit for net payout disbursed on finalized invoice)
-        try {
-            if (Schema::hasTable('farmer_invoices')) {
-                $invs = FarmerInvoice::where('farmer_id', $farmer->id)
-                    ->where('status', '!=', 'pending')
-                    ->orderBy('period_end')
-                    ->get();
-                foreach ($invs as $inv) {
-                    $dt = $inv->created_at ? $inv->created_at->format('Y-m-d') : ($inv->period_end ? $inv->period_end->format('Y-m-d') : date('Y-m-d'));
-                    $pStart = $inv->period_start ? $inv->period_start->format('d M') : '';
-                    $pEnd = $inv->period_end ? $inv->period_end->format('d M Y') : '';
-                    $rawEntries[] = [
-                        'date' => $dt,
-                        'seq' => ++$seq,
-                        'ref' => $inv->invoice_number,
-                        'type' => 'invoice',
-                        'type_label' => 'Period Invoice Bill',
-                        'description' => "Invoice #{$inv->invoice_number} ({$pStart} - {$pEnd}) — Milk: ₹" . number_format($inv->milk_amount, 2) . ", Deductions: ₹" . number_format($inv->total_deduction, 2) . ", Net: ₹" . number_format($inv->net_payable, 2),
-                        'status' => ucfirst($inv->status),
-                        'credit' => 0.00,
-                        'debit' => round((float) $inv->net_payable, 2),
-                    ];
-                }
-            }
-        } catch (\Throwable $e) {}
-
-        // Sanitize: filter out any corrupted entry with amount > 500,000
-        $rawEntries = array_values(array_filter($rawEntries, function ($e) {
-            return ($e['credit'] <= 500000 && $e['debit'] <= 500000);
-        }));
-
-        // Sort chronologically
-        usort($rawEntries, function ($a, $b) {
-            if ($a['date'] === $b['date']) {
-                return $a['seq'] <=> $b['seq'];
-            }
-            return strcmp($a['date'], $b['date']);
-        });
-
-        // Compute Opening Balance strictly prior to $fromDate
-        $openingBalance = 0.00;
-        $filtered = [];
-
-        foreach ($rawEntries as $entry) {
-            if ($entry['date'] < $fromDate) {
-                $openingBalance = round($openingBalance + $entry['credit'] - $entry['debit'], 2);
-                continue;
-            }
-            if ($entry['date'] > $toDate) {
-                continue;
-            }
-            if ($filterType !== 'all' && $entry['type'] !== $filterType) {
-                continue;
-            }
-            $filtered[] = $entry;
-        }
-
-        // Running balance for filtered entries
-        $runningBalance = $openingBalance;
-        $totalCredit = 0.00;
-        $totalDebit = 0.00;
-
-        foreach ($filtered as &$f) {
-            $runningBalance = round($runningBalance + $f['credit'] - $f['debit'], 2);
-            $totalCredit = round($totalCredit + $f['credit'], 2);
-            $totalDebit = round($totalDebit + $f['debit'], 2);
-            $f['running_balance'] = $runningBalance;
-            $f['balance'] = $runningBalance;
-        }
-
-        return [
-            'openingBalance' => $openingBalance,
-            'entries' => $filtered,
-            'totalCredit' => $totalCredit,
-            'totalDebit' => $totalDebit,
-            'closingBalance' => $runningBalance,
-        ];
+        return \App\Services\FarmerAccountingService::getMilkStatement($farmer, $fromDate, $toDate);
     }
 
     /**

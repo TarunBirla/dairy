@@ -99,11 +99,25 @@ class FarmerAccountingService
         // 5. Deduction Wallet Balance (वॉलेट लेजर)
         FarmerWalletService::cleanupDuplicateAdvanceTransactions($farmerId);
         $wallet = FarmerWalletService::getOrCreateWallet($farmerModel);
+
+        // Keep wallet synced with finalized invoice closing wallet balance if available
+        $latestInv = FarmerInvoice::where('farmer_id', $farmerId)
+            ->where('status', '!=', 'pending')
+            ->latest('id')
+            ->first();
+        if ($latestInv && $latestInv->closing_wallet_balance !== null && (float) $latestInv->closing_wallet_balance >= 0) {
+            if ($wallet && abs((float) $wallet->balance - (float) $latestInv->closing_wallet_balance) > 0.05) {
+                $wallet->update(['balance' => (float) $latestInv->closing_wallet_balance]);
+            }
+        }
+
         $walletBalance = round((float) ($wallet ? $wallet->balance : 0), 2);
         $categoryBalances = $wallet ? $wallet->getCategoryBalances() : [];
 
         // Canonical total dues farmer owes to dairy (Loan + Feed + Other Dues)
-        $totalDues = max($walletBalance, round($activeLoanBalance + $feedDues, 2));
+        $totalDues = ($walletBalance > 0 && abs($walletBalance - $activeLoanBalance) <= $walletBalance)
+            ? $walletBalance
+            : max($walletBalance, round($activeLoanBalance + $feedDues, 2));
 
         // Net Balance Position
         $netBalance = round($milkPayable - $totalDues, 2);
@@ -372,6 +386,198 @@ class FarmerAccountingService
             'totalDebit' => $totalDebit,
             'closingBalance' => $runningBalance,
             'summary' => $summary,
+        ];
+    }
+
+    /**
+     * Build authoritative Milk Procurement, Deductions, and Payout Statement for a farmer.
+     * Credits = Milk Supply
+     * Debits = Bill Deductions (Loan Installment, Feed, etc.) + Settlement Payouts
+     * Closing Balance = Unsettled milk payable (₹0.00 when fully settled).
+     */
+    public static function getMilkStatement(
+        Farmer|int $farmer,
+        ?string $fromDate = null,
+        ?string $toDate = null
+    ): array {
+        $farmerModel = $farmer instanceof Farmer ? $farmer : Farmer::find((int) $farmer);
+        if (!$farmerModel) {
+            return [
+                'entries' => [],
+                'openingBalance' => 0.00,
+                'closingBalance' => 0.00,
+                'totalCredit' => 0.00,
+                'totalDebit' => 0.00,
+            ];
+        }
+
+        $farmerId = $farmerModel->id;
+        $fromDate = $fromDate ?: Carbon::now()->startOfMonth()->format('Y-m-d');
+        $toDate = $toDate ?: Carbon::now()->format('Y-m-d');
+
+        $rawEntries = [];
+        $seq = 0;
+
+        // 1. Milk Procurement Collections (Credit)
+        try {
+            $cols = MilkCollection::where('farmer_id', $farmerId)
+                ->orderBy('collection_date')
+                ->orderBy('id')
+                ->get();
+
+            foreach ($cols as $c) {
+                $dt = $c->collection_date ? $c->collection_date->format('Y-m-d') : $c->created_at->format('Y-m-d');
+                $rawEntries[] = [
+                    'date' => $dt,
+                    'seq' => ++$seq,
+                    'ref' => $c->receipt_number,
+                    'type' => 'milk',
+                    'type_label' => 'Milk Supply',
+                    'category' => 'Milk Supply',
+                    'description' => "Milk Supply (" . ucfirst($c->shift) . ") — {$c->quantity_liters} Ltr (" . ucfirst($c->milk_type) . ", FAT {$c->fat}% / SNF {$c->snf}%) @ ₹" . number_format((float) $c->applied_rate, 2),
+                    'status' => ucfirst($c->payment_status ?: 'settled'),
+                    'credit' => round((float) $c->net_amount, 2),
+                    'debit' => 0.00,
+                ];
+            }
+        } catch (\Throwable $e) {}
+
+        // 2. Finalized Invoices: Deductions (Debit) & Net Payouts (Debit)
+        try {
+            if (Schema::hasTable('farmer_invoices')) {
+                $invoices = FarmerInvoice::where('farmer_id', $farmerId)
+                    ->where('status', '!=', 'pending')
+                    ->orderBy('period_end')
+                    ->get();
+
+                foreach ($invoices as $inv) {
+                    $dt = $inv->created_at ? $inv->created_at->format('Y-m-d') : ($inv->period_end ? $inv->period_end->format('Y-m-d') : date('Y-m-d'));
+                    $pStart = $inv->period_start ? $inv->period_start->format('d M') : '';
+                    $pEnd = $inv->period_end ? $inv->period_end->format('d M Y') : '';
+
+                    // Bill Deductions (Installment, feed, etc.)
+                    $totalDed = round((float) $inv->total_deduction, 2);
+                    if ($totalDed > 0) {
+                        $advDed = (float) ($inv->advance_deduction ?? 0);
+                        $feedDed = (float) ($inv->feed_deduction ?? 0);
+                        $dedNotes = [];
+                        if ($advDed > 0) $dedNotes[] = "Loan Installment: ₹" . number_format($advDed, 2);
+                        if ($feedDed > 0) $dedNotes[] = "Feed: ₹" . number_format($feedDed, 2);
+                        $notesStr = !empty($dedNotes) ? " (" . implode(', ', $dedNotes) . ")" : "";
+
+                        $rawEntries[] = [
+                            'date' => $dt,
+                            'seq' => ++$seq,
+                            'ref' => "DED-{$inv->invoice_number}",
+                            'type' => 'deduction',
+                            'type_label' => 'Invoice Deductions',
+                            'category' => 'Bill Deductions',
+                            'description' => "Invoice #{$inv->invoice_number} Deductions{$notesStr}",
+                            'status' => 'Applied',
+                            'credit' => 0.00,
+                            'debit' => $totalDed,
+                        ];
+                    }
+
+                    // Settlement Payout disbursed to farmer
+                    $netPaid = round((float) ($inv->net_payment ?? $inv->net_payable), 2);
+                    if ($netPaid > 0 && in_array(strtolower($inv->status), ['settled', 'paid'])) {
+                        $payMode = 'Cash';
+                        if (Schema::hasTable('farmer_settlements')) {
+                            $st = FarmerSettlement::where('invoice_id', $inv->id)->orWhere('settlement_number', 'SETTLE-' . $inv->id)->first();
+                            if ($st && $st->payment_mode) $payMode = $st->payment_mode;
+                        }
+                        $rawEntries[] = [
+                            'date' => $dt,
+                            'seq' => ++$seq,
+                            'ref' => "SETTLE-{$inv->invoice_number}",
+                            'type' => 'settlement',
+                            'type_label' => 'Settlement Payout',
+                            'category' => 'Milk Settlement',
+                            'description' => "Settlement Payout via " . ucfirst($payMode) . " for Invoice #{$inv->invoice_number} ({$pStart} - {$pEnd})",
+                            'status' => 'Paid',
+                            'credit' => 0.00,
+                            'debit' => $netPaid,
+                        ];
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        // 3. Standalone Direct Settlements (if any)
+        try {
+            if (Schema::hasTable('farmer_settlements')) {
+                $invIds = isset($invoices) ? $invoices->pluck('id')->filter()->all() : [];
+                $standaloneStls = FarmerSettlement::where('farmer_id', $farmerId)
+                    ->where(function ($q) use ($invIds) {
+                        $q->whereNull('invoice_id');
+                        if (!empty($invIds)) $q->orWhereNotIn('invoice_id', $invIds);
+                    })
+                    ->get();
+                foreach ($standaloneStls as $st) {
+                    $dt = $st->settled_at ? $st->settled_at->format('Y-m-d') : ($st->created_at ? $st->created_at->format('Y-m-d') : date('Y-m-d'));
+                    $paid = round((float) ($st->paid_amount ?: $st->net_payable), 2);
+                    if ($paid > 0) {
+                        $rawEntries[] = [
+                            'date' => $dt,
+                            'seq' => ++$seq,
+                            'ref' => $st->settlement_number,
+                            'type' => 'settlement',
+                            'type_label' => 'Direct Settlement',
+                            'category' => 'Direct Payment',
+                            'description' => "Direct Milk Payment via " . ucfirst($st->payment_mode ?? 'Cash'),
+                            'status' => 'Paid',
+                            'credit' => 0.00,
+                            'debit' => $paid,
+                        ];
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        // Sort chronologically
+        usort($rawEntries, function ($a, $b) {
+            if ($a['date'] === $b['date']) {
+                return $a['seq'] <=> $b['seq'];
+            }
+            return strcmp($a['date'], $b['date']);
+        });
+
+        // Compute Opening Balance strictly prior to $fromDate
+        $openingBalance = 0.00;
+        $filtered = [];
+
+        foreach ($rawEntries as $entry) {
+            if ($entry['date'] < $fromDate) {
+                $openingBalance = round($openingBalance + $entry['credit'] - $entry['debit'], 2);
+                continue;
+            }
+            if ($entry['date'] > $toDate) {
+                continue;
+            }
+            $filtered[] = $entry;
+        }
+
+        $runningBalance = $openingBalance;
+        $totalCredit = 0.00;
+        $totalDebit = 0.00;
+
+        foreach ($filtered as &$f) {
+            $runningBalance = round($runningBalance + $f['credit'] - $f['debit'], 2);
+            $totalCredit = round($totalCredit + $f['credit'], 2);
+            $totalDebit = round($totalDebit + $f['debit'], 2);
+            $f['running_balance'] = $runningBalance;
+            $f['balance'] = $runningBalance;
+        }
+
+        return [
+            'entries' => $filtered,
+            'openingBalance' => $openingBalance,
+            'totalCredit' => $totalCredit,
+            'totalDebit' => $totalDebit,
+            'closingBalance' => $runningBalance,
+            'fromDate' => $fromDate,
+            'toDate' => $toDate,
         ];
     }
 }
