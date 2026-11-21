@@ -175,7 +175,9 @@ class FarmerInvoiceController extends Controller
             $given = $deductions->where('transaction_type', 'given');
             $feedDeduction = round((float) $given->where('deduction_type', 'cattle_feed')->sum('amount'), 2);
             $advanceFromDeductions = round((float) $given->where('deduction_type', 'advance_recovery')->sum('amount'), 2);
-            $stationaryDeduction = round((float) $given->whereNotIn('deduction_type', ['cattle_feed', 'advance_recovery'])->sum('amount'), 2);
+            $stationaryDeduction = round((float) $given->where('deduction_type', 'stationary')->sum('amount'), 2);
+            $otherDedsByType = $given->whereNotIn('deduction_type', ['cattle_feed', 'advance_recovery', 'stationary'])->groupBy('deduction_type');
+
             // Only manual external received credits, exclude invoice recovered deductions
             $otherCredit = round((float) $deductions->where('transaction_type', 'received')
                 ->filter(function ($d) {
@@ -283,8 +285,27 @@ class FarmerInvoiceController extends Controller
                 'deducted_amount' => $stationaryDeduction,
                 'remaining_balance' => 0.00,
                 'is_wallet' => false,
-                'is_editable' => false,
+                'is_editable' => true,
             ];
+        }
+
+        // Add any other specific deduction types from farmer_deductions
+        if (!empty($otherDedsByType)) {
+            foreach ($otherDedsByType as $dType => $dItems) {
+                $dSum = round((float) $dItems->sum('amount'), 2);
+                if ($dSum <= 0) continue;
+                $label = ucfirst(str_replace('_', ' ', $dType));
+                $deductionsBreakdown[] = [
+                    'key' => 'ded_' . $dType,
+                    'name' => $label,
+                    'category' => $label,
+                    'original_balance' => $dSum,
+                    'deducted_amount' => $dSum,
+                    'remaining_balance' => 0.00,
+                    'is_wallet' => false,
+                    'is_editable' => true,
+                ];
+            }
         }
         if ($feedDeduction > 0) {
             $deductionsBreakdown[] = [
