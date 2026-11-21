@@ -290,6 +290,7 @@ class FarmerInvoice extends Model
                     $liters = (float) $this->total_quantity;
                     $lineAmt = \App\Services\CenterAdditionDeductionService::computeAmount($rate, $dt['unit'], $cName, $liters, (float) $this->milk_amount);
                     if ($lineAmt > 0) {
+                        $isMgmt = str_contains($low, 'management') || str_contains($low, 'mgmt');
                         $extraCategories[] = [
                             'key' => \Illuminate\Support\Str::slug($cName, '_'),
                             'name' => $cName,
@@ -297,6 +298,7 @@ class FarmerInvoice extends Model
                             'original_balance' => $lineAmt,
                             'deducted_amount' => $lineAmt,
                             'remaining_balance' => 0.00,
+                            'is_editable' => !$isMgmt,
                         ];
                     }
                 }
@@ -349,7 +351,9 @@ class FarmerInvoice extends Model
 
         // 4. Add any other dynamic categories (Management Charges C, etc.)
         foreach ($extraCategories as $ec) {
-            $ec['is_editable'] = false;
+            $low = strtolower($ec['name'] ?? '');
+            $isMgmt = str_contains($low, 'management') || str_contains($low, 'mgmt');
+            $ec['is_editable'] = !$isMgmt;
             $breakdown[] = $ec;
         }
 
@@ -362,6 +366,7 @@ class FarmerInvoice extends Model
                 'original_balance' => (float) $this->other_deduction,
                 'deducted_amount' => (float) $this->other_deduction,
                 'remaining_balance' => 0.00,
+                'is_editable' => false,
             ];
         }
 
@@ -384,6 +389,8 @@ class FarmerInvoice extends Model
                         'original_balance' => $cBal,
                         'deducted_amount' => min($cBal, (float) $this->total_deduction),
                         'remaining_balance' => max(0, $cBal - min($cBal, (float) $this->total_deduction)),
+                        'is_wallet' => true,
+                        'is_editable' => true,
                     ];
                 }
             }

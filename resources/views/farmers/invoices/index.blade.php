@@ -1063,18 +1063,15 @@
     }
 
     function isFixedDairyCharge(cat) {
-        if (cat.is_editable === false) return true;
         if (cat.is_editable === true) return false;
+        if (cat.is_editable === false) return true;
         const nameLower = (cat.name || '').toLowerCase();
         const keyLower = (cat.key || '').toLowerCase();
         const catLower = (cat.category || '').toLowerCase();
         const full = `${nameLower} ${keyLower} ${catLower}`;
 
-        if (full.includes('management') || full.includes('mgmt') ||
-            full.includes('dpmcu') || full.includes('doctor') ||
-            full.includes('diesel') || full.includes('contribution') ||
-            full.includes('building fund') || full.includes('grant') ||
-            full.includes('etc')) {
+        // Only dairy management charges per invoice are non-editable fixed charges
+        if (full.includes('management') || full.includes('mgmt')) {
             return true;
         }
         return false;
@@ -1100,7 +1097,7 @@
         let totOrig = 0, totDed = 0, totBal = 0;
         let html = '';
 
-        items.forEach(item => {
+        items.forEach((item, idx) => {
             const orig = parseFloat(item.original_amount || 0);
             const ded = parseFloat(item.deducted_amount || 0);
             const bal = parseFloat(item.remaining_balance || 0);
@@ -1111,7 +1108,7 @@
             const badgeCls = item.type_badge || 'bg-slate-100 text-slate-800';
 
             html += `
-                <tr class="hover:bg-slate-50 transition-colors">
+                <tr class="hover:bg-slate-50 transition-colors" data-item-key="${item.key || ''}">
                     <td class="py-2 px-3 border-r border-slate-100 font-mono text-slate-600">${item.date || '-'}</td>
                     <td class="py-2 px-3 border-r border-slate-100">
                         <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold ${badgeCls}">
@@ -1120,8 +1117,8 @@
                     </td>
                     <td class="py-2 px-3 border-r border-slate-100 font-semibold text-slate-800">${item.particulars || '-'}</td>
                     <td class="py-2 px-3 border-r border-slate-100 text-right font-mono font-bold text-slate-900">₹${orig.toFixed(2)}</td>
-                    <td class="py-2 px-3 border-r border-slate-100 text-right font-mono font-bold text-rose-600">₹${ded.toFixed(2)}</td>
-                    <td class="py-2 px-3 text-right font-mono font-bold text-amber-600">₹${bal.toFixed(2)}</td>
+                    <td class="py-2 px-3 border-r border-slate-100 text-right font-mono font-bold text-rose-600" id="det_ded_${idx}">₹${ded.toFixed(2)}</td>
+                    <td class="py-2 px-3 text-right font-mono font-bold text-amber-600" id="det_bal_${idx}">₹${bal.toFixed(2)}</td>
                 </tr>
             `;
         });
@@ -1411,6 +1408,41 @@
                     remCell.textContent = remBal.toFixed(2);
                 }
             });
+
+            // Live synchronize left-side detailed deductions table
+            if (currentReviewData && currentReviewData.detailed_deductions) {
+                let detTotDed = 0;
+                let detTotBal = 0;
+                currentReviewData.detailed_deductions.forEach((dItem, idx) => {
+                    const orig = parseFloat(dItem.original_amount || 0);
+                    let ded = parseFloat(dItem.deducted_amount || 0);
+
+                    // Find matching input by key, category or name
+                    const matched = inputsData.find(inp => {
+                        const ik = (inp.key || '').toLowerCase();
+                        const dk = (dItem.key || '').toLowerCase();
+                        const dc = (dItem.category || '').toLowerCase();
+                        return (dk && ik === dk) || (dc && ik.includes(dc)) || (dk && dk.includes(ik)) || (dc && dc.includes(ik));
+                    });
+
+                    if (matched) {
+                        ded = (matched.orig > 0 && matched.val > matched.orig) ? 0 : matched.val;
+                    }
+                    const bal = Math.max(0, orig - ded);
+                    detTotDed += ded;
+                    detTotBal += bal;
+
+                    const cDed = document.getElementById('det_ded_' + idx);
+                    const cBal = document.getElementById('det_bal_' + idx);
+                    if (cDed) cDed.textContent = '₹' + ded.toFixed(2);
+                    if (cBal) cBal.textContent = '₹' + bal.toFixed(2);
+                });
+
+                const totalDedElem = document.getElementById('revDetailedTotalDeducted');
+                const totalBalElem = document.getElementById('revDetailedTotalBalance');
+                if (totalDedElem) totalDedElem.textContent = '₹' + detTotDed.toFixed(2);
+                if (totalBalElem) totalBalElem.textContent = '₹' + detTotBal.toFixed(2);
+            }
         } else {
             const feedDed = parseFloat(document.getElementById('revInputFeedDeduction') ? document.getElementById('revInputFeedDeduction').value : 0);
             const advDed = parseFloat(document.getElementById('revInputAdvanceDeduction') ? document.getElementById('revInputAdvanceDeduction').value : 0);

@@ -1016,6 +1016,7 @@ class FarmerInvoiceController extends Controller
                 $rem = (float) $s->remaining_amount;
                 $tot = (float) $s->total_amount;
                 $detailedDeductions[] = [
+                    'key' => 'product',
                     'date' => $s->sale_date ? $s->sale_date->format('Y-m-d') : $invoice->period_start->format('Y-m-d'),
                     'category' => 'Product',
                     'type_badge' => 'bg-emerald-100 text-emerald-800',
@@ -1040,15 +1041,19 @@ class FarmerInvoiceController extends Controller
                 $dType = $fd->deduction_type;
                 if ($dType === 'cattle_feed' || $dType === 'store_purchase') {
                     $catName = 'Product';
+                    $catKey = 'product';
                     $badge = 'bg-emerald-100 text-emerald-800';
                 } elseif ($dType === 'stationary') {
                     $catName = 'Stationary';
+                    $catKey = 'stationary';
                     $badge = 'bg-amber-100 text-amber-800';
                 } elseif ($dType === 'doctor_fee') {
                     $catName = 'Doctor Fee';
+                    $catKey = 'wallet_doctor_fee';
                     $badge = 'bg-blue-100 text-blue-800';
                 } else {
                     $catName = $fd->type_label ?? ucfirst(str_replace('_', ' ', $dType));
+                    $catKey = \Illuminate\Support\Str::slug($catName, '_');
                     $badge = 'bg-slate-100 text-slate-800';
                 }
 
@@ -1062,6 +1067,7 @@ class FarmerInvoiceController extends Controller
                 $remBal = max(0, $amt - $dedAmt);
 
                 $detailedDeductions[] = [
+                    'key' => $matchingDed ? ($matchingDed['key'] ?? $catKey) : $catKey,
                     'date' => $fd->entry_date ? $fd->entry_date->format('Y-m-d') : $invoice->period_start->format('Y-m-d'),
                     'category' => $catName,
                     'type_badge' => $badge,
@@ -1088,6 +1094,7 @@ class FarmerInvoiceController extends Controller
                 $dedAmt = min($bal, $appliedAdvDed);
                 $remBal = max(0, $bal - $dedAmt);
                 $detailedDeductions[] = [
+                    'key' => 'advance',
                     'date' => $adv->advance_date ? $adv->advance_date->format('Y-m-d') : $invoice->period_start->format('Y-m-d'),
                     'category' => 'Advance / Loan',
                     'type_badge' => 'bg-violet-100 text-violet-800',
@@ -1111,6 +1118,7 @@ class FarmerInvoiceController extends Controller
                 $remBal = $matchingCat ? (float) ($matchingCat['remaining_balance'] ?? 0) : (float) $idi['remaining_balance'];
 
                 $detailedDeductions[] = [
+                    'key' => $matchingCat ? ($matchingCat['key'] ?? $cKey) : $cKey,
                     'date' => $invoice->period_end ? $invoice->period_end->format('Y-m-d') : date('Y-m-d'),
                     'category' => $idi['name'],
                     'type_badge' => 'bg-sky-100 text-sky-800',
