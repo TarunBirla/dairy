@@ -238,11 +238,9 @@ class Farmer extends Model
             }
         } catch (\Throwable $e) {}
 
-        // 2. Compute canonical live passbook balance
-        $passbook = app(\App\Http\Controllers\MobileDairyController::class)
-            ->buildFarmerPassbookAllTime($this);
-
-        $balance = round((float) ($passbook['closingBalance'] ?? 0), 2);
+        // 2. Compute canonical live balance via centralized FarmerAccountingService
+        $summary = \App\Services\FarmerAccountingService::getFinancialSummary($this);
+        $balance = round((float) ($summary['milk_payable'] ?? 0), 2);
         $this->update(['current_balance' => $balance]);
         return $balance;
     }

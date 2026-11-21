@@ -1353,19 +1353,19 @@ class MobileDairyController extends Controller
                         'debit' => round((float) $a->amount, 2),
                     ];
 
-                    // Repayments
-                    $paid = (float) $a->paid_amount;
-                    if ($paid > 0) {
-                        $pDate = $a->paid_date ? $a->paid_date->format('Y-m-d') : $dt;
+                    // Repayments (both direct cash repayment and invoice deductions)
+                    $totalRepaid = round((float) $a->paid_amount + (float) $a->deducted_amount, 2);
+                    if ($totalRepaid > 0) {
+                        $pDate = $a->paid_date ? $a->paid_date->format('Y-m-d') : ($a->updated_at ? $a->updated_at->format('Y-m-d') : $dt);
                         $rawEntries[] = [
                             'date' => $pDate,
                             'seq' => ++$seq,
                             'ref' => "REP-{$a->voucher_no}",
                             'type' => 'loan',
                             'type_label' => 'Loan Repayment',
-                            'description' => "Loan Repayment for Voucher #{$a->voucher_no}",
-                            'status' => 'Received',
-                            'credit' => $paid,
+                            'description' => "Loan Repayment / Installment Deducted for Voucher #{$a->voucher_no}",
+                            'status' => 'Recovered',
+                            'credit' => $totalRepaid,
                             'debit' => 0.00,
                         ];
                     }
@@ -1619,11 +1619,6 @@ class MobileDairyController extends Controller
             }
         } catch (\Throwable $e) {}
 
-        $passbook = $this->buildFarmerPassbookAllTime($farmer);
-        $balance = round((float) ($passbook['closingBalance'] ?? 0), 2);
-        try {
-            $farmer->update(['current_balance' => $balance]);
-        } catch (\Throwable $e) {}
-        return $balance;
+        return $farmer->recalculateBalance();
     }
 }

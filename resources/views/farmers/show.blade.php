@@ -68,14 +68,27 @@
                 </div>
             </div>
 
-            <!-- Ledger Balance & Quick Action -->
-            <div class="bg-emerald-50/60 border border-emerald-200/80 p-4 rounded-xl flex items-center justify-between sm:justify-end gap-6">
-                <div>
-                    <span class="text-[10px] uppercase font-bold text-slate-500 block">Current Ledger Balance</span>
-                    <span class="text-2xl font-black text-slate-900">₹ {{ number_format($farmer->current_balance, 2) }}</span>
-                    <span class="text-[10px] text-emerald-700 font-semibold block">Payable by Dairy</span>
+            <!-- Financial Status Cards & Quick Actions -->
+            <div class="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4">
+                <!-- 1. Milk Payable Due (दूध भुगतान) -->
+                @php
+                    $milkDue = (float) ($financialSummary['milk_payable'] ?? max(0, $farmer->current_balance));
+                    $loanDue = (float) ($financialSummary['total_dues'] ?? ($financialSummary['active_loan_balance'] ?? 0));
+                @endphp
+                <div class="bg-emerald-50/70 border border-emerald-200/80 p-3 rounded-2xl min-w-[130px] text-center shadow-2xs">
+                    <span class="text-[10px] uppercase font-bold text-emerald-700 block tracking-wider">दूध देय (Milk Due)</span>
+                    <span class="text-xl font-black text-emerald-950 mt-0.5 block">₹ {{ number_format($milkDue, 2) }}</span>
+                    <span class="text-[10px] text-emerald-700 font-semibold block">{{ $milkDue > 0 ? 'किसान को देना है' : 'चुकता (Clear)' }}</span>
                 </div>
-                <div class="flex flex-col gap-1.5">
+
+                <!-- 2. Active Loan / Wallet Dues (लोन/वॉलेट बक़ाया) -->
+                <div class="bg-amber-50/70 border border-amber-200/80 p-3 rounded-2xl min-w-[150px] text-center shadow-2xs">
+                    <span class="text-[10px] uppercase font-bold text-amber-800 block tracking-wider">लोन बक़ाया (Loan Dues)</span>
+                    <span class="text-xl font-black text-rose-700 mt-0.5 block">₹ {{ number_format($loanDue, 2) }}</span>
+                    <span class="text-[10px] text-amber-800 font-semibold block">{{ $loanDue > 0 ? 'किसान से लेना है' : 'कोई बक़ाया नहीं' }}</span>
+                </div>
+
+                <div class="flex flex-col gap-1.5 shrink-0">
                     <button type="button" @click="advanceModal = true" class="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-2xs transition">
                         + Issue Advance
                     </button>

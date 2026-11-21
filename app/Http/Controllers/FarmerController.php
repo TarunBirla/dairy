@@ -342,6 +342,8 @@ class FarmerController extends Controller
             // Safe fallback
         }
 
+        $financialSummary = \App\Services\FarmerAccountingService::getFinancialSummary($farmer);
+
         return view('farmers.show', array_merge(compact(
             'farmer',
             'collections',
@@ -357,7 +359,8 @@ class FarmerController extends Controller
             'totalPurchaseUnpaid',
             'paidPurchasesCount',
             'unpaidPurchasesCount',
-            'mobileDairyData'
+            'mobileDairyData',
+            'financialSummary'
         ), $passbookData));
     }
 
