@@ -107,13 +107,46 @@ class FarmerInvoiceController extends Controller
     /**
      * Calculate accurate period billing figures for a farmer.
      */
-    private function calculateInvoiceMetrics(int $farmerId, string $startDate, string $endDate): array
+    private function calculateInvoiceMetrics(int $farmerId, string $startDate, string $endDate, ?int $currentInvoiceId = null): array
     {
         $farmer = Farmer::find($farmerId);
 
-        $collections = MilkCollection::where('farmer_id', $farmerId)
-            ->whereBetween('collection_date', [$startDate, $endDate])
-            ->get();
+        // 1. Identify date ranges covered by other finalized/settled invoices to prevent duplicate milk billing
+        $settledRanges = FarmerInvoice::where('farmer_id', $farmerId)
+            ->where(function ($q) use ($currentInvoiceId) {
+                $q->whereIn('status', ['settled', 'paid', 'generated']);
+                if ($currentInvoiceId) {
+                    $q->where('id', '!=', $currentInvoiceId);
+                }
+            })
+            ->get(['id', 'period_start', 'period_end']);
+
+        $collectionsQuery = MilkCollection::where('farmer_id', $farmerId)
+            ->whereBetween('collection_date', [$startDate, $endDate]);
+
+        if (Schema::hasColumn('milk_collections', 'farmer_invoice_id')) {
+            $collectionsQuery->where(function ($q) use ($currentInvoiceId) {
+                $q->whereNull('farmer_invoice_id');
+                if ($currentInvoiceId) {
+                    $q->orWhere('farmer_invoice_id', $currentInvoiceId);
+                }
+            });
+        }
+
+        $allCols = $collectionsQuery->get();
+
+        // Strictly filter out collections already covered in another invoice period
+        $collections = $allCols->filter(function ($c) use ($settledRanges) {
+            $colDate = $c->collection_date ? $c->collection_date->format('Y-m-d') : $c->created_at->format('Y-m-d');
+            foreach ($settledRanges as $inv) {
+                $pStart = $inv->period_start instanceof Carbon ? $inv->period_start->format('Y-m-d') : $inv->period_start;
+                $pEnd = $inv->period_end instanceof Carbon ? $inv->period_end->format('Y-m-d') : $inv->period_end;
+                if ($colDate >= $pStart && $colDate <= $pEnd) {
+                    return false;
+                }
+            }
+            return true;
+        });
 
         $totalQuantity = round((float) $collections->sum('quantity_liters'), 2);
         // Pure milk gross amount: Quantity * Rate
@@ -442,7 +475,7 @@ class FarmerInvoiceController extends Controller
             ? $invoice->period_end->format('Y-m-d')
             : Carbon::parse($invoice->period_end)->format('Y-m-d');
 
-        $metrics = $this->calculateInvoiceMetrics((int) $invoice->farmer_id, $start, $end);
+        $metrics = $this->calculateInvoiceMetrics((int) $invoice->farmer_id, $start, $end, $invoice->id);
 
         $needsUpdate = false;
         foreach ($metrics as $key => $val) {
@@ -682,42 +715,54 @@ class FarmerInvoiceController extends Controller
                 continue;
             }
 
-            // Also check if an invoice for the exact same period is already settled
-            $alreadySettled = FarmerInvoice::where('farmer_id', $farmer->id)
-                ->whereDate('period_start', $startDate)
-                ->where('status', 'settled')
-                ->exists();
+            // Check if farmer already has a settled invoice covering this period
+            $lastSettled = FarmerInvoice::where('farmer_id', $farmer->id)
+                ->whereIn('status', ['settled', 'paid'])
+                ->latest('period_end')
+                ->first();
 
-            if ($alreadySettled) {
+            $effStartDate = $startDate;
+            if ($lastSettled && $lastSettled->period_end) {
+                $lastEndDate = $lastSettled->period_end instanceof Carbon ? $lastSettled->period_end->format('Y-m-d') : $lastSettled->period_end;
+                // If user entered startDate on or before last settled invoice's end date, auto-adjust to day after
+                if ($effStartDate <= $lastEndDate) {
+                    $effStartDate = Carbon::parse($lastEndDate)->addDay()->format('Y-m-d');
+                }
+            }
+
+            // If the entire period requested is already covered by settled bills, skip
+            if ($effStartDate > $endDate) {
                 if (!empty($validated['farmer_id'])) {
-                    return back()->with('error', "किसान {$farmer->name} ({$farmer->farmer_code}) का इस अवधि का इनवॉइस पहले ही सेटल हो चुका है।");
+                    return back()->with('error', "किसान {$farmer->name} ({$farmer->farmer_code}) का {$endDate} तक का दूध पहले ही इनवॉइस #{$lastSettled->invoice_number} में सेटल हो चुका है।");
                 }
                 continue;
             }
 
-            $metrics = $this->calculateInvoiceMetrics((int) $farmer->id, $startDate, $endDate);
+            // Find existing invoice for same farmer & period_start to avoid duplicate overlapping bills
+            $existing = FarmerInvoice::where('farmer_id', $farmer->id)
+                ->whereDate('period_start', $effStartDate)
+                ->where('status', 'pending')
+                ->orderBy('id', 'desc')
+                ->first();
+
+            $metrics = $this->calculateInvoiceMetrics((int) $farmer->id, $effStartDate, $endDate, $existing?->id);
 
             // Skip farmers with no milk collection (milk invoices are only generated for farmers who supplied milk)
             if ($metrics['total_quantity'] <= 0) {
                 continue;
             }
 
-            // Find existing invoice for same farmer & period_start to avoid duplicate overlapping bills
-            $existing = FarmerInvoice::where('farmer_id', $farmer->id)
-                ->whereDate('period_start', $startDate)
-                ->orderBy('id', 'desc')
-                ->first();
-
             $targetInvoice = null;
             if ($existing) {
                 $existing->update(array_merge($metrics, [
+                    'period_start' => $effStartDate,
                     'period_end' => $endDate,
                     'status' => 'pending',
                     'is_edited' => false,
                     'created_by' => Auth::id(),
                 ]));
                 FarmerInvoice::where('farmer_id', $farmer->id)
-                    ->whereDate('period_start', $startDate)
+                    ->whereDate('period_start', $effStartDate)
                     ->where('id', '!=', $existing->id)
                     ->delete();
                 $targetInvoice = $existing;
@@ -725,7 +770,7 @@ class FarmerInvoiceController extends Controller
                 $invNum = 'BILL-' . str_pad((FarmerInvoice::max('id') + 101), 4, '0', STR_PAD_LEFT);
                 $targetInvoice = FarmerInvoice::create(array_merge($metrics, [
                     'farmer_id' => $farmer->id,
-                    'period_start' => $startDate,
+                    'period_start' => $effStartDate,
                     'period_end' => $endDate,
                     'invoice_number' => $invNum,
                     'status' => 'pending',
@@ -737,7 +782,7 @@ class FarmerInvoiceController extends Controller
             // Link matching un-invoiced milk collections to this invoice (prevents duplicate invoicing)
             if (Schema::hasColumn('milk_collections', 'farmer_invoice_id')) {
                 MilkCollection::where('farmer_id', $farmer->id)
-                    ->whereBetween('collection_date', [$startDate, $endDate])
+                    ->whereBetween('collection_date', [$effStartDate, $endDate])
                     ->where(function ($q) use ($targetInvoice) {
                         $q->whereNull('farmer_invoice_id')
                           ->orWhere('farmer_invoice_id', $targetInvoice->id);

@@ -107,11 +107,37 @@ class FarmerInvoice extends Model
             }
         }
 
-        return MilkCollection::where('farmer_id', $this->farmer_id)
-            ->whereBetween('collection_date', [$this->period_start, $this->period_end])
-            ->orderBy('collection_date', 'asc')
+        // Exclude collections covered by another settled invoice
+        $settledRanges = self::where('farmer_id', $this->farmer_id)
+            ->where('id', '!=', $this->id)
+            ->whereIn('status', ['settled', 'paid'])
+            ->get(['period_start', 'period_end']);
+
+        $query = MilkCollection::where('farmer_id', $this->farmer_id)
+            ->whereBetween('collection_date', [$this->period_start, $this->period_end]);
+
+        if (\Illuminate\Support\Facades\Schema::hasColumn('milk_collections', 'farmer_invoice_id')) {
+            $query->where(function ($q) {
+                $q->whereNull('farmer_invoice_id')
+                  ->orWhere('farmer_invoice_id', $this->id);
+            });
+        }
+
+        $all = $query->orderBy('collection_date', 'asc')
             ->orderBy('shift', 'asc')
             ->get();
+
+        return $all->filter(function ($c) use ($settledRanges) {
+            $colDate = $c->collection_date ? $c->collection_date->format('Y-m-d') : $c->created_at->format('Y-m-d');
+            foreach ($settledRanges as $inv) {
+                $pStart = $inv->period_start instanceof \Carbon\Carbon ? $inv->period_start->format('Y-m-d') : $inv->period_start;
+                $pEnd = $inv->period_end instanceof \Carbon\Carbon ? $inv->period_end->format('Y-m-d') : $inv->period_end;
+                if ($colDate >= $pStart && $colDate <= $pEnd) {
+                    return false;
+                }
+            }
+            return true;
+        });
     }
 
     /**

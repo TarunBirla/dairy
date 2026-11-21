@@ -445,11 +445,16 @@ class FarmerSettlementController extends Controller
                     'payment_reference' => $reference ?: $settleNumber,
                 ]);
 
-                // Mark collections settled
+                // Mark collections settled and link to invoice
                 MilkCollection::where('farmer_id', $inv->farmer_id)
-                    ->whereBetween('collection_date', [$inv->period_start, $inv->period_end])
-                    ->where('payment_status', 'pending')
-                    ->update(['payment_status' => 'settled']);
+                    ->where(function ($q) use ($inv) {
+                        $q->where('farmer_invoice_id', $inv->id)
+                          ->orWhereBetween('collection_date', [$inv->period_start, $inv->period_end]);
+                    })
+                    ->update([
+                        'payment_status' => 'settled',
+                        'farmer_invoice_id' => $inv->id,
+                    ]);
 
                 // Adjust running balance & create ledger debit record
                 $farmer = $inv->farmer;
