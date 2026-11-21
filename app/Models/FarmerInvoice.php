@@ -221,8 +221,8 @@ class FarmerInvoice extends Model
      */
     public function getCategoryDeductionsBreakdown(): array
     {
-        // If invoice is already verified/generated and has saved deductions_breakdown, return it
-        if (!empty($this->deductions_breakdown) && is_array($this->deductions_breakdown)) {
+        // If invoice is already verified/generated (NOT pending) and has saved deductions_breakdown, return it
+        if ($this->status !== 'pending' && !empty($this->deductions_breakdown) && is_array($this->deductions_breakdown)) {
             return $this->deductions_breakdown;
         }
 
