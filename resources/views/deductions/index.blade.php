@@ -152,9 +152,10 @@
                             $received = (float) $farmer->deductions->where('transaction_type', 'received')->sum('amount');
                             $netAmount = max(0, $given - $received);
 
-                            $advancesSum = (float) \App\Models\FarmerAdvance::where('farmer_id', $farmer->id)
+                            $advances = \App\Models\FarmerAdvance::where('farmer_id', $farmer->id)
                                 ->where('status', '!=', 'recovered')
-                                ->sum('principal_balance');
+                                ->get();
+                            $advancesSum = (float) $advances->sum(fn($adv) => (float) ($adv->principal_balance ?? ($adv->amount - $adv->paid_amount - $adv->deducted_amount)));
 
                             $walletBal = (float) ($farmer->wallet ? $farmer->wallet->balance : 0);
                             $totalFarmerDues = max($walletBal, round($advancesSum + $netAmount, 2));
