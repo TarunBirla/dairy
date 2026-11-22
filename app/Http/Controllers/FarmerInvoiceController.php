@@ -390,23 +390,80 @@ class FarmerInvoiceController extends Controller
         try {
             $wallet = \App\Services\FarmerWalletService::getOrCreateWallet($farmerId);
             $catBals = $wallet->getCategoryBalances();
+
+            $isProductCategory = function (string $cat): bool {
+                $c = strtolower(str_replace(['_', '-'], ' ', $cat));
+                $productTerms = ['product', 'feed', 'food', 'cattle', 'ghee', 'butter', 'store', 'pashu', 'khad', 'khal', 'churi', 'mineral', 'silage'];
+                foreach ($productTerms as $term) {
+                    if (str_contains($c, $term)) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            $hasProductBreakdown = collect($deductionsBreakdown)->contains(function ($item) {
+                return ($item['key'] ?? '') === 'product' || strtolower($item['name'] ?? '') === 'product' || strtolower($item['category'] ?? '') === 'product';
+            });
+            $hasAdvanceBreakdown = collect($deductionsBreakdown)->contains(function ($item) {
+                return ($item['key'] ?? '') === 'advance' || str_contains(strtolower($item['name'] ?? ''), 'advance') || str_contains(strtolower($item['category'] ?? ''), 'advance');
+            });
+            $hasStationaryBreakdown = collect($deductionsBreakdown)->contains(function ($item) {
+                return ($item['key'] ?? '') === 'stationary' || str_contains(strtolower($item['name'] ?? ''), 'stationary');
+            });
+
             foreach ($catBals as $catName => $catBal) {
                 $catBal = (float) $catBal;
                 if ($catBal <= 0) continue;
                 $catLower = strtolower($catName);
 
                 $alreadyCovered = false;
-                if ((str_contains($catLower, 'advance') || str_contains($catLower, 'loan')) && $advanceDeduction > 0) {
+                if ((str_contains($catLower, 'advance') || str_contains($catLower, 'loan')) && ($hasAdvanceBreakdown || $advanceDeduction > 0 || $totalLoanPrincipal > 0)) {
                     $alreadyCovered = true;
-                }
-                if ((str_contains($catLower, 'feed') || str_contains($catLower, 'food')) && $feedDeduction > 0) {
+                } elseif ($isProductCategory($catName) && ($hasProductBreakdown || $totalProductDue > 0 || $feedDeduction > 0)) {
                     $alreadyCovered = true;
-                }
-                if (str_contains($catLower, 'stationary') && $stationaryDeduction > 0) {
+                } elseif (str_contains($catLower, 'stationary') && ($hasStationaryBreakdown || $stationaryDeduction > 0)) {
                     $alreadyCovered = true;
+                } else {
+                    $cSlug = \Illuminate\Support\Str::slug($catName, '_');
+                    $alreadyCovered = collect($deductionsBreakdown)->contains(function ($item) use ($cSlug, $catLower) {
+                        return ($item['key'] ?? '') === $cSlug 
+                            || ($item['key'] ?? '') === 'wallet_' . $cSlug
+                            || ($item['key'] ?? '') === 'ded_' . $cSlug 
+                            || strtolower($item['name'] ?? '') === $catLower 
+                            || strtolower($item['category'] ?? '') === $catLower;
+                    });
                 }
 
                 if (!$alreadyCovered) {
+                    if ($isProductCategory($catName)) {
+                        $prodIndex = null;
+                        foreach ($deductionsBreakdown as $pIdx => $pItem) {
+                            if (($pItem['key'] ?? '') === 'product' || strtolower($pItem['name'] ?? '') === 'product') {
+                                $prodIndex = $pIdx;
+                                break;
+                            }
+                        }
+                        if ($prodIndex !== null) {
+                            $deductionsBreakdown[$prodIndex]['original_balance'] += $catBal;
+                            $deductionsBreakdown[$prodIndex]['deducted_amount'] += $catBal;
+                        } else {
+                            $deductionsBreakdown[] = [
+                                'key' => 'product',
+                                'name' => 'Product',
+                                'category' => 'Product',
+                                'original_balance' => $catBal,
+                                'deducted_amount' => $catBal,
+                                'remaining_balance' => 0.00,
+                                'is_wallet' => true,
+                                'is_editable' => true,
+                            ];
+                            $hasProductBreakdown = true;
+                        }
+                        $walletOutstanding += $catBal;
+                        continue;
+                    }
+
                     // Check if this category is Advance / Loan and farmer has installment preference
                     $defaultDed = $catBal;
                     if (str_contains($catLower, 'advance') || str_contains($catLower, 'loan')) {
@@ -1073,7 +1130,7 @@ class FarmerInvoiceController extends Controller
                     $k = strtolower($c['name'] ?? $c['key'] ?? '');
                     return str_contains($k, strtolower($catName)) || str_contains($k, $dType);
                 });
-                $dedAmt = $matchingDed ? (float) ($matchingDed['deducted_amount'] ?? $amt) : $amt;
+                $dedAmt = $matchingDed ? min($amt, (float) ($matchingDed['deducted_amount'] ?? $amt)) : $amt;
                 $remBal = max(0, $amt - $dedAmt);
 
                 $detailedDeductions[] = [

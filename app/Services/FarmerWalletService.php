@@ -746,28 +746,35 @@ class FarmerWalletService
 
             // B2. Deduct & Record Recovery in farmer_deductions (Cattle Feed / Medicine / Store deductions)
             if ($feedDeduction > 0 && Schema::hasTable('farmer_deductions')) {
-                $unrecFeed = (float) FarmerDeduction::where('farmer_id', $invoice->farmer_id)
-                    ->where('deduction_type', 'cattle_feed')
+                $productTypes = ['cattle_feed', 'store_purchase', 'ghee_butter', 'product', 'feed', 'food'];
+                $unrecDeds = FarmerDeduction::where('farmer_id', $invoice->farmer_id)
+                    ->whereIn('deduction_type', $productTypes)
                     ->where('transaction_type', 'given')
-                    ->sum('amount');
-                $alreadyRec = (float) FarmerDeduction::where('farmer_id', $invoice->farmer_id)
-                    ->where('deduction_type', 'cattle_feed')
-                    ->where('transaction_type', 'received')
-                    ->sum('amount');
-                $dueFeed = max(0, $unrecFeed - $alreadyRec);
+                    ->orderBy('id', 'asc')
+                    ->get();
 
-                if ($dueFeed > 0) {
-                    $recAmt = min($feedDeduction, $dueFeed);
-                    FarmerDeduction::firstOrCreate([
+                $remFeedDeduction = $feedDeduction;
+                foreach ($unrecDeds as $uDed) {
+                    if ($remFeedDeduction <= 0) break;
+                    $alreadyRec = (float) FarmerDeduction::where('farmer_id', $invoice->farmer_id)
+                        ->where('deduction_type', $uDed->deduction_type)
+                        ->where('transaction_type', 'received')
+                        ->where('comments', 'like', "%Invoice #{$invoice->invoice_number}%")
+                        ->sum('amount');
+                    $dueOnThis = max(0, (float)$uDed->amount - $alreadyRec);
+                    if ($dueOnThis <= 0) continue;
+
+                    $recAmt = min($remFeedDeduction, $dueOnThis);
+                    FarmerDeduction::create([
                         'farmer_id' => $invoice->farmer_id,
                         'entry_date' => $invoice->period_end ? (\Carbon\Carbon::parse($invoice->period_end)->format('Y-m-d')) : \Carbon\Carbon::today()->format('Y-m-d'),
-                        'deduction_type' => 'cattle_feed',
+                        'deduction_type' => $uDed->deduction_type,
                         'transaction_type' => 'received',
                         'amount' => $recAmt,
                         'comments' => "Recovered in Invoice #{$invoice->invoice_number}",
-                    ], [
                         'created_by' => $createdBy,
                     ]);
+                    $remFeedDeduction -= $recAmt;
                 }
             }
 
@@ -777,6 +784,17 @@ class FarmerWalletService
             $totalRemainingFromBreakdown = 0.0;
 
             if ($isStructuredList) {
+                $isProductCategory = function (string $cat): bool {
+                    $c = strtolower(str_replace(['_', '-'], ' ', $cat));
+                    $productTerms = ['product', 'feed', 'food', 'cattle', 'ghee', 'butter', 'store', 'pashu', 'khad', 'khal', 'churi', 'mineral', 'silage'];
+                    foreach ($productTerms as $term) {
+                        if (str_contains($c, $term)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+
                 foreach ($breakdownOrCategoryDeductions as $item) {
                     $rawCat = $item['category'] ?? ($item['name'] ?? 'Deduction');
                     $catName = trim(str_ireplace(['(Wallet)', '(Standard)', '(Fixed)'], '', $rawCat));
@@ -789,23 +807,44 @@ class FarmerWalletService
                     $totalRemainingFromBreakdown += $remBal;
 
                     if ($dedAmt > 0) {
-                        $balBefore = $runningBalance;
-                        $runningBalance = round(max(0, $runningBalance - $dedAmt), 2);
+                        $debitItems = [];
+                        if ($isProductCategory($catName)) {
+                            $currentBals = $lockedWallet->getCategoryBalances();
+                            $remToDebit = $dedAmt;
+                            foreach ($currentBals as $cbCat => $cbBal) {
+                                if ($remToDebit <= 0) break;
+                                if ($isProductCategory($cbCat) && $cbBal > 0) {
+                                    $chunk = min($remToDebit, (float) $cbBal);
+                                    $debitItems[] = ['category' => $cbCat, 'amount' => $chunk];
+                                    $remToDebit = round($remToDebit - $chunk, 2);
+                                }
+                            }
+                            if ($remToDebit > 0) {
+                                $debitItems[] = ['category' => $catName, 'amount' => $remToDebit];
+                            }
+                        } else {
+                            $debitItems[] = ['category' => $catName, 'amount' => $dedAmt];
+                        }
 
-                        FarmerWalletTransaction::create([
-                            'wallet_id' => $lockedWallet->id,
-                            'farmer_id' => $invoice->farmer_id,
-                            'farmer_invoice_id' => $invoice->id,
-                            'transaction_type' => FarmerWalletTransaction::TYPE_DEBIT,
-                            'category' => $catName,
-                            'amount' => $dedAmt,
-                            'balance_before' => $balBefore,
-                            'balance_after' => $runningBalance,
-                            'reference_type' => 'farmer_invoice',
-                            'reference_id' => (string) $invoice->id,
-                            'remarks' => "Deducted in Invoice #{$invoice->invoice_number} ({$invoice->period_start->format('d/m/Y')} - {$invoice->period_end->format('d/m/Y')})",
-                            'created_by' => $createdBy,
-                        ]);
+                        foreach ($debitItems as $di) {
+                            $balBefore = $runningBalance;
+                            $runningBalance = round(max(0, $runningBalance - $di['amount']), 2);
+
+                            FarmerWalletTransaction::create([
+                                'wallet_id' => $lockedWallet->id,
+                                'farmer_id' => $invoice->farmer_id,
+                                'farmer_invoice_id' => $invoice->id,
+                                'transaction_type' => FarmerWalletTransaction::TYPE_DEBIT,
+                                'category' => $di['category'],
+                                'amount' => $di['amount'],
+                                'balance_before' => $balBefore,
+                                'balance_after' => $runningBalance,
+                                'reference_type' => 'farmer_invoice',
+                                'reference_id' => (string) $invoice->id,
+                                'remarks' => "Deducted in Invoice #{$invoice->invoice_number} ({$invoice->period_start->format('d/m/Y')} - {$invoice->period_end->format('d/m/Y')})",
+                                'created_by' => $createdBy,
+                            ]);
+                        }
 
                         $totalDeducted += $dedAmt;
                     }

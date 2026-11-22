@@ -387,14 +387,81 @@ class FarmerInvoice extends Model
         try {
             $wallet = \App\Services\FarmerWalletService::getOrCreateWallet($farmerId);
             $catBals = $wallet->getCategoryBalances();
+
+            $isProductCategory = function (string $cat): bool {
+                $c = strtolower(str_replace(['_', '-'], ' ', $cat));
+                $productTerms = ['product', 'feed', 'food', 'cattle', 'ghee', 'butter', 'store', 'pashu', 'khad', 'khal', 'churi', 'mineral', 'silage'];
+                foreach ($productTerms as $term) {
+                    if (str_contains($c, $term)) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            $hasProductBreakdown = collect($breakdown)->contains(function ($item) {
+                return ($item['key'] ?? '') === 'product' || strtolower($item['name'] ?? '') === 'product' || strtolower($item['category'] ?? '') === 'product';
+            });
+            $hasAdvanceBreakdown = collect($breakdown)->contains(function ($item) {
+                return ($item['key'] ?? '') === 'advance' || str_contains(strtolower($item['name'] ?? ''), 'advance') || str_contains(strtolower($item['category'] ?? ''), 'advance');
+            });
+            $hasStationaryBreakdown = collect($breakdown)->contains(function ($item) {
+                return ($item['key'] ?? '') === 'stationary' || str_contains(strtolower($item['name'] ?? ''), 'stationary');
+            });
+
             foreach ($catBals as $cName => $cBal) {
                 $cBal = (float) $cBal;
                 if ($cBal <= 0) continue;
-                $cSlug = \Illuminate\Support\Str::slug($cName, '_');
-                $alreadyExists = collect($breakdown)->contains(function ($item) use ($cSlug, $cName) {
-                    return $item['key'] === $cSlug || strtolower($item['name']) === strtolower($cName) || strtolower($item['category']) === strtolower($cName);
-                });
+                $cLower = strtolower($cName);
+
+                $alreadyExists = false;
+                if ((str_contains($cLower, 'advance') || str_contains($cLower, 'loan')) && ($hasAdvanceBreakdown || $loanOutstanding > 0 || $advDeductible > 0)) {
+                    $alreadyExists = true;
+                } elseif ($isProductCategory($cName) && ($hasProductBreakdown || $feedOutstanding > 0)) {
+                    $alreadyExists = true;
+                } elseif (str_contains($cLower, 'stationary') && ($hasStationaryBreakdown || $statOutstanding > 0)) {
+                    $alreadyExists = true;
+                } else {
+                    $cSlug = \Illuminate\Support\Str::slug($cName, '_');
+                    $alreadyExists = collect($breakdown)->contains(function ($item) use ($cSlug, $cLower) {
+                        return ($item['key'] ?? '') === $cSlug 
+                            || ($item['key'] ?? '') === 'wallet_' . $cSlug
+                            || ($item['key'] ?? '') === 'ded_' . $cSlug 
+                            || strtolower($item['name'] ?? '') === $cLower 
+                            || strtolower($item['category'] ?? '') === $cLower;
+                    });
+                }
+
                 if (!$alreadyExists) {
+                    if ($isProductCategory($cName)) {
+                        $prodIndex = null;
+                        foreach ($breakdown as $pIdx => $pItem) {
+                            if (($pItem['key'] ?? '') === 'product' || strtolower($pItem['name'] ?? '') === 'product') {
+                                $prodIndex = $pIdx;
+                                break;
+                            }
+                        }
+                        if ($prodIndex !== null) {
+                            $breakdown[$prodIndex]['original_balance'] += $cBal;
+                            $breakdown[$prodIndex]['deducted_amount'] += min($cBal, (float) $this->total_deduction);
+                            $breakdown[$prodIndex]['remaining_balance'] = max(0, $breakdown[$prodIndex]['original_balance'] - $breakdown[$prodIndex]['deducted_amount']);
+                        } else {
+                            $breakdown[] = [
+                                'key' => 'product',
+                                'name' => 'Product',
+                                'category' => 'Product',
+                                'original_balance' => $cBal,
+                                'deducted_amount' => min($cBal, (float) $this->total_deduction),
+                                'remaining_balance' => max(0, $cBal - min($cBal, (float) $this->total_deduction)),
+                                'is_wallet' => true,
+                                'is_editable' => true,
+                            ];
+                            $hasProductBreakdown = true;
+                        }
+                        continue;
+                    }
+
+                    $cSlug = \Illuminate\Support\Str::slug($cName, '_');
                     $breakdown[] = [
                         'key' => 'wallet_' . $cSlug,
                         'name' => "{$cName} (Deduction Wallet)",
