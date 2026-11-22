@@ -173,12 +173,13 @@ class FarmerInvoiceController extends Controller
                 ->get();
 
             $given = $deductions->where('transaction_type', 'given');
-            $feedDeduction = round((float) $given->where('deduction_type', 'cattle_feed')->sum('amount'), 2);
-            $storePurchasesDue = round((float) $given->where('deduction_type', 'store_purchase')->sum('amount'), 2);
+            $productTypes = ['cattle_feed', 'store_purchase', 'ghee_butter', 'product', 'feed', 'food'];
+            $feedDeduction = round((float) $given->whereIn('deduction_type', $productTypes)->sum('amount'), 2);
+            $storePurchasesDue = 0.00;
             $advanceFromDeductions = round((float) $given->where('deduction_type', 'advance_recovery')->sum('amount'), 2);
             $stationaryDeduction = round((float) $given->where('deduction_type', 'stationary')->sum('amount'), 2);
             $doctorFeeDeduction = round((float) $given->where('deduction_type', 'doctor_fee')->sum('amount'), 2);
-            $otherDedsByType = $given->whereNotIn('deduction_type', ['cattle_feed', 'store_purchase', 'advance_recovery', 'stationary', 'doctor_fee'])->groupBy('deduction_type');
+            $otherDedsByType = $given->whereNotIn('deduction_type', array_merge($productTypes, ['advance_recovery', 'stationary', 'doctor_fee']))->groupBy('deduction_type');
 
             // Only manual external received credits, exclude invoice recovered deductions
             $otherCredit = round((float) $deductions->where('transaction_type', 'received')
@@ -1047,7 +1048,8 @@ class FarmerInvoiceController extends Controller
 
             foreach ($fDeds as $fd) {
                 $dType = $fd->deduction_type;
-                if ($dType === 'cattle_feed' || $dType === 'store_purchase') {
+                $productTypes = ['cattle_feed', 'store_purchase', 'ghee_butter', 'product', 'feed', 'food'];
+                if (in_array($dType, $productTypes)) {
                     $catName = 'Product';
                     $catKey = 'product';
                     $badge = 'bg-emerald-100 text-emerald-800';
@@ -1298,7 +1300,7 @@ class FarmerInvoiceController extends Controller
                 $searchStr = strtolower($cKey . ' ' . $cName . ' ' . $cCat);
                 if (str_contains($searchStr, 'advance') || str_contains($searchStr, 'loan')) {
                     $advanceDeduction += $dedAmt;
-                } elseif (str_contains($searchStr, 'feed') || str_contains($searchStr, 'food')) {
+                } elseif (str_contains($searchStr, 'feed') || str_contains($searchStr, 'food') || str_contains($searchStr, 'product') || str_contains($searchStr, 'store') || str_contains($searchStr, 'butter') || str_contains($searchStr, 'ghee')) {
                     $feedDeduction += $dedAmt;
                 } elseif (str_contains($searchStr, 'stationary')) {
                     $stationaryDeduction += $dedAmt;

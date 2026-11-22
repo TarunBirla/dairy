@@ -255,16 +255,29 @@ class FarmerInvoice extends Model
         }
         $advRemaining = max(0, $loanOutstanding - $advDeductible);
 
-        // 2. Feed / Food Outstanding
+        // 2. Feed / Product Outstanding
         $feedOutstanding = (float) $this->feed_deduction;
-        if (\Illuminate\Support\Facades\Schema::hasTable('product_sales') && $feedOutstanding <= 0) {
+        if (\Illuminate\Support\Facades\Schema::hasTable('farmer_deductions')) {
+            $productDedsQuery = \App\Models\FarmerDeduction::where('farmer_id', $farmerId)
+                ->whereIn('deduction_type', ['cattle_feed', 'store_purchase', 'ghee_butter', 'product', 'feed', 'food'])
+                ->where('transaction_type', 'given');
+            if ($startDate && $endDate) {
+                $productDedsQuery->whereBetween('entry_date', [$startDate, $endDate]);
+            }
+            $pSum = (float) $productDedsQuery->sum('amount');
+            if ($pSum > $feedOutstanding) {
+                $feedOutstanding = round($pSum, 2);
+            }
+        }
+        if (\Illuminate\Support\Facades\Schema::hasTable('product_sales')) {
             $farmerCode = $farmer ? $farmer->farmer_code : null;
-            $feedOutstanding = round((float) \App\Models\ProductSale::where(function ($q) use ($farmerId, $farmerCode) {
+            $salesDue = round((float) \App\Models\ProductSale::where(function ($q) use ($farmerId, $farmerCode) {
                     $q->where('farmer_id', $farmerId);
                     if (!empty($farmerCode)) $q->orWhere('farmer_code', $farmerCode);
                 })
                 ->where('remaining_amount', '>', 0)
                 ->sum('remaining_amount'), 2);
+            $feedOutstanding = max($feedOutstanding, round($feedOutstanding + $salesDue, 2));
         }
         $feedDeductible = (float) $this->feed_deduction ?: $feedOutstanding;
         $feedRemaining = max(0, $feedOutstanding - $feedDeductible);

@@ -1413,20 +1413,33 @@
             if (currentReviewData && currentReviewData.detailed_deductions) {
                 let detTotDed = 0;
                 let detTotBal = 0;
+
+                // Track remaining deductible pool per category key
+                const poolByKey = {};
+                inputsData.forEach(inp => {
+                    const ik = (inp.key || '').toLowerCase();
+                    poolByKey[ik] = (inp.orig > 0 && inp.val > inp.orig) ? 0 : inp.val;
+                });
+
                 currentReviewData.detailed_deductions.forEach((dItem, idx) => {
                     const orig = parseFloat(dItem.original_amount || 0);
                     let ded = parseFloat(dItem.deducted_amount || 0);
 
-                    // Find matching input by key, category or name
-                    const matched = inputsData.find(inp => {
+                    // Find matching input key
+                    const dk = (dItem.key || '').toLowerCase();
+                    const dc = (dItem.category || '').toLowerCase();
+                    const matchedInp = inputsData.find(inp => {
                         const ik = (inp.key || '').toLowerCase();
-                        const dk = (dItem.key || '').toLowerCase();
-                        const dc = (dItem.category || '').toLowerCase();
-                        return (dk && ik === dk) || (dc && ik.includes(dc)) || (dk && dk.includes(ik)) || (dc && dc.includes(ik));
+                        return (dk && ik === dk) || (dc && ik === dc) || (dc && ik.includes(dc)) || (dk && dk.includes(ik)) || (dc && dc.includes(ik));
                     });
 
-                    if (matched) {
-                        ded = (matched.orig > 0 && matched.val > matched.orig) ? 0 : matched.val;
+                    if (matchedInp) {
+                        const ik = (matchedInp.key || '').toLowerCase();
+                        const avail = poolByKey[ik] !== undefined ? poolByKey[ik] : orig;
+                        ded = Math.min(orig, Math.max(0, avail));
+                        if (poolByKey[ik] !== undefined) {
+                            poolByKey[ik] = Math.max(0, poolByKey[ik] - ded);
+                        }
                     }
                     const bal = Math.max(0, orig - ded);
                     detTotDed += ded;
