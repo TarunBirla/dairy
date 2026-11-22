@@ -683,8 +683,8 @@ class FarmerInvoiceController extends Controller
                             'previous_balance' => $rem,
                         ]);
                         $w = $gInv->farmer?->wallet;
-                        if ($w && abs((float) $w->balance - $rem) > 0.05) {
-                            $w->update(['balance' => $rem]);
+                        if ($w) {
+                            $w->recalculateBalance();
                         }
                     }
                 }

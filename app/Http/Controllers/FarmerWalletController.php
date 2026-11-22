@@ -45,25 +45,16 @@ class FarmerWalletController extends Controller
 
         $farmers = $query->orderBy('farmer_code')->paginate($perPage)->withQueryString();
 
-        // Ensure wallet exists for displayed farmers & clean up any duplicates
-        foreach ($farmers as $f) {
-            FarmerWalletService::cleanupDuplicateAdvanceTransactions($f);
-            if (!$f->wallet) {
-                $f->setRelation('wallet', FarmerWalletService::getOrCreateWallet($f));
-            } else {
-                $latestInv = \App\Models\FarmerInvoice::where('farmer_id', $f->id)
-                    ->where('status', '!=', 'pending')
-                    ->latest('period_end')
-                    ->latest('id')
-                    ->first();
-                if ($latestInv && $latestInv->closing_wallet_balance !== null && (float) $latestInv->closing_wallet_balance > 0) {
-                    if (abs((float) $f->wallet->balance - (float) $latestInv->closing_wallet_balance) > 0.05) {
-                        $f->wallet->update(['balance' => (float) $latestInv->closing_wallet_balance]);
-                    }
-                } else {
-                    $f->wallet->recalculateBalance();
-                }
+        // Ensure wallet exists and is synchronized from all sources (advances, deductions, store sales)
+        try {
+            $allActiveFarmers = Farmer::where('status', 'active')->get();
+            foreach ($allActiveFarmers as $af) {
+                FarmerWalletService::syncWalletFromAllSources($af);
             }
+        } catch (\Throwable $e) {}
+
+        foreach ($farmers as $f) {
+            $f->load('wallet');
         }
 
         // Metrics
@@ -106,6 +97,7 @@ class FarmerWalletController extends Controller
         }
 
         FarmerWalletService::ensureSchemaMigrated();
+        FarmerWalletService::syncWalletFromAllSources($farmer);
         $summary = FarmerWalletService::getWalletSummary($farmer);
 
         $wallet = $summary['wallet'];

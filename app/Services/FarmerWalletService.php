@@ -244,33 +244,58 @@ class FarmerWalletService
 
                 // 1. Sync Active Advances/Loans
                 if (Schema::hasTable('farmer_advances')) {
-                    $hasAdvanceTx = FarmerWalletTransaction::where('wallet_id', $lockedWallet->id)
-                        ->where(function ($q) {
-                            $q->where('category', 'like', '%Advance%')
-                              ->orWhere('remarks', 'like', '%Advance%');
-                        })->exists();
+                    $advances = FarmerAdvance::where('farmer_id', $farmerModel->id)
+                        ->where('status', '!=', 'recovered')
+                        ->get();
 
-                    if (!$hasAdvanceTx) {
-                        $advances = FarmerAdvance::where('farmer_id', $farmerModel->id)
-                            ->where('status', '!=', 'recovered')
-                            ->get();
-                        $loanSum = round((float) $advances->sum(fn($a) => (float) $a->principal_balance), 2);
-                        if ($loanSum > 0) {
-                            $before = $currentBalance;
-                            $currentBalance += $loanSum;
-                            FarmerWalletTransaction::create([
-                                'wallet_id' => $lockedWallet->id,
-                                'farmer_id' => $farmerModel->id,
-                                'transaction_type' => FarmerWalletTransaction::TYPE_CREDIT,
-                                'category' => 'Advance / Loan',
-                                'amount' => $loanSum,
-                                'balance_before' => $before,
-                                'balance_after' => $currentBalance,
-                                'reference_type' => 'farmer_advances',
-                                'reference_id' => null,
-                                'remarks' => 'Opening Outstanding: Active advances / loan principal',
-                                'created_by' => Auth::id(),
-                            ]);
+                    foreach ($advances as $adv) {
+                        $loanAmt = round((float) $adv->principal_balance, 2);
+                        if ($loanAmt <= 0) continue;
+
+                        $exists = FarmerWalletTransaction::where('wallet_id', $lockedWallet->id)
+                            ->where('reference_type', 'farmer_advances')
+                            ->where('reference_id', (string) $adv->id)
+                            ->exists();
+
+                        if (!$exists) {
+                            $unlinkedOpening = FarmerWalletTransaction::where('wallet_id', $lockedWallet->id)
+                                ->where('transaction_type', FarmerWalletTransaction::TYPE_CREDIT)
+                                ->where('category', 'like', '%Advance%')
+                                ->whereNull('reference_id')
+                                ->where('amount', $loanAmt)
+                                ->first();
+
+                            if ($unlinkedOpening) {
+                                $unlinkedOpening->update([
+                                    'reference_type' => 'farmer_advances',
+                                    'reference_id' => (string) $adv->id,
+                                    'remarks' => "Advance Issued (Voucher #{$adv->voucher_no}): " . ($adv->purpose ?: ($adv->notes ?: 'Advance Loan')),
+                                ]);
+                            } else {
+                                $hasAnyOpening = FarmerWalletTransaction::where('wallet_id', $lockedWallet->id)
+                                    ->where('transaction_type', FarmerWalletTransaction::TYPE_CREDIT)
+                                    ->where('category', 'like', '%Advance%')
+                                    ->whereNull('reference_id')
+                                    ->exists();
+
+                                if (!$hasAnyOpening) {
+                                    $before = $currentBalance;
+                                    $currentBalance += $loanAmt;
+                                    FarmerWalletTransaction::create([
+                                        'wallet_id' => $lockedWallet->id,
+                                        'farmer_id' => $farmerModel->id,
+                                        'transaction_type' => FarmerWalletTransaction::TYPE_CREDIT,
+                                        'category' => 'Advance / Loan',
+                                        'amount' => $loanAmt,
+                                        'balance_before' => $before,
+                                        'balance_after' => $currentBalance,
+                                        'reference_type' => 'farmer_advances',
+                                        'reference_id' => (string) $adv->id,
+                                        'remarks' => "Advance Issued (Voucher #{$adv->voucher_no}): " . ($adv->purpose ?: ($adv->notes ?: 'Advance Loan')),
+                                        'created_by' => Auth::id(),
+                                    ]);
+                                }
+                            }
                         }
                     }
                 }
@@ -288,48 +313,109 @@ class FarmerWalletService
                         $cat = ucfirst(str_replace('_', ' ', $d->deduction_type));
                         $isGiven = ($d->transaction_type === 'given');
 
-                        // Check if already represented in wallet transactions
+                        // Check if already represented in wallet transactions by reference
                         $exists = FarmerWalletTransaction::where('wallet_id', $lockedWallet->id)
-                            ->where(function ($q) use ($d, $cat, $dedAmt) {
-                                $q->where(function ($sq) use ($d) {
-                                    $sq->where('reference_type', 'farmer_deductions')
-                                       ->where('reference_id', $d->id);
-                                })->orWhere(function ($sq) use ($d, $cat, $dedAmt) {
-                                    $sq->where('category', $cat)
-                                       ->where('amount', $dedAmt);
-                                });
-                            })->exists();
+                            ->where('reference_type', 'farmer_deductions')
+                            ->where('reference_id', (string) $d->id)
+                            ->exists();
 
                         if (!$exists) {
-                            $before = $currentBalance;
-                            if ($isGiven) {
-                                $currentBalance += $dedAmt;
+                            $matchingUnlinked = FarmerWalletTransaction::where('wallet_id', $lockedWallet->id)
+                                ->where('category', $cat)
+                                ->where('amount', $dedAmt)
+                                ->whereNull('reference_id')
+                                ->where('transaction_type', $isGiven ? FarmerWalletTransaction::TYPE_CREDIT : FarmerWalletTransaction::TYPE_DEBIT)
+                                ->first();
+
+                            if ($matchingUnlinked) {
+                                $matchingUnlinked->update([
+                                    'reference_type' => 'farmer_deductions',
+                                    'reference_id' => (string) $d->id,
+                                ]);
+                            } else {
+                                $before = $currentBalance;
+                                if ($isGiven) {
+                                    $currentBalance += $dedAmt;
+                                    FarmerWalletTransaction::create([
+                                        'wallet_id' => $lockedWallet->id,
+                                        'farmer_id' => $farmerModel->id,
+                                        'transaction_type' => FarmerWalletTransaction::TYPE_CREDIT,
+                                        'category' => $cat,
+                                        'amount' => $dedAmt,
+                                        'balance_before' => $before,
+                                        'balance_after' => $currentBalance,
+                                        'reference_type' => 'farmer_deductions',
+                                        'reference_id' => (string) $d->id,
+                                        'remarks' => "Deduction ({$cat}): " . ($d->comments ? " - {$d->comments}" : ''),
+                                        'created_by' => Auth::id(),
+                                    ]);
+                                } else {
+                                    $currentBalance = max(0, $currentBalance - $dedAmt);
+                                    FarmerWalletTransaction::create([
+                                        'wallet_id' => $lockedWallet->id,
+                                        'farmer_id' => $farmerModel->id,
+                                        'transaction_type' => FarmerWalletTransaction::TYPE_DEBIT,
+                                        'category' => $cat,
+                                        'amount' => $dedAmt,
+                                        'balance_before' => $before,
+                                        'balance_after' => $currentBalance,
+                                        'reference_type' => 'farmer_deductions',
+                                        'reference_id' => (string) $d->id,
+                                        'remarks' => "Deduction Repayment ({$cat}): " . ($d->comments ? " - {$d->comments}" : ''),
+                                        'created_by' => Auth::id(),
+                                    ]);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 3. Sync Unpaid Product Sales (Store purchases / cattle feed)
+                if (Schema::hasTable('product_sales')) {
+                    $farmerCode = $farmerModel->farmer_code;
+                    $sales = ProductSale::where(function ($q) use ($farmerModel, $farmerCode) {
+                        $q->where('farmer_id', $farmerModel->id);
+                        if (!empty($farmerCode)) $q->orWhere('farmer_code', $farmerCode);
+                    })
+                    ->where('remaining_amount', '>', 0)
+                    ->get();
+
+                    foreach ($sales as $s) {
+                        $remAmt = round((float) $s->remaining_amount, 2);
+                        if ($remAmt <= 0) continue;
+
+                        $exists = FarmerWalletTransaction::where('wallet_id', $lockedWallet->id)
+                            ->where('reference_type', 'product_sales')
+                            ->where('reference_id', (string) $s->id)
+                            ->exists();
+
+                        if (!$exists) {
+                            $matchingUnlinked = FarmerWalletTransaction::where('wallet_id', $lockedWallet->id)
+                                ->where('category', 'like', '%Feed%')
+                                ->where('amount', $remAmt)
+                                ->whereNull('reference_id')
+                                ->where('transaction_type', FarmerWalletTransaction::TYPE_CREDIT)
+                                ->first();
+
+                            if ($matchingUnlinked) {
+                                $matchingUnlinked->update([
+                                    'reference_type' => 'product_sales',
+                                    'reference_id' => (string) $s->id,
+                                ]);
+                            } else {
+                                $before = $currentBalance;
+                                $currentBalance += $remAmt;
                                 FarmerWalletTransaction::create([
                                     'wallet_id' => $lockedWallet->id,
                                     'farmer_id' => $farmerModel->id,
                                     'transaction_type' => FarmerWalletTransaction::TYPE_CREDIT,
-                                    'category' => $cat,
-                                    'amount' => $dedAmt,
+                                    'category' => 'Cattle Feed',
+                                    'amount' => $remAmt,
                                     'balance_before' => $before,
                                     'balance_after' => $currentBalance,
-                                    'reference_type' => 'farmer_deductions',
-                                    'reference_id' => $d->id,
-                                    'remarks' => "Opening Deduction: {$cat}" . ($d->comments ? " - {$d->comments}" : ''),
-                                    'created_by' => Auth::id(),
-                                ]);
-                            } else {
-                                $currentBalance = max(0, $currentBalance - $dedAmt);
-                                FarmerWalletTransaction::create([
-                                    'wallet_id' => $lockedWallet->id,
-                                    'farmer_id' => $farmerModel->id,
-                                    'transaction_type' => FarmerWalletTransaction::TYPE_DEBIT,
-                                    'category' => $cat,
-                                    'amount' => $dedAmt,
-                                    'balance_before' => $before,
-                                    'balance_after' => $currentBalance,
-                                    'reference_type' => 'farmer_deductions',
-                                    'reference_id' => $d->id,
-                                    'remarks' => "Deduction Repayment: {$cat}" . ($d->comments ? " - {$d->comments}" : ''),
+                                    'reference_type' => 'product_sales',
+                                    'reference_id' => (string) $s->id,
+                                    'remarks' => "Store Sale #{$s->sale_number} ({$s->product_name})",
                                     'created_by' => Auth::id(),
                                 ]);
                             }

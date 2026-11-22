@@ -273,7 +273,9 @@ class FarmerDeductionController extends Controller
                     $typeLabel,
                     $amount,
                     $validated['comments'] ?? null,
-                    Auth::id()
+                    Auth::id(),
+                    'farmer_deductions',
+                    (string) $deduction->id
                 );
             } else {
                 \App\Services\FarmerWalletService::manualAdjustment(
@@ -282,7 +284,9 @@ class FarmerDeductionController extends Controller
                     $amount,
                     'debit',
                     $validated['comments'] ?? 'Deduction recovery/received',
-                    Auth::id()
+                    Auth::id(),
+                    'farmer_deductions',
+                    (string) $deduction->id
                 );
             }
         } catch (\Throwable $e) {}
@@ -551,6 +555,11 @@ class FarmerDeductionController extends Controller
                         ]);
 
                         $count++;
+
+                        // Sync imported deduction to wallet
+                        try {
+                            \App\Services\FarmerWalletService::syncWalletFromAllSources($farmer);
+                        } catch (\Throwable $e) {}
                     }
                 }
             }

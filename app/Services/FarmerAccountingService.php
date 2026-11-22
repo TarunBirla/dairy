@@ -114,16 +114,8 @@ class FarmerAccountingService
         // 6. Deduction Wallet Balance (वॉलेट लेजर)
         FarmerWalletService::syncWalletFromAllSources($farmerModel);
         $wallet = FarmerWalletService::getOrCreateWallet($farmerModel);
-
-        // Keep wallet synced with finalized invoice closing wallet balance if available
-        $latestInv = FarmerInvoice::where('farmer_id', $farmerId)
-            ->where('status', '!=', 'pending')
-            ->latest('id')
-            ->first();
-        if ($latestInv && $latestInv->closing_wallet_balance !== null && (float) $latestInv->closing_wallet_balance >= 0) {
-            if ($wallet && abs((float) $wallet->balance - (float) $latestInv->closing_wallet_balance) > 0.05) {
-                $wallet->update(['balance' => (float) $latestInv->closing_wallet_balance]);
-            }
+        if ($wallet) {
+            $wallet->recalculateBalance();
         }
 
         $walletBalance = round((float) ($wallet ? $wallet->balance : 0), 2);
