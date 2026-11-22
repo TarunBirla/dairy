@@ -396,36 +396,17 @@ class FarmerInvoiceController extends Controller
                 $catLower = strtolower($catName);
 
                 $alreadyCovered = false;
-                if ((str_contains($catLower, 'advance') || str_contains($catLower, 'loan')) && ($advanceDeduction > 0 || $totalLoanPrincipal > 0)) {
+                if ((str_contains($catLower, 'advance') || str_contains($catLower, 'loan')) && $advanceDeduction > 0) {
                     $alreadyCovered = true;
                 }
-                if ((str_contains($catLower, 'feed') || str_contains($catLower, 'food') || str_contains($catLower, 'product') || str_contains($catLower, 'ghee') || str_contains($catLower, 'butter') || str_contains($catLower, 'store') || str_contains($catLower, 'cattle')) && $totalProductDue > 0) {
+                if ((str_contains($catLower, 'feed') || str_contains($catLower, 'food')) && $feedDeduction > 0) {
                     $alreadyCovered = true;
                 }
                 if (str_contains($catLower, 'stationary') && $stationaryDeduction > 0) {
                     $alreadyCovered = true;
                 }
-                if (str_contains($catLower, 'doctor') && $doctorFeeDeduction > 0) {
-                    $alreadyCovered = true;
-                }
 
                 if (!$alreadyCovered) {
-                    // Check if this category is Product-related and totalProductDue was 0
-                    if (str_contains($catLower, 'feed') || str_contains($catLower, 'food') || str_contains($catLower, 'product') || str_contains($catLower, 'ghee') || str_contains($catLower, 'butter') || str_contains($catLower, 'store') || str_contains($catLower, 'cattle')) {
-                        $deductionsBreakdown[] = [
-                            'key' => 'product',
-                            'name' => 'Product',
-                            'category' => 'Product',
-                            'original_balance' => $catBal,
-                            'deducted_amount' => $catBal,
-                            'remaining_balance' => 0.00,
-                            'is_wallet' => true,
-                            'is_editable' => true,
-                        ];
-                        $totalProductDue += $catBal;
-                        $feedDeduction += $catBal;
-                        continue;
-                    }
                     // Check if this category is Advance / Loan and farmer has installment preference
                     $defaultDed = $catBal;
                     if (str_contains($catLower, 'advance') || str_contains($catLower, 'loan')) {
@@ -1088,13 +1069,11 @@ class FarmerInvoiceController extends Controller
 
                 $amt = (float) $fd->amount;
                 // Find matching deduction amount applied in breakdown
-                $matchingDed = collect($categoriesBreakdown)->first(function ($c) use ($catName, $dType, $catKey) {
-                    $k = strtolower($c['key'] ?? '');
-                    $n = strtolower($c['name'] ?? '');
-                    return $k === $catKey || ($catKey === 'product' && in_array($k, ['product', 'feed'])) || str_contains($n, strtolower($catName)) || str_contains($k, $dType);
+                $matchingDed = collect($categoriesBreakdown)->first(function ($c) use ($catName, $dType) {
+                    $k = strtolower($c['name'] ?? $c['key'] ?? '');
+                    return str_contains($k, strtolower($catName)) || str_contains($k, $dType);
                 });
                 $dedAmt = $matchingDed ? (float) ($matchingDed['deducted_amount'] ?? $amt) : $amt;
-                $dedAmt = min($amt, $dedAmt);
                 $remBal = max(0, $amt - $dedAmt);
 
                 $detailedDeductions[] = [
@@ -1134,7 +1113,6 @@ class FarmerInvoiceController extends Controller
                     'deducted_amount' => $dedAmt,
                     'remaining_balance' => $remBal,
                 ];
-                $appliedAdvDed = max(0, $appliedAdvDed - $dedAmt);
             }
         }
 
