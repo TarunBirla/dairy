@@ -652,6 +652,14 @@ class FarmerInvoiceController extends Controller
                         ->where('farmer_settlements.status', 'paid');
                 })
                 ->update(['status' => 'settled']);
+
+            // Auto-settle any generated invoices where net payable amount is zero (fully deducted against loans/deductions)
+            $zeroInvs = FarmerInvoice::where('status', 'generated')
+                ->where('net_payment', '<=', 0)
+                ->get();
+            foreach ($zeroInvs as $zInv) {
+                self::autoSettleZeroInvoice($zInv);
+            }
         } catch (\Throwable $e) {
             // Ignore if table or columns unavailable
         }
@@ -1335,6 +1343,8 @@ class FarmerInvoiceController extends Controller
 
         $netPayment = round(max(0, $rawPayable + $roundOff), 2);
 
+        $targetStatus = ($netPayment <= 0) ? 'settled' : 'generated';
+
         $invoice->update([
             'other_credit' => $otherCredit,
             'transport_credit' => $transportCredit,
@@ -1352,9 +1362,13 @@ class FarmerInvoiceController extends Controller
             'previous_balance' => $previousBalance,
             'closing_wallet_balance' => $previousBalance,
             'net_payment' => $netPayment,
-            'status' => 'generated',
+            'status' => $targetStatus,
             'is_edited' => true,
         ]);
+
+        if ($netPayment <= 0) {
+            self::autoSettleZeroInvoice($invoice);
+        }
 
         // Synchronize wallet deductions (applies to FarmerAdvance, ProductSale, and FarmerWallet)
         try {
@@ -1404,13 +1418,18 @@ class FarmerInvoiceController extends Controller
         $invoices = FarmerInvoice::whereIn('id', $validated['invoice_ids'])->get();
         $count = 0;
         foreach ($invoices as $inv) {
+            $targetStatus = ((float) $inv->net_payment <= 0) ? 'settled' : 'generated';
             $inv->update([
-                'status' => 'generated',
+                'status' => $targetStatus,
             ]);
             try {
                 \App\Services\FarmerWalletService::applyInvoiceDeductions($inv, [], Auth::id());
                 $inv->farmer?->recalculateBalance();
             } catch (\Throwable $e) {}
+
+            if ((float) $inv->net_payment <= 0) {
+                self::autoSettleZeroInvoice($inv);
+            }
             $count++;
         }
 
@@ -1568,6 +1587,68 @@ class FarmerInvoiceController extends Controller
     }
 
     /**
+     * Auto-settle an invoice when net payable amount is zero (fully deducted against loans/wallet/supplies).
+     */
+    public static function autoSettleZeroInvoice(FarmerInvoice $invoice): void
+    {
+        if ((float) $invoice->net_payment > 0 || $invoice->status === 'pending') {
+            return;
+        }
+
+        $settleNumber = 'SETTLE-AUTO-' . $invoice->id;
+
+        // 1. Create or update FarmerSettlement record if table exists
+        if (Schema::hasTable('farmer_settlements')) {
+            try {
+                \App\Models\FarmerSettlement::firstOrCreate(
+                    [
+                        'farmer_id' => $invoice->farmer_id,
+                        'period_start' => $invoice->period_start,
+                        'period_end' => $invoice->period_end,
+                    ],
+                    [
+                        'settlement_number' => $settleNumber,
+                        'total_liters' => (float) $invoice->total_quantity,
+                        'gross_amount' => (float) $invoice->total_amount,
+                        'bonus_amount' => (float) $invoice->total_credit,
+                        'deduction_amount' => max(0, round((float) $invoice->total_deduction - (float) $invoice->advance_deduction, 2)),
+                        'advance_recovered' => (float) $invoice->advance_deduction,
+                        'net_payable' => 0.00,
+                        'paid_amount' => 0.00,
+                        'payment_mode' => 'Adjusted',
+                        'payment_reference' => 'Zero Payout (Fully Deducted)',
+                        'status' => 'paid',
+                        'settled_by' => Auth::id() ?? 1,
+                        'settled_at' => now(),
+                    ]
+                );
+            } catch (\Throwable $e) {}
+        }
+
+        // 2. Mark invoice as settled
+        $invoice->update([
+            'status' => 'settled',
+            'payment_mode' => $invoice->payment_mode ?: 'Adjusted',
+            'payment_reference' => $invoice->payment_reference ?: 'Zero Payout (Fully Deducted)',
+        ]);
+
+        // 3. Mark milk collections as settled
+        if (Schema::hasTable('milk_collections')) {
+            try {
+                \App\Models\MilkCollection::where('farmer_id', $invoice->farmer_id)
+                    ->where(function ($q) use ($invoice) {
+                        $q->where('farmer_invoice_id', $invoice->id)
+                          ->orWhereBetween('collection_date', [$invoice->period_start, $invoice->period_end]);
+                    })
+                    ->update([
+                        'payment_status' => 'settled',
+                        'farmer_invoice_id' => $invoice->id,
+                    ]);
+            } catch (\Throwable $e) {}
+        }
+    }
+
+    /**
      * Delete an invoice:
      * - If status === 'generated' (finalized):
      *   DO NOT permanently delete from database! Revert status back to 'pending',
@@ -1581,9 +1662,20 @@ class FarmerInvoiceController extends Controller
         $invNum = $invoice->invoice_number;
         $farmerName = $invoice->farmer->name ?? 'Farmer';
 
-        // Requirement 4: Settled invoice CANNOT be deleted or reverted. Must delete settlement first.
+        // Requirement 4: Settled invoice CANNOT be deleted or reverted unless it was a zero-payout auto-settlement.
         if ($invoice->status === 'settled') {
-            return back()->with('error', "यह इनवॉइस (#{$invNum}) सेटल (Paid) हो चुका है। इनवॉइस डिलीट या रिवर्ट करने से पहले कृपया इसका सेटलमेंट डिलीट करें।");
+            if ((float) $invoice->net_payment <= 0) {
+                // If it's a zero payout auto-settlement, allow reverting by removing the zero settlement record
+                try {
+                    \App\Models\FarmerSettlement::where('farmer_id', $invoice->farmer_id)
+                        ->where('paid_amount', '<=', 0)
+                        ->whereDate('period_start', $invoice->period_start)
+                        ->whereDate('period_end', $invoice->period_end)
+                        ->delete();
+                } catch (\Throwable $e) {}
+            } else {
+                return back()->with('error', "यह इनवॉइस (#{$invNum}) सेटल (Paid) हो चुका है। इनवॉइस डिलीट या रिवर्ट करने से पहले कृपया इसका सेटलमेंट डिलीट करें।");
+            }
         }
 
         if ($invoice->status !== 'pending') {

@@ -246,7 +246,7 @@
                     @forelse($invoices as $index => $inv)
                         <tr class="hover:bg-slate-50/80 transition-colors group" id="row-{{ $inv->id }}">
                             <td class="py-3 px-3 text-center border-r border-slate-100">
-                                <input type="checkbox" value="{{ $inv->id }}" data-settled="{{ $inv->status === 'settled' ? 'true' : 'false' }}" onchange="handleRowSelect()" class="row-checkbox w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer">
+                                <input type="checkbox" value="{{ $inv->id }}" data-settled="{{ ($inv->status === 'settled' && (float)$inv->net_payment > 0) ? 'true' : 'false' }}" onchange="handleRowSelect()" class="row-checkbox w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer">
                             </td>
                             <td class="py-3 px-3 border-r border-slate-100 font-mono text-[11px] font-bold text-slate-800">
                                 {{ $inv->farmer->farmer_code ?? '-' }}
@@ -260,8 +260,8 @@
                                     <span class="text-[9px] text-slate-400 font-mono">{{ $inv->invoice_number }}</span>
                                     @if($inv->status === 'pending')
                                         <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-700 border border-slate-200">Pending</span>
-                                    @elseif($inv->status === 'settled')
-                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1" title="Invoice Settled (Paid)">
+                                    @elseif($inv->status === 'settled' || (float)$inv->net_payment <= 0)
+                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1" title="Invoice Settled (Paid / Fully Deducted)">
                                             <i data-lucide="check-circle-2" class="w-2.5 h-2.5 text-emerald-700"></i>
                                             <span>Settled</span>
                                         </span>
@@ -349,7 +349,7 @@
                                             <i data-lucide="sliders-horizontal" class="w-3 h-3"></i>
                                             <span>Verify</span>
                                         </button>
-                                    @elseif($inv->status === 'generated')
+                                    @elseif($inv->status === 'generated' && (float)$inv->net_payment > 0)
                                         <!-- Direct Settle Button (Takes directly to settlements page to settle payout) -->
                                         <a href="{{ route('settlements.index', ['tab' => 'pending', 'search' => $inv->invoice_number, 'auto_open' => $inv->id]) }}"
                                            title="Settle Payment (भुगतान सेटल करें)"
@@ -369,13 +369,13 @@
                                         <i data-lucide="printer" class="w-3.5 h-3.5"></i>
                                     </a>
 
-                                    @if($inv->status === 'settled')
+                                    @if($inv->status === 'settled' && (float)$inv->net_payment > 0)
                                         <!-- Settled Lock Badge: Cannot delete or revert! Must delete settlement first! -->
                                         <span class="p-1.5 text-emerald-600 cursor-default" title="सेटल हो चुकी इनवॉइस डिलीट या रिवर्ट नहीं की जा सकती। यदि बदलाव करना है तो पहले इसका सेटलमेंट डिलीट करें।">
                                             <i data-lucide="lock" class="w-3.5 h-3.5"></i>
                                         </span>
                                     @else
-                                        <!-- Delete / Revert Button (Only for Pending or Not Settled) -->
+                                        <!-- Delete / Revert Button (Only for Pending, Not Settled, or Auto-Settled Zero Invoice) -->
                                         <form method="POST" action="{{ route('farmer-invoices.destroy', $inv->id) }}" class="inline"
                                               onsubmit="return confirmRevertInvoice('{{ $inv->invoice_number }}', '{{ $inv->status }}');">
                                             @csrf

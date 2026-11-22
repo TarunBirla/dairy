@@ -37,6 +37,14 @@ class FarmerSettlementController extends Controller
                 })
                 ->update(['status' => 'settled']);
 
+            // Auto-settle any generated invoices where net payable amount is zero (fully deducted against loans/deductions)
+            $zeroInvs = FarmerInvoice::where('status', 'generated')
+                ->where('net_payment', '<=', 0)
+                ->get();
+            foreach ($zeroInvs as $zInv) {
+                \App\Http\Controllers\FarmerInvoiceController::autoSettleZeroInvoice($zInv);
+            }
+
             // Auto-fix any settlement where deduction_amount + advance_recovered does not match actual (gross_amount - paid_amount)
             $misalignedSettlements = FarmerSettlement::all();
             foreach ($misalignedSettlements as $st) {
