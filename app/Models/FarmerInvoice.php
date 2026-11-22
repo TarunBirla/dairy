@@ -391,23 +391,91 @@ class FarmerInvoice extends Model
                 $cBal = (float) $cBal;
                 if ($cBal <= 0) continue;
                 $cSlug = \Illuminate\Support\Str::slug($cName, '_');
+                $cLower = strtolower($cName);
+
+                $isProductCat = in_array($cSlug, ['product', 'cattle_feed', 'store_purchase', 'ghee_butter', 'feed', 'food'])
+                    || str_contains($cLower, 'feed') || str_contains($cLower, 'food') || str_contains($cLower, 'store') || str_contains($cLower, 'ghee') || str_contains($cLower, 'butter') || str_contains($cLower, 'product');
+                $isAdvanceCat = str_contains($cLower, 'advance') || str_contains($cLower, 'loan') || $cSlug === 'advance';
+                $isStationaryCat = str_contains($cLower, 'stationary') || $cSlug === 'stationary';
+
+                // Prevent duplicating categories already bundled into Product, Advance, or Stationary
+                if ($isProductCat && $feedOutstanding > 0) {
+                    continue;
+                }
+                if ($isAdvanceCat && ($loanOutstanding > 0 || $advDeductible > 0)) {
+                    continue;
+                }
+                if ($isStationaryCat && $statOutstanding > 0) {
+                    continue;
+                }
+
+                if ($isProductCat && $feedOutstanding <= 0) {
+                    $breakdown[] = [
+                        'key' => 'product',
+                        'name' => 'Product',
+                        'category' => 'Product',
+                        'original_balance' => $cBal,
+                        'deducted_amount' => $cBal,
+                        'remaining_balance' => 0.00,
+                        'is_wallet' => true,
+                        'is_editable' => true,
+                    ];
+                    $feedOutstanding = $cBal;
+                    continue;
+                }
+
                 $alreadyExists = collect($breakdown)->contains(function ($item) use ($cSlug, $cName) {
                     return $item['key'] === $cSlug || strtolower($item['name']) === strtolower($cName) || strtolower($item['category']) === strtolower($cName);
                 });
                 if (!$alreadyExists) {
                     $breakdown[] = [
                         'key' => 'wallet_' . $cSlug,
-                        'name' => "{$cName} (Deduction Wallet)",
+                        'name' => $cName,
                         'category' => $cName,
                         'original_balance' => $cBal,
-                        'deducted_amount' => min($cBal, (float) $this->total_deduction),
-                        'remaining_balance' => max(0, $cBal - min($cBal, (float) $this->total_deduction)),
+                        'deducted_amount' => $cBal,
+                        'remaining_balance' => 0.00,
                         'is_wallet' => true,
                         'is_editable' => true,
                     ];
                 }
             }
         } catch (\Throwable $e) {}
+
+        // Cap initial deducted_amount values to total earnings pool so invoice does not open in validation error
+        $totalEarnings = (float) $this->total_amount;
+        if ($totalEarnings <= 0 && (float) $this->milk_amount > 0) {
+            $totalEarnings = (float) $this->milk_amount + (float) $this->total_credit;
+        }
+
+        if ($totalEarnings > 0) {
+            $pool = $totalEarnings;
+
+            // Pass 1: Fixed dairy charges (Management Charges C, etc.)
+            foreach ($breakdown as &$b) {
+                if (empty($b['is_editable'])) {
+                    $orig = (float) ($b['original_balance'] ?? 0);
+                    $ded = round(min($orig, $pool), 2);
+                    $b['deducted_amount'] = $ded;
+                    $b['remaining_balance'] = round(max(0, $orig - $ded), 2);
+                    $pool = max(0, $pool - $ded);
+                }
+            }
+            unset($b);
+
+            // Pass 2: Variable deductions (Product, Advance, etc.)
+            foreach ($breakdown as &$b) {
+                if (!empty($b['is_editable'])) {
+                    $orig = (float) ($b['original_balance'] ?? 0);
+                    $target = (float) ($b['deducted_amount'] ?? $orig);
+                    $ded = round(min($target, $pool), 2);
+                    $b['deducted_amount'] = $ded;
+                    $b['remaining_balance'] = round(max(0, $orig - $ded), 2);
+                    $pool = max(0, $pool - $ded);
+                }
+            }
+            unset($b);
+        }
 
         return $breakdown;
     }

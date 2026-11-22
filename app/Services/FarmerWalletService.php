@@ -744,30 +744,38 @@ class FarmerWalletService
                 }
             }
 
-            // B2. Deduct & Record Recovery in farmer_deductions (Cattle Feed / Medicine / Store deductions)
+            // B2. Deduct & Record Recovery in farmer_deductions (Cattle Feed / Ghee Butter / Store deductions)
             if ($feedDeduction > 0 && Schema::hasTable('farmer_deductions')) {
-                $unrecFeed = (float) FarmerDeduction::where('farmer_id', $invoice->farmer_id)
-                    ->where('deduction_type', 'cattle_feed')
+                $productTypes = ['cattle_feed', 'store_purchase', 'ghee_butter', 'product', 'feed', 'food'];
+                $unrecProductDeds = FarmerDeduction::where('farmer_id', $invoice->farmer_id)
+                    ->whereIn('deduction_type', $productTypes)
                     ->where('transaction_type', 'given')
-                    ->sum('amount');
-                $alreadyRec = (float) FarmerDeduction::where('farmer_id', $invoice->farmer_id)
-                    ->where('deduction_type', 'cattle_feed')
-                    ->where('transaction_type', 'received')
-                    ->sum('amount');
-                $dueFeed = max(0, $unrecFeed - $alreadyRec);
+                    ->orderBy('id', 'asc')
+                    ->get();
 
-                if ($dueFeed > 0) {
-                    $recAmt = min($feedDeduction, $dueFeed);
+                $remFeedToRecover = $feedDeduction;
+                foreach ($unrecProductDeds as $pd) {
+                    if ($remFeedToRecover <= 0) break;
+                    $alreadyRec = (float) FarmerDeduction::where('farmer_id', $invoice->farmer_id)
+                        ->where('deduction_type', $pd->deduction_type)
+                        ->where('transaction_type', 'received')
+                        ->where('comments', 'like', "%Invoice #{$invoice->invoice_number}%")
+                        ->sum('amount');
+                    $dueOnThis = max(0, (float)$pd->amount - $alreadyRec);
+                    if ($dueOnThis <= 0) continue;
+
+                    $recAmt = min($remFeedToRecover, $dueOnThis);
                     FarmerDeduction::firstOrCreate([
                         'farmer_id' => $invoice->farmer_id,
                         'entry_date' => $invoice->period_end ? (\Carbon\Carbon::parse($invoice->period_end)->format('Y-m-d')) : \Carbon\Carbon::today()->format('Y-m-d'),
-                        'deduction_type' => 'cattle_feed',
+                        'deduction_type' => $pd->deduction_type,
                         'transaction_type' => 'received',
                         'amount' => $recAmt,
                         'comments' => "Recovered in Invoice #{$invoice->invoice_number}",
                     ], [
                         'created_by' => $createdBy,
                     ]);
+                    $remFeedToRecover -= $recAmt;
                 }
             }
 

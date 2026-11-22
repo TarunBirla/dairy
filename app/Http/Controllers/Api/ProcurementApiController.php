@@ -2436,9 +2436,10 @@ class ProcurementApiController extends Controller
                 ->get();
 
             $given = $deductions->where('transaction_type', 'given');
-            $feedDeduction = round((float) $given->where('deduction_type', 'cattle_feed')->sum('amount'), 2);
+            $productTypes = ['cattle_feed', 'store_purchase', 'ghee_butter', 'product', 'feed', 'food'];
+            $feedDeduction = round((float) $given->whereIn('deduction_type', $productTypes)->sum('amount'), 2);
             $advanceFromDeductions = round((float) $given->where('deduction_type', 'advance_recovery')->sum('amount'), 2);
-            $stationaryDeduction = round((float) $given->whereNotIn('deduction_type', ['cattle_feed', 'advance_recovery'])->sum('amount'), 2);
+            $stationaryDeduction = round((float) $given->where('deduction_type', 'stationary')->sum('amount'), 2);
             // Only manual external received credits, exclude invoice recovered deductions
             $otherCredit = round((float) $deductions->where('transaction_type', 'received')
                 ->filter(function ($d) {
