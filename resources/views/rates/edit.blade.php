@@ -933,7 +933,7 @@
             const clrValues = [];
             let curC = Math.round(clrMin * 10);
             const maxCT = Math.round(clrMax * 10);
-            while (curC <= maxCT && clrValues.length < 60) {
+            while (curC <= maxCT && clrValues.length < 150) {
                 clrValues.push(curC / 10);
                 curC += incT;
             }
@@ -979,7 +979,7 @@
 
             let curF = Math.round(fatMin * 10);
             const maxFT = Math.round(fatMax * 10);
-            while (curF <= maxFT && fatValues.length < 80) {
+            while (curF <= maxFT && fatValues.length < 250) {
                 fatValues.push(curF / 10);
                 curF += 1;
             }
@@ -1025,7 +1025,7 @@
 
             let curS = Math.round(secMin * 10);
             const maxST = Math.round(secMax * 10);
-            while (curS <= maxST && secValues.length < 50) {
+            while (curS <= maxST && secValues.length < 150) {
                 secValues.push(curS / 10);
                 curS += incT;
             }
