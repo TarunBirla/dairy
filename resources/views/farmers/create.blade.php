@@ -280,7 +280,7 @@
                     <select name="animal_type" required class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none transition">
                         <option value="cow" {{ old('animal_type') === 'cow' ? 'selected' : '' }}>Cow Milk (गाय का दूध)</option>
                         <option value="buffalo" {{ old('animal_type') === 'buffalo' ? 'selected' : '' }}>Buffalo Milk (भैंस का दूध)</option>
-                        <option value="mixed" {{ old('animal_type') === 'mixed' ? 'selected' : '' }}>Mixed Milk (मिश्रित दूध)</option>
+                        <option value="mixed" {{ old('animal_type') === 'mixed' ? 'selected' : '' }}>Cow + Buffalo / Mixed (गाय + भैंस / मिश्रित)</option>
                     </select>
                 </div>
 

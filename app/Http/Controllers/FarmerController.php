@@ -188,7 +188,7 @@ class FarmerController extends Controller
             'collection_center_id' => 'nullable|exists:collection_centers,id',
             'pricing_type' => 'nullable|in:rate_chart,fixed_rate',
             'rate_chart_id' => 'nullable|exists:rate_charts,id',
-            'animal_type' => 'required|in:cow,buffalo,mixed',
+            'animal_type' => 'required|in:cow,buffalo,mixed,both,cow_buffalo',
             'cow_milk_rate' => 'nullable|numeric|min:0',
             'buffalo_milk_rate' => 'nullable|numeric|min:0',
             'branch_name' => 'nullable|string|max:255',
@@ -205,7 +205,15 @@ class FarmerController extends Controller
             'grant_amount' => 'nullable|numeric|min:0',
             'extra_rates' => 'nullable|array',
             'status' => 'nullable|in:active,inactive,blocked',
+        ], [
+            'confirm_account_number.same' => 'खाता संख्या और पुष्टि खाता संख्या का मिलान नहीं हुआ। कृपया सही खाता संख्या पुष्टि दर्ज करें। (Please confirm account number. Account numbers do not match.)',
+            'animal_type.required' => 'दूध का प्रकार (Milk Type) चुनना आवश्यक है।',
+            'status.in' => 'अमान्य स्थिति (Invalid status) चुनी गई है।',
         ]);
+
+        if (in_array($validated['animal_type'], ['both', 'cow_buffalo'])) {
+            $validated['animal_type'] = 'mixed';
+        }
 
         $validated['status'] = $validated['status'] ?? 'active';
         $validated['pricing_type'] = $validated['pricing_type'] ?? 'rate_chart';
@@ -736,7 +744,7 @@ class FarmerController extends Controller
             'collection_center_id' => 'nullable|exists:collection_centers,id',
             'pricing_type' => 'nullable|in:rate_chart,fixed_rate',
             'rate_chart_id' => 'nullable|exists:rate_charts,id',
-            'animal_type' => 'required|in:cow,buffalo,mixed',
+            'animal_type' => 'required|in:cow,buffalo,mixed,both,cow_buffalo',
             'cow_milk_rate' => 'nullable|numeric|min:0',
             'buffalo_milk_rate' => 'nullable|numeric|min:0',
             'branch_name' => 'nullable|string|max:255',
@@ -752,9 +760,18 @@ class FarmerController extends Controller
             'etc_amount' => 'nullable|numeric|min:0',
             'grant_amount' => 'nullable|numeric|min:0',
             'extra_rates' => 'nullable|array',
-            'status' => 'required|in:active,inactive,blocked',
+            'status' => 'nullable|in:active,inactive,blocked',
+        ], [
+            'confirm_account_number.same' => 'खाता संख्या और पुष्टि खाता संख्या का मिलान नहीं हुआ। कृपया सही खाता संख्या पुष्टि दर्ज करें। (Please confirm account number. Account numbers do not match.)',
+            'animal_type.required' => 'दूध का प्रकार (Milk Type) चुनना आवश्यक है।',
+            'status.in' => 'अमान्य स्थिति (Invalid status) चुनी गई है।',
         ]);
 
+        if (in_array($validated['animal_type'], ['both', 'cow_buffalo'])) {
+            $validated['animal_type'] = 'mixed';
+        }
+
+        $validated['status'] = $validated['status'] ?? ($farmer->status ?: 'active');
         $validated['pricing_type'] = $validated['pricing_type'] ?? ($farmer->pricing_type ?: 'rate_chart');
 
         if ($validated['pricing_type'] === 'fixed_rate') {

@@ -251,35 +251,60 @@ class RateChartController extends Controller
     public function sampleTemplate(Request $request)
     {
         $type = $request->get('format', 'matrix');
+        $filename = ($type === 'columnar') 
+            ? 'rate_chart_columnar_template.csv' 
+            : (($type === 'fat_snf') ? 'rate_chart_fat_snf_matrix_template.csv' : 'rate_chart_fat_clr_matrix_template.csv');
+
         $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="rate_chart_' . $type . '_template.csv"',
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ];
 
         $callback = function () use ($type) {
             $handle = fopen('php://output', 'w');
+            // Write UTF-8 BOM so Excel opens it with proper encoding
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+
             if ($type === 'columnar') {
                 fputcsv($handle, ['FAT', 'CLR', 'RATE']);
-                for ($fat = 2.0; $fat <= 4.0; $fat += 0.5) {
-                    for ($clr = 20.0; $clr <= 30.0; $clr += 2.0) {
-                        $rate = round(10 + (($fat - 2.0) * 10) + ($clr - 20), 2);
+                for ($fat = 2.0; $fat <= 10.0; $fat += 0.5) {
+                    for ($clr = 20.0; $clr <= 30.0; $clr += 1.0) {
+                        $rate = round(10.0 + (($fat - 2.0) * 9.4) + (($clr - 20.0) * 0.5), 2);
                         fputcsv($handle, [number_format($fat, 1), number_format($clr, 1), number_format($rate, 2)]);
                     }
                 }
+            } elseif ($type === 'fat_snf') {
+                // Matrix format: FAT x SNF
+                $headerRow = ['FAT/SNF'];
+                for ($s = 70; $s <= 100; $s += 5) {
+                    $headerRow[] = number_format($s / 10.0, 1);
+                }
+                fputcsv($handle, $headerRow);
+
+                for ($f = 20; $f <= 100; $f++) {
+                    $fat = $f / 10.0;
+                    $row = [number_format($fat, 1)];
+                    for ($s = 70; $s <= 100; $s += 5) {
+                        $snf = $s / 10.0;
+                        $rate = round(15.0 + (($fat - 2.0) * 8.5) + (($snf - 7.0) * 2.0), 2);
+                        $row[] = number_format($rate, 2);
+                    }
+                    fputcsv($handle, $row);
+                }
             } else {
-                // Matrix format: Row 0 has CLR/SNF points, Column 0 has FAT points
+                // Matrix format: FAT x CLR (FAT 2.0 to 10.0, CLR 20.0 to 30.0)
                 $headerRow = ['FAT/CLR'];
                 for ($c = 20; $c <= 30; $c++) {
                     $headerRow[] = number_format($c, 1);
                 }
                 fputcsv($handle, $headerRow);
 
-                for ($f = 20; $f <= 50; $f++) {
+                for ($f = 20; $f <= 100; $f++) {
                     $fat = $f / 10.0;
                     $row = [number_format($fat, 1)];
                     for ($c = 20; $c <= 30; $c++) {
                         $clr = (float) $c;
-                        $rate = round(10.0 + (($fat - 2.0) * 10 * 1.0) + (($clr - 20.0) * 1.0), 2);
+                        $rate = round(10.0 + (($fat - 2.0) * 9.4) + (($clr - 20.0) * 0.3), 2);
                         $row[] = number_format($rate, 2);
                     }
                     fputcsv($handle, $row);

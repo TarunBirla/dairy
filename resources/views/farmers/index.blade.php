@@ -81,7 +81,7 @@
                         <option value="">All Milk Types</option>
                         <option value="cow" {{ request('animal_type') === 'cow' ? 'selected' : '' }}>Cow Milk (गाय)</option>
                         <option value="buffalo" {{ request('animal_type') === 'buffalo' ? 'selected' : '' }}>Buffalo Milk (भैंस)</option>
-                        <option value="mixed" {{ request('animal_type') === 'mixed' ? 'selected' : '' }}>Mixed Milk</option>
+                        <option value="mixed" {{ request('animal_type') === 'mixed' ? 'selected' : '' }}>Cow + Buffalo / Mixed (गाय + भैंस)</option>
                     </select>
                 </div>
 
@@ -410,11 +410,26 @@
             </div>
 
             <!-- Modal Form with 4 Organized Sections -->
-            <form :action="formAction" method="POST" enctype="multipart/form-data" class="mt-4 space-y-6">
+            <form :action="formAction" method="POST" enctype="multipart/form-data" class="mt-4 space-y-6"
+                  @submit="if(form.account_number && form.confirm_account_number && form.account_number.trim() !== form.confirm_account_number.trim()) { $event.preventDefault(); alert('खाता संख्या और पुष्टि खाता संख्या का मिलान नहीं हुआ। कृपया सही खाता संख्या पुष्टि दर्ज करें।\n\nPlease confirm account number! Account Number and Confirm Account Number must match.'); return false; }">
                 @csrf
                 <template x-if="isEditMode">
                     <input type="hidden" name="_method" value="PUT">
                 </template>
+
+                @if($errors->any())
+                    <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs">
+                        <div class="font-bold flex items-center gap-1.5 mb-1 text-rose-800">
+                            <i data-lucide="alert-circle" class="w-4 h-4 text-rose-600"></i>
+                            <span>कृपया निम्नलिखित त्रुटियों को सुधारें (Please fix the following):</span>
+                        </div>
+                        <ul class="list-disc list-inside space-y-0.5 pl-1">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
 
                 <!-- SECTION 1: PERSONAL DETAILS / व्यक्तिगत जानकारी -->
                 <div class="bg-slate-50/60 rounded-xl p-4 border border-slate-200/80 space-y-3">
@@ -613,7 +628,7 @@
                             <select name="animal_type" x-model="form.animal_type" required class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none">
                                 <option value="cow">Cow Milk (गाय का दूध)</option>
                                 <option value="buffalo">Buffalo Milk (भैंस का दूध)</option>
-                                <option value="mixed">Mixed Milk (मिश्रित दूध)</option>
+                                <option value="mixed">Cow + Buffalo / Mixed (गाय + भैंस / मिश्रित)</option>
                             </select>
                         </div>
 
@@ -701,11 +716,17 @@
 
                         <!-- Confirm Account Number -->
                         <div>
-                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">
-                                Confirm Account Number / खाता संख्या पुष्टि
+                            <label class="block text-[11px] font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                                <span>Confirm Account Number / खाता संख्या पुष्टि</span>
+                                <span x-show="form.account_number && form.confirm_account_number && form.account_number === form.confirm_account_number" class="text-[10px] text-emerald-600 font-bold">✓ Matched</span>
+                                <span x-show="form.account_number && form.confirm_account_number && form.account_number !== form.confirm_account_number" class="text-[10px] text-rose-600 font-bold">⚠️ Mismatch</span>
                             </label>
                             <input type="text" name="confirm_account_number" x-model="form.confirm_account_number" placeholder="Re-enter Account Number"
-                                   class="w-full px-3 py-1.5 text-xs font-mono bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+                                   :class="{'!border-rose-500 !ring-1 !ring-rose-500 bg-rose-50/20': form.account_number && form.confirm_account_number && form.account_number !== form.confirm_account_number, '!border-emerald-500 !ring-1 !ring-emerald-500 bg-emerald-50/20': form.account_number && form.confirm_account_number && form.account_number === form.confirm_account_number}"
+                                   class="w-full px-3 py-1.5 text-xs font-mono bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none transition">
+                            <p x-show="form.account_number && form.confirm_account_number && form.account_number !== form.confirm_account_number" class="text-[10px] text-rose-600 font-semibold mt-1">
+                                ⚠️ खाता संख्या और पुष्टि खाता संख्या का मिलान नहीं हुआ। कृपया सही खाता संख्या पुष्टि दर्ज करें। (Account numbers do not match)
+                            </p>
                         </div>
 
                         <!-- IFSC Code -->
@@ -1233,7 +1254,7 @@
 <script>
 function farmerManager() {
     return {
-        showModal: false,
+        showModal: {{ $errors->any() ? 'true' : 'false' }},
         showBulkModal: false,
         showViewModal: false,
         showInstallmentModal: false,

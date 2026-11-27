@@ -782,19 +782,23 @@
             @csrf
 
             <!-- Template Download Helper Banner -->
-            <div class="p-3.5 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl flex items-center justify-between gap-3">
+            <div class="p-3.5 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div>
-                    <h5 class="text-xs font-bold text-emerald-950">Download Sample Format</h5>
-                    <p class="text-[11px] text-emerald-800">Use our pre-formatted matrix sheet or columnar format for instant import.</p>
+                    <h5 class="text-xs font-bold text-emerald-950">Download Ready-to-use Sample Templates / नमूना प्रारूप डाउनलोड करें</h5>
+                    <p class="text-[11px] text-emerald-800">Complete pre-filled rate matrix (FAT 2.0 to 10.0) for easy editing and instant upload.</p>
                 </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <a href="{{ route('rates.sample-template', ['format' => 'matrix']) }}" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5" title="Download FAT x CLR/SNF matrix sheet">
+                <div class="flex items-center flex-wrap gap-2 shrink-0">
+                    <a href="{{ route('rates.sample-template', ['format' => 'matrix']) }}" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5" title="Download FAT 2.0-10.0 x CLR 20-30 Matrix CSV">
                         <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                        <span>Matrix CSV</span>
+                        <span>FAT x CLR Matrix</span>
                     </a>
-                    <a href="{{ route('rates.sample-template', ['format' => 'columnar']) }}" class="px-3 py-1.5 bg-white hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold rounded-xl transition flex items-center gap-1.5" title="Download FAT, CLR, Rate list format">
+                    <a href="{{ route('rates.sample-template', ['format' => 'fat_snf']) }}" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold rounded-xl transition flex items-center gap-1.5" title="Download FAT 2.0-10.0 x SNF 7.0-10.0 Matrix CSV">
                         <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                        <span>Table CSV</span>
+                        <span>FAT x SNF Matrix</span>
+                    </a>
+                    <a href="{{ route('rates.sample-template', ['format' => 'columnar']) }}" class="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5" title="Download FAT, CLR, Rate Columnar CSV">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                        <span>Table (List)</span>
                     </a>
                 </div>
             </div>
