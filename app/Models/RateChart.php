@@ -169,35 +169,64 @@ class RateChart extends Model
         } elseif (!empty($fatSteps) || !empty($snfSteps)) {
             $rate = (float) ($this->starting_amount > 0 ? $this->starting_amount : $this->base_rate);
 
-            if (!$isClrOnlyMode && $fat > 0) {
-                foreach ($fatSteps as $step) {
-                    if (isset($step['from']) && isset($step['to'])) {
-                        $from = (float) $step['from'];
-                        $to = (float) $step['to'];
-                        $amt = (float) ($step['amount'] ?? 0);
-                        if ($fat > $from) {
-                            $pts = min($fat, $to) - $from;
-                            $rate += $pts * ($amt / 0.1);
+            if (!$isClrOnlyMode && $fat > 0 && !empty($fatSteps)) {
+                $sortedFat = collect($fatSteps)->sortBy(fn($s) => (float) ($s['from'] ?? $s['step'] ?? 0))->values()->all();
+                $baseFat = (float) ($sortedFat[0]['from'] ?? $sortedFat[0]['step'] ?? 0);
+                if ($fat >= $baseFat) {
+                    for ($i = 0; $i < count($sortedFat); $i++) {
+                        $cur = (float) ($sortedFat[$i]['from'] ?? $sortedFat[$i]['step'] ?? 0);
+                        $slabEnd = INF;
+                        if (!empty($sortedFat[$i]['to'])) {
+                            $slabEnd = (float) $sortedFat[$i]['to'];
+                        } elseif ($i + 1 < count($sortedFat)) {
+                            $slabEnd = (float) ($sortedFat[$i + 1]['from'] ?? $sortedFat[$i + 1]['step'] ?? 0);
                         }
-                    } elseif ($fat >= (float) ($step['step'] ?? $step['from'] ?? 0)) {
-                        $rate += (float) ($step['amount'] ?? 0);
+                        if ($i + 1 < count($sortedFat)) {
+                            $nextFrom = (float) ($sortedFat[$i + 1]['from'] ?? $sortedFat[$i + 1]['step'] ?? 0);
+                            $slabEnd = min($slabEnd, $nextFrom);
+                        }
+
+                        if ($fat > $cur) {
+                            $diff = min($fat, $slabEnd) - $cur;
+                            if ($diff > 0) {
+                                $pts = round($diff / 0.1);
+                                $amt = (float) ($sortedFat[$i]['amount'] ?? 0);
+                                $rate += $pts * $amt;
+                            }
+                        }
                     }
                 }
             }
 
             if (!$isFatOnlyMode && $secondaryVal > 0) {
                 $stepsToSearch = !empty($snfSteps) ? $snfSteps : ($isClrOnlyMode ? $fatSteps : []);
-                foreach ($stepsToSearch as $step) {
-                    if (isset($step['from']) && isset($step['to'])) {
-                        $from = (float) $step['from'];
-                        $to = (float) $step['to'];
-                        $amt = (float) ($step['amount'] ?? 0);
-                        if ($secondaryVal > $from) {
-                            $pts = min($secondaryVal, $to) - $from;
-                            $rate += $pts * ($amt / 0.1);
+                if (!empty($stepsToSearch)) {
+                    $secStepSize = $usesClrForSecondary ? 1.0 : 0.1;
+                    $sortedSec = collect($stepsToSearch)->sortBy(fn($s) => (float) ($s['from'] ?? $s['step'] ?? 0))->values()->all();
+                    $baseSec = (float) ($sortedSec[0]['from'] ?? $sortedSec[0]['step'] ?? 0);
+                    if ($secondaryVal >= $baseSec) {
+                        for ($i = 0; $i < count($sortedSec); $i++) {
+                            $cur = (float) ($sortedSec[$i]['from'] ?? $sortedSec[$i]['step'] ?? 0);
+                            $slabEnd = INF;
+                            if (!empty($sortedSec[$i]['to'])) {
+                                $slabEnd = (float) $sortedSec[$i]['to'];
+                            } elseif ($i + 1 < count($sortedSec)) {
+                                $slabEnd = (float) ($sortedSec[$i + 1]['from'] ?? $sortedSec[$i + 1]['step'] ?? 0);
+                            }
+                            if ($i + 1 < count($sortedSec)) {
+                                $nextFrom = (float) ($sortedSec[$i + 1]['from'] ?? $sortedSec[$i + 1]['step'] ?? 0);
+                                $slabEnd = min($slabEnd, $nextFrom);
+                            }
+
+                            if ($secondaryVal > $cur) {
+                                $diff = min($secondaryVal, $slabEnd) - $cur;
+                                if ($diff > 0) {
+                                    $pts = round($diff / $secStepSize);
+                                    $amt = (float) ($sortedSec[$i]['amount'] ?? 0);
+                                    $rate += $pts * $amt;
+                                }
+                            }
                         }
-                    } elseif ($secondaryVal >= (float) ($step['step'] ?? $step['from'] ?? 0)) {
-                        $rate += (float) ($step['amount'] ?? 0);
                     }
                 }
             }

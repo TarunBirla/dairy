@@ -851,6 +851,8 @@ Route::middleware('auth')->group(function () {
 
     // Rate Charts & Rate Correction
     Route::post('rates/apply-correction', [RateChartController::class, 'applyCorrection'])->name('rates.apply-correction');
+    Route::get('rates/sample-template', [RateChartController::class, 'sampleTemplate'])->name('rates.sample-template');
+    Route::post('rates/import', [RateChartController::class, 'import'])->name('rates.import');
     Route::post('rates/{rate}/assign', [RateChartController::class, 'assign'])->name('rates.assign');
     Route::post('rates/{rate}/set-default', [RateChartController::class, 'setDefault'])->name('rates.set-default');
     Route::get('rates/{rate}/assigned-farmers', [RateChartController::class, 'getAssignedFarmers'])->name('rates.assigned-farmers');

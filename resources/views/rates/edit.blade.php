@@ -33,6 +33,10 @@
             <p class="text-xs text-slate-500">Modify procurement rate formula, incremental steps, and quality incentives.</p>
         </div>
         <div class="flex items-center gap-2">
+            <a href="{{ route('rates.index') }}#upload" onclick="sessionStorage.setItem('openImportModal', '1')" class="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold rounded-xl transition">
+                <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-emerald-600"></i>
+                <span>Upload Excel / CSV</span>
+            </a>
             <form action="{{ route('rates.destroy', $chart) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this rate chart? Assigned farmers will be unlinked.');">
                 @csrf
                 @method('DELETE')
@@ -551,29 +555,44 @@
                 rate = (fat * fatRate) + (secondary * secondaryRate);
             }
         } else {
-            function calcAxisAddition(val, steps) {
+            // Increase per point slab calculation
+            function calcAxisAddition(val, steps, stepSize = 0.1) {
                 if (!steps || steps.length === 0) return 0;
-                const sorted = [...steps].sort((a, b) => (a.from ?? a.step) - (b.from ?? b.step));
-                const baseVal = sorted[0].from ?? sorted[0].step;
-                const valT = Math.round(val * 10);
-                const baseT = Math.round(baseVal * 10);
-                if (valT < baseT) return 0;
+                const sorted = [...steps].sort((a, b) => parseFloat(a.from ?? a.step ?? 0) - parseFloat(b.from ?? b.step ?? 0));
+                const baseVal = parseFloat(sorted[0].from ?? sorted[0].step ?? 0);
+                if (val < baseVal) return 0;
 
                 let add = 0;
                 for (let i = 0; i < sorted.length; i++) {
-                    const curT = Math.round((sorted[i].from ?? sorted[i].step) * 10);
-                    const nextT = (i + 1 < sorted.length) ? Math.round((sorted[i + 1].from ?? sorted[i + 1].step) * 10) : Infinity;
-                    if (valT > curT) {
-                        const slabUpper = Math.min(valT, nextT);
-                        const pts = slabUpper - curT;
-                        if (pts > 0) add += pts * (sorted[i].amount / 0.1);
+                    const cur = parseFloat(sorted[i].from ?? sorted[i].step ?? 0);
+                    let slabEnd = Infinity;
+                    if (sorted[i].to !== undefined && sorted[i].to !== null && sorted[i].to !== '') {
+                        slabEnd = parseFloat(sorted[i].to);
+                    } else if (i + 1 < sorted.length) {
+                        slabEnd = parseFloat(sorted[i + 1].from ?? sorted[i + 1].step ?? 0);
+                    }
+                    if (i + 1 < sorted.length) {
+                        const nextFrom = parseFloat(sorted[i + 1].from ?? sorted[i + 1].step ?? 0);
+                        slabEnd = Math.min(slabEnd, nextFrom);
+                    }
+
+                    if (val > cur) {
+                        const slabUpper = Math.min(val, slabEnd);
+                        const diff = slabUpper - cur;
+                        if (diff > 0) {
+                            const pts = Math.round(diff / stepSize);
+                            const amt = parseFloat(sorted[i].amount) || 0;
+                            add += pts * amt;
+                        }
                     }
                 }
                 return add;
             }
 
-            let fatAdd = (format === 'clr_only') ? 0 : calcAxisAddition(fat, fatSteps);
-            let secAdd = (format === 'fat_only') ? 0 : calcAxisAddition(secondary, snfSteps);
+            const isFatSnf = format === 'fat_snf';
+            const secStepSize = isFatSnf ? 0.1 : (parseFloat(document.getElementById('field_increment_by')?.value) || 1.0);
+            let fatAdd = (format === 'clr_only') ? 0 : calcAxisAddition(fat, fatSteps, 0.1);
+            let secAdd = (format === 'fat_only') ? 0 : calcAxisAddition(secondary, snfSteps, secStepSize);
             rate = startAmt + fatAdd + secAdd;
         }
 

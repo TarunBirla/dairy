@@ -245,6 +245,281 @@ class RateChartController extends Controller
         return back()->with('success', "Rate Chart '{$rate->name}' is now set as default for " . ucfirst($rate->milk_type) . " milk.");
     }
 
+    /**
+     * Download sample CSV template for rate chart import.
+     */
+    public function sampleTemplate(Request $request)
+    {
+        $type = $request->get('format', 'matrix');
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="rate_chart_' . $type . '_template.csv"',
+        ];
+
+        $callback = function () use ($type) {
+            $handle = fopen('php://output', 'w');
+            if ($type === 'columnar') {
+                fputcsv($handle, ['FAT', 'CLR', 'RATE']);
+                for ($fat = 2.0; $fat <= 4.0; $fat += 0.5) {
+                    for ($clr = 20.0; $clr <= 30.0; $clr += 2.0) {
+                        $rate = round(10 + (($fat - 2.0) * 10) + ($clr - 20), 2);
+                        fputcsv($handle, [number_format($fat, 1), number_format($clr, 1), number_format($rate, 2)]);
+                    }
+                }
+            } else {
+                // Matrix format: Row 0 has CLR/SNF points, Column 0 has FAT points
+                $headerRow = ['FAT/CLR'];
+                for ($c = 20; $c <= 30; $c++) {
+                    $headerRow[] = number_format($c, 1);
+                }
+                fputcsv($handle, $headerRow);
+
+                for ($f = 20; $f <= 50; $f++) {
+                    $fat = $f / 10.0;
+                    $row = [number_format($fat, 1)];
+                    for ($c = 20; $c <= 30; $c++) {
+                        $clr = (float) $c;
+                        $rate = round(10.0 + (($fat - 2.0) * 10 * 1.0) + (($clr - 20.0) * 1.0), 2);
+                        $row[] = number_format($rate, 2);
+                    }
+                    fputcsv($handle, $row);
+                }
+            }
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Import Rate Chart from Excel (.xlsx) or CSV file.
+     */
+    public function import(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'category' => 'required|in:collection,milk_sale,chilling_center',
+            'milk_type' => 'required|in:cow,buffalo,mixed',
+            'format' => 'required|in:fat_clr,fat_snf,fat_only',
+            'file' => 'required|file|max:15360',
+            'is_default' => 'nullable|boolean',
+        ]);
+
+        $file = $request->file('file');
+        $ext = strtolower($file->getClientOriginalExtension());
+        if (!in_array($ext, ['csv', 'txt', 'xlsx', 'xls'])) {
+            return back()->with('error', 'Only CSV and Excel (.xlsx) files are supported.');
+        }
+
+        $rows = $this->parseRowsFromFile($file);
+        if (empty($rows)) {
+            return back()->with('error', 'The uploaded file is empty or could not be read.');
+        }
+
+        // Filter out completely empty rows
+        $rows = array_values(array_filter($rows, function ($r) {
+            return is_array($r) && count(array_filter($r, fn($v) => $v !== null && $v !== '')) > 0;
+        }));
+
+        if (count($rows) < 2) {
+            return back()->with('error', 'The file must contain a header row and at least one data row.');
+        }
+
+        $header = $rows[0];
+        $isDefault = $request->boolean('is_default');
+
+        // Check if format is Matrix or Columnar
+        $numNumericCols = 0;
+        for ($i = 1; $i < count($header); $i++) {
+            if (is_numeric(trim((string)$header[$i]))) {
+                $numNumericCols++;
+            }
+        }
+        $isMatrix = ($numNumericCols >= 2);
+
+        // Create the RateChart record
+        $chart = RateChart::create([
+            'name' => $validated['name'],
+            'category' => $validated['category'],
+            'milk_type' => $validated['milk_type'],
+            'format' => $validated['format'],
+            'type' => 'matrix_slab',
+            'calculation_type' => 'matrix',
+            'status' => 'active',
+            'is_default' => $isDefault,
+            'effective_date' => now()->toDateString(),
+        ]);
+
+        if ($isDefault) {
+            RateChart::where('milk_type', $validated['milk_type'])
+                ->where('category', $validated['category'])
+                ->where('id', '!=', $chart->id)
+                ->update(['is_default' => false]);
+        }
+
+        $slabs = [];
+        $now = now();
+
+        if ($isMatrix) {
+            // Matrix format: columns 1..N are secondary (CLR / SNF), column 0 is FAT
+            $secValues = [];
+            for ($c = 1; $c < count($header); $c++) {
+                $val = trim((string)$header[$c]);
+                if (is_numeric($val)) {
+                    $secValues[$c] = (float) $val;
+                }
+            }
+
+            for ($r = 1; $r < count($rows); $r++) {
+                $row = $rows[$r];
+                $fatVal = trim((string)($row[0] ?? ''));
+                if (!is_numeric($fatVal)) continue;
+                $fat = (float) $fatVal;
+
+                foreach ($secValues as $colIdx => $secVal) {
+                    $rateVal = trim((string)($row[$colIdx] ?? ''));
+                    if ($rateVal === '' || !is_numeric($rateVal)) continue;
+                    $rate = (float) $rateVal;
+
+                    $slabs[] = [
+                        'rate_chart_id' => $chart->id,
+                        'fat_from' => $fat,
+                        'fat_to' => $fat,
+                        'snf_from' => $secVal,
+                        'snf_to' => $secVal,
+                        'rate' => $rate,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+            }
+        } else {
+            // Columnar format: FAT, CLR/SNF, Rate
+            $fatIdx = -1;
+            $secIdx = -1;
+            $rateIdx = -1;
+
+            foreach ($header as $i => $h) {
+                $low = strtolower(trim((string)$h));
+                if (str_contains($low, 'fat') && $fatIdx === -1) {
+                    $fatIdx = $i;
+                } elseif ((str_contains($low, 'clr') || str_contains($low, 'snf') || str_contains($low, 'secondary')) && $secIdx === -1) {
+                    $secIdx = $i;
+                } elseif ((str_contains($low, 'rate') || str_contains($low, 'price') || str_contains($low, 'amount')) && $rateIdx === -1) {
+                    $rateIdx = $i;
+                }
+            }
+
+            if ($fatIdx === -1) $fatIdx = 0;
+            if ($secIdx === -1) $secIdx = 1;
+            if ($rateIdx === -1) $rateIdx = 2;
+
+            for ($r = 1; $r < count($rows); $r++) {
+                $row = $rows[$r];
+                if (!isset($row[$rateIdx]) || !is_numeric(trim((string)$row[$rateIdx]))) continue;
+
+                $fat = isset($row[$fatIdx]) && is_numeric(trim((string)$row[$fatIdx])) ? (float) trim((string)$row[$fatIdx]) : 0.0;
+                $sec = isset($row[$secIdx]) && is_numeric(trim((string)$row[$secIdx])) ? (float) trim((string)$row[$secIdx]) : 0.0;
+                $rate = (float) trim((string)$row[$rateIdx]);
+
+                $slabs[] = [
+                    'rate_chart_id' => $chart->id,
+                    'fat_from' => $fat,
+                    'fat_to' => $fat,
+                    'snf_from' => $sec,
+                    'snf_to' => $sec,
+                    'rate' => $rate,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        if (empty($slabs)) {
+            $chart->delete();
+            return back()->with('error', 'No valid rate slab data could be extracted from the file. Please check the sample template format.');
+        }
+
+        // Insert slabs in chunks of 500
+        foreach (array_chunk($slabs, 500) as $chunk) {
+            RateChartSlab::insert($chunk);
+        }
+
+        AuditLog::log("Imported Rate Chart {$chart->name} with " . count($slabs) . " rates from Excel/CSV", 'RateChart', $chart->id);
+
+        return redirect()->route('rates.index')->with('success', "Rate Chart '{$chart->name}' imported successfully with " . count($slabs) . " slab rates!");
+    }
+
+    /**
+     * Helper to read rows from CSV or XLSX files
+     */
+    private function parseRowsFromFile(\Illuminate\Http\UploadedFile $file): array
+    {
+        $ext = strtolower($file->getClientOriginalExtension());
+        if ($ext === 'xlsx') {
+            return $this->parseXlsxFile($file->getRealPath());
+        }
+
+        // CSV parsing
+        $rows = [];
+        if (($handle = fopen($file->getRealPath(), 'r')) !== false) {
+            while (($data = fgetcsv($handle, 3000, ',')) !== false) {
+                if (count($data) === 1 && str_contains($data[0], ';')) {
+                    $data = str_getcsv($data[0], ';');
+                } elseif (count($data) === 1 && str_contains($data[0], "\t")) {
+                    $data = str_getcsv($data[0], "\t");
+                }
+                $rows[] = array_map('trim', $data);
+            }
+            fclose($handle);
+        }
+        return $rows;
+    }
+
+    /**
+     * Pure PHP XLSX Parser using ZipArchive and SimpleXML
+     */
+    private function parseXlsxFile(string $filePath): array
+    {
+        $rows = [];
+        $zip = new \ZipArchive();
+        if ($zip->open($filePath) === true) {
+            // 1. Read shared strings
+            $sharedStrings = [];
+            $ssXml = $zip->getFromName('xl/sharedStrings.xml');
+            if ($ssXml) {
+                $xml = simplexml_load_string($ssXml);
+                if ($xml && isset($xml->si)) {
+                    foreach ($xml->si as $si) {
+                        $sharedStrings[] = (string) ($si->t ?? ($si->r ? $si->r->t : ''));
+                    }
+                }
+            }
+
+            // 2. Read first sheet
+            $sheetXml = $zip->getFromName('xl/worksheets/sheet1.xml');
+            if ($sheetXml) {
+                $xml = simplexml_load_string($sheetXml);
+                if ($xml && isset($xml->sheetData->row)) {
+                    foreach ($xml->sheetData->row as $r) {
+                        $row = [];
+                        foreach ($r->c as $c) {
+                            $type = (string) $c['t'];
+                            $val = (string) $c->v;
+                            if ($type === 's' && isset($sharedStrings[(int) $val])) {
+                                $val = $sharedStrings[(int) $val];
+                            }
+                            $row[] = trim($val);
+                        }
+                        $rows[] = $row;
+                    }
+                }
+            }
+            $zip->close();
+        }
+        return $rows;
+    }
+
     public function destroy(RateChart $rate)
     {
         $name = $rate->name;

@@ -6,6 +6,10 @@
 
 @section('header_action')
     <div class="flex items-center gap-2">
+        <button type="button" onclick="openImportModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold rounded-xl shadow-xs transition">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600"></i>
+            <span>Upload Excel / CSV</span>
+        </button>
         <button type="button" onclick="openRateCorrectionModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl shadow-xs transition">
             <i data-lucide="sliders-horizontal" class="w-4 h-4 text-emerald-600"></i>
             <span>Rate Correction</span>
@@ -754,7 +758,142 @@
     </div>
 </div>
 
+<!-- Upload Rate Chart (Excel / CSV) Modal -->
+<div id="importRateChartModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-xl w-full max-h-[92vh] overflow-hidden shadow-2xl border border-slate-100 flex flex-col">
+        <!-- Modal Header -->
+        <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                    <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900">Upload Rate Chart (Excel / CSV)</h3>
+                    <p class="text-xs text-slate-500">Upload rate matrix or table directly from Excel (.xlsx) or CSV file.</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeImportModal()" class="w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <!-- Modal Body Form -->
+        <form action="{{ route('rates.import') }}" method="POST" enctype="multipart/form-data" class="overflow-y-auto p-5 space-y-4">
+            @csrf
+
+            <!-- Template Download Helper Banner -->
+            <div class="p-3.5 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl flex items-center justify-between gap-3">
+                <div>
+                    <h5 class="text-xs font-bold text-emerald-950">Download Sample Format</h5>
+                    <p class="text-[11px] text-emerald-800">Use our pre-formatted matrix sheet or columnar format for instant import.</p>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <a href="{{ route('rates.sample-template', ['format' => 'matrix']) }}" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5" title="Download FAT x CLR/SNF matrix sheet">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                        <span>Matrix CSV</span>
+                    </a>
+                    <a href="{{ route('rates.sample-template', ['format' => 'columnar']) }}" class="px-3 py-1.5 bg-white hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold rounded-xl transition flex items-center gap-1.5" title="Download FAT, CLR, Rate list format">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                        <span>Table CSV</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Rate Chart Name -->
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Rate Chart Name <span class="text-rose-500">*</span></label>
+                <input type="text" name="name" required placeholder="e.g. Buffalo Special Rate 2026" class="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none font-medium text-slate-800">
+            </div>
+
+            <!-- Grid: Category & Milk Type -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Category <span class="text-rose-500">*</span></label>
+                    <select name="category" required class="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none font-medium">
+                        <option value="collection" selected>Collection (Procurement)</option>
+                        <option value="milk_sale">Milk Sale (Selling)</option>
+                        <option value="chilling_center">Chilling Center</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Milk Type <span class="text-rose-500">*</span></label>
+                    <select name="milk_type" required class="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none font-medium">
+                        <option value="cow">Cow (गाय)</option>
+                        <option value="buffalo" selected>Buffalo (भैंस)</option>
+                        <option value="mixed">Mixed (मिश्रित)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Format -->
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Format <span class="text-rose-500">*</span></label>
+                <select name="format" required class="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none font-medium">
+                    <option value="fat_clr" selected>FAT + CLR (Most common)</option>
+                    <option value="fat_snf">FAT + SNF</option>
+                    <option value="fat_only">FAT Only</option>
+                </select>
+            </div>
+
+            <!-- File Upload -->
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Select Excel (.xlsx) or CSV File <span class="text-rose-500">*</span></label>
+                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-200 border-dashed rounded-2xl hover:border-emerald-400 bg-slate-50/50 transition">
+                    <div class="space-y-1 text-center">
+                        <i data-lucide="upload-cloud" class="mx-auto h-8 w-8 text-slate-400"></i>
+                        <div class="flex text-xs text-slate-600 justify-center">
+                            <label for="rate_file_input" class="relative cursor-pointer bg-white rounded-md font-bold text-emerald-600 hover:text-emerald-500 focus-within:outline-none px-2 py-0.5 border border-slate-200 shadow-2xs">
+                                <span>Browse file</span>
+                                <input id="rate_file_input" name="file" type="file" accept=".xlsx,.xls,.csv,.txt" required class="sr-only" onchange="updateSelectedFileName(this)">
+                            </label>
+                            <p class="pl-1.5 self-center">or drag and drop</p>
+                        </div>
+                        <p class="text-[10px] text-slate-500" id="selected_file_name">Supports .XLSX, .XLS, .CSV (Max 15MB)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Set as Default Checkbox -->
+            <div class="flex items-center gap-2 pt-1">
+                <input type="checkbox" name="is_default" id="import_is_default" value="1" class="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4">
+                <label for="import_is_default" class="text-xs font-medium text-slate-700 cursor-pointer">
+                    Set as Default Rate Chart for this Milk Type & Category
+                </label>
+            </div>
+
+            <!-- Modal Footer Buttons -->
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button type="button" onclick="closeImportModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 transition">
+                    Cancel
+                </button>
+                <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    <span>Upload & Generate Chart</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
+    // Import Modal Controls
+    function openImportModal() {
+        document.getElementById('importRateChartModal').classList.remove('hidden');
+        if (window.lucide) { lucide.createIcons(); }
+    }
+
+    function closeImportModal() {
+        document.getElementById('importRateChartModal').classList.add('hidden');
+    }
+
+    function updateSelectedFileName(input) {
+        const display = document.getElementById('selected_file_name');
+        if (input.files && input.files[0]) {
+            display.textContent = 'Selected: ' + input.files[0].name + ' (' + (input.files[0].size / 1024).toFixed(1) + ' KB)';
+            display.classList.add('text-emerald-700', 'font-bold');
+        }
+    }
+
     // Rate Correction Modal Controls
     function openRateCorrectionModal() {
         document.getElementById('rateCorrectionModal').classList.remove('hidden');
@@ -1199,9 +1338,18 @@
         const rcModal = document.getElementById('rateCorrectionModal');
         const asModal = document.getElementById('assignModal');
         const afModal = document.getElementById('assignedFarmersModal');
+        const impModal = document.getElementById('importRateChartModal');
         if (e.target === rcModal) closeRateCorrectionModal();
         if (e.target === asModal) closeAssignModal();
         if (e.target === afModal) closeAssignedFarmersModal();
+        if (e.target === impModal) closeImportModal();
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (sessionStorage.getItem('openImportModal') === '1' || window.location.hash === '#upload') {
+            sessionStorage.removeItem('openImportModal');
+            openImportModal();
+        }
     });
 </script>
 @endsection
