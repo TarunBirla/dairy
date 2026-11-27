@@ -205,6 +205,14 @@
                                     <a href="{{ route('rates.edit', $rc) }}" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold rounded-lg transition shadow-xs">
                                         Edit
                                     </a>
+                                    @if(!$rc->is_default && $rc->status === 'active')
+                                        <form action="{{ route('rates.set-default', $rc) }}" method="POST" class="inline" onsubmit="return confirm('Set {{ addslashes($rc->name) }} as default rate chart for {{ ucfirst($rc->milk_type) }}?');">
+                                            @csrf
+                                            <button type="submit" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg transition shadow-xs" title="Make this rate chart default">
+                                                Make Default
+                                            </button>
+                                        </form>
+                                    @endif
                                     @if($rc->status === 'active')
                                         <button type="button" onclick="openAssignModal({{ $rc->id }}, '{{ addslashes($rc->name) }}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg transition shadow-xs">
                                             Assign

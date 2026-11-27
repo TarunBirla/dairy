@@ -88,6 +88,15 @@
                     <input type="text" name="name" id="field_name" required value="{{ old('name', $chart->name) }}" class="flex-1 px-3 py-2 border border-slate-200 rounded-lg bg-white focus:border-[#388e7e] outline-none font-medium text-slate-800">
                 </div>
 
+                <!-- Status -->
+                <div class="flex items-center justify-between text-xs font-medium">
+                    <label class="w-36 font-bold text-slate-700">Status :</label>
+                    <select name="status" id="field_status" class="flex-1 px-3 py-2 border border-slate-200 rounded-lg bg-white focus:border-[#388e7e] outline-none font-medium">
+                        <option value="active" {{ old('status', $chart->status ?? 'active') === 'active' ? 'selected' : '' }}>Active</option>
+                        <option value="inactive" {{ old('status', $chart->status ?? 'active') === 'inactive' ? 'selected' : '' }}>Inactive</option>
+                    </select>
+                </div>
+
                 <!-- Format -->
                 <div class="flex items-center justify-between text-xs font-medium">
                     <label class="w-36 font-bold text-slate-700">Format:</label>

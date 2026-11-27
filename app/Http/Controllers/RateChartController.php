@@ -188,7 +188,7 @@ class RateChartController extends Controller
             'max_snf' => 'nullable|numeric|min:0',
             'effective_date' => 'nullable|date',
             'is_default' => 'nullable|boolean',
-            'status' => 'required|in:active,inactive',
+            'status' => 'nullable|in:active,inactive',
             'fat_steps' => 'nullable',
             'snf_steps' => 'nullable',
             'fat_rules' => 'nullable',
@@ -196,6 +196,7 @@ class RateChartController extends Controller
         ]);
 
         $validated['category'] = $validated['category'] ?? $rate->category ?? 'collection';
+        $validated['status'] = $validated['status'] ?? $rate->status ?? 'active';
         $validated['format'] = $validated['format'] ?? $rate->format ?? 'fat_clr';
         $validated['type'] = $validated['type'] ?? $rate->type ?? 'rate_per_kg';
         $validated['calculation_type'] = $validated['calculation_type'] ?? ($validated['type'] === 'matrix_slab' ? 'matrix' : ($validated['format'] === 'fixed_rate' ? 'flat' : ($validated['type'] === 'rate_per_kg' ? 'rate_per_kg' : 'fat_snf_formula')));
@@ -224,6 +225,24 @@ class RateChartController extends Controller
         }
 
         return redirect()->route('rates.index')->with('success', 'Rate chart updated successfully.');
+    }
+
+    public function setDefault(RateChart $rate)
+    {
+        $category = $rate->category ?? 'collection';
+        RateChart::where('milk_type', $rate->milk_type)
+            ->where('category', $category)
+            ->where('id', '!=', $rate->id)
+            ->update(['is_default' => false]);
+
+        $rate->update(['is_default' => true]);
+        AuditLog::log('Set Default Rate Chart', 'RateChart', $rate->id);
+
+        if (request()->wantsJson() || request()->ajax()) {
+            return response()->json(['success' => true, 'message' => "Rate Chart '{$rate->name}' is now set as default."]);
+        }
+
+        return back()->with('success', "Rate Chart '{$rate->name}' is now set as default for " . ucfirst($rate->milk_type) . " milk.");
     }
 
     public function destroy(RateChart $rate)
