@@ -779,8 +779,9 @@
                         <span>Milk Dispatched</span>
                     </a>
                     <a href="{{ route('delivery.board') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('delivery.board') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
-                        <i data-lucide="clipboard-list" class="w-4 h-4 text-slate-400"></i>
-                        <span>Daily Delivery Board</span>
+                        <i data-lucide="clipboard-list" class="w-4 h-4 text-emerald-600"></i>
+                        <span>Delivery Entries</span>
+                        <span class="ml-auto text-[9px] px-1.5 py-0.2 bg-emerald-100 text-emerald-800 font-bold rounded">Live</span>
                     </a>
                     <a href="{{ route('delivery.boy-app') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg transition {{ request()->routeIs('delivery.boy-app') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                         <i data-lucide="bike" class="w-4 h-4 text-emerald-600"></i>

@@ -901,6 +901,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/cancel-range', [\App\Http\Controllers\CustomerVacationController::class, 'cancelRange'])->name('cancel-range');
     });
 
+    // Delivery shortcut
+    Route::get('/delivery', function () {
+        return redirect()->route('delivery.board');
+    });
+
     // Delivery & Route Operations
     Route::prefix('delivery')->name('delivery.')->group(function () {
         Route::get('/routes', [DeliveryController::class, 'routes'])->name('routes');
@@ -910,6 +915,17 @@ Route::middleware('auth')->group(function () {
         Route::post('/generate-schedule', [DeliveryController::class, 'generateSchedule'])->name('generate-schedule');
         Route::get('/boy-app', [DeliveryController::class, 'boyApp'])->name('boy-app');
         Route::post('/update-status/{delivery}', [DeliveryController::class, 'updateDeliveryStatus'])->name('update-status');
+
+        // Simple Dairy style live delivery operations
+        Route::post('/items/{delivery}/update', [DeliveryController::class, 'updateItem'])->name('items.update');
+        Route::post('/items/add', [DeliveryController::class, 'addItem'])->name('items.add');
+        Route::delete('/items/{delivery}', [DeliveryController::class, 'deleteItem'])->name('items.destroy');
+        Route::post('/quick-deliver/{delivery}', [DeliveryController::class, 'quickDeliver'])->name('quick-deliver');
+        Route::post('/deliver-customer/{customer}', [DeliveryController::class, 'deliverCustomer'])->name('deliver-customer');
+        Route::post('/undo-deliver/{customer}', [DeliveryController::class, 'undoDeliver'])->name('undo-deliver');
+        Route::post('/bulk-deliver', [DeliveryController::class, 'bulkDeliver'])->name('bulk-deliver');
+        Route::post('/receive-cash', [DeliveryController::class, 'receiveCash'])->name('receive-cash');
+        Route::post('/skip-customer/{customer}', [DeliveryController::class, 'skipCustomer'])->name('skip-customer');
     });
 
     // Products Catalogue & Stock
